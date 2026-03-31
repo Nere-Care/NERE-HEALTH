@@ -7,15 +7,15 @@ Mono-repo minimal pour projet :
 - BDD : PostgreSQL (docker-compose)
 
 Structure :
-- rontend/web  -> React (Vite)
-- rontend/mobile -> Flutter
-- ackend -> FastAPI
+- Frontend/web  -> React (Vite)
+- Frontend/mobile -> Flutter
+- Backend -> FastAPI
 - infra -> docker-compose pour Postgres + instructions
 
 Ce dépôt contient :
-- ackend/ : API FastAPI, configuration, base PostgreSQL
-- rontend/web/ : application React + Vite
-- rontend/mobile/ : application mobile Flutter
+- Backend/ : API FastAPI, configuration, base PostgreSQL
+- Frontend/web/ : application React + Vite
+- Frontend/mobile/ : application mobile Flutter
 - infra/ : orchestration Docker Compose
 - README_SETUP.md : guide complet d’installation
 - Documentations NERE/ : cahier des charges, modèles, diagrammes, scripts SQL
