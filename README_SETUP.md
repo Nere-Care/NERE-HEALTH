@@ -62,6 +62,19 @@ copy .env.example .env
 
 > En Docker, `DATABASE_URL` point vers `postgresql://nere_user:nere_pass@db:5432/nere_db`.
 
+5.1) Initialiser Alembic pour les migrations SQLAlchemy
+1. Depuis `backend/` :
+```powershell
+cd backend
+alembic -c alembic.ini revision --autogenerate -m "Initial migration"
+alembic -c alembic.ini upgrade head
+```
+2. Si tu veux exécuter une migration depuis la racine du projet :
+```powershell
+alembic -c backend/alembic.ini revision --autogenerate -m "Initial migration"
+alembic -c backend/alembic.ini upgrade head
+```
+
 ## 6) Installation et configuration frontend
 1. Aller dans le dossier frontend/web :
 ```powershell
