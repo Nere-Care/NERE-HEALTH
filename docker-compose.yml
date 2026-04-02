@@ -8,6 +8,7 @@ services:
       POSTGRES_DB: nere_db
     volumes:
       - db_data:/var/lib/postgresql/data
+      - "./Documentations NERE/nere_schema.sql:/docker-entrypoint-initdb.d/nere_schema.sql:ro"
     ports:
       - "5433:5432"
     healthcheck:
@@ -16,31 +17,44 @@ services:
       timeout: 5s
       retries: 5
 
+  db-init:
+    image: postgres:15
+    depends_on:
+      - db
+    environment:
+      POSTGRES_USER: nere_user
+      POSTGRES_PASSWORD: nere_pass
+      POSTGRES_DB: nere_db
+    volumes:
+      - "./scripts/db-init.sh:/scripts/db-init.sh:ro"
+      - "./Documentations NERE/nere_schema.sql:/scripts/nere_schema.sql:ro"
+    entrypoint: [ "sh", "/scripts/db-init.sh" ]
+    restart: on-failure
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       DATABASE_URL: postgresql://nere_user:nere_pass@db:5432/nere_db
       CORS_ORIGINS: "http://localhost:4173,http://localhost:5173"
       ENVIRONMENT: development
       API_PREFIX: /api
     ports:
-      - "8000:8000"
+      - "8100:8000"
 
   frontend:
     build:
       context: ./frontend/web
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8100
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      VITE_API_URL: http://backend:8000
     ports:
       - "4173:4173"
 
