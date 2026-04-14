@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from config import settings
 from db import get_db
+from config import settings
 
 router = APIRouter()
 
