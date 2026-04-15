@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     PrimaryKeyConstraint,
@@ -136,6 +137,9 @@ class Consultation(Base):
     __table_args__ = (
         UniqueConstraint("numero_consultation", name="uq_consultations_numero_consultation"),
         UniqueConstraint("rdv_id", name="uq_consultations_rdv_id"),
+        Index("ix_consultations_patient_id", "patient_id"),
+        Index("ix_consultations_medecin_id", "medecin_id"),
+        Index("ix_consultations_rdv_id", "rdv_id"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -170,6 +174,9 @@ class Ordonnance(Base):
     __table_args__ = (
         UniqueConstraint("numero", name="uq_ordonnances_numero"),
         UniqueConstraint("code_pharmacie", name="uq_ordonnances_code_pharmacie"),
+        Index("ix_ordonnances_consultation_id", "consultation_id"),
+        Index("ix_ordonnances_patient_id", "patient_id"),
+        Index("ix_ordonnances_medecin_id", "medecin_id"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -246,7 +253,12 @@ class OrdonnanceLigne(Base):
 
 class Paiement(Base):
     __tablename__ = "paiements"
-    __table_args__ = (UniqueConstraint("reference", name="uq_paiements_reference"),)
+    __table_args__ = (
+        UniqueConstraint("reference", name="uq_paiements_reference"),
+        Index("ix_paiements_rdv_id", "rdv_id"),
+        Index("ix_paiements_patient_id", "patient_id"),
+        Index("ix_paiements_medecin_id", "medecin_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     reference = Column(String(50), nullable=False, unique=True)
@@ -324,6 +336,7 @@ class DossierMedical(Base):
         UniqueConstraint("numero_dossier", name="uq_dossiers_medicaux_numero_dossier"),
         UniqueConstraint("patient_id", name="uq_dossiers_medicaux_patient_id"),
         UniqueConstraint("code_partage", name="uq_dossiers_medicaux_code_partage"),
+        Index("ix_dossiers_medicaux_medecin_traitant_id", "medecin_traitant_id"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -351,7 +364,13 @@ class DossierMedical(Base):
 
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
-    __table_args__ = (UniqueConstraint("numero_rdv", name="uq_rendez_vous_numero_rdv"),)
+    __table_args__ = (
+        UniqueConstraint("numero_rdv", name="uq_rendez_vous_numero_rdv"),
+        Index("ix_rendez_vous_patient_id", "patient_id"),
+        Index("ix_rendez_vous_medecin_id", "medecin_id"),
+        Index("ix_rendez_vous_structure_id", "structure_id"),
+        Index("ix_rendez_vous_date_heure_debut", "date_heure_debut"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     numero_rdv = Column(String(30), nullable=False, unique=True)
@@ -410,6 +429,10 @@ class RendezVous(Base):
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_utilisateur_id", "utilisateur_id"),
+        Index("ix_notifications_statut", "statut"),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type = Column(
@@ -458,6 +481,11 @@ class Notification(Base):
 
 class Avis(Base):
     __tablename__ = "avis"
+    __table_args__ = (
+        Index("ix_avis_patient_id", "patient_id"),
+        Index("ix_avis_medecin_id", "medecin_id"),
+        Index("ix_avis_rdv_id", "rdv_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
@@ -477,9 +505,15 @@ class Avis(Base):
 
 class ChatbotSession(Base):
     __tablename__ = "chatbot_sessions"
+    __table_args__ = (
+        Index("ix_chatbot_sessions_patient_id", "patient_id"),
+        Index("ix_chatbot_sessions_medecin_id", "medecin_id"),
+        Index("ix_chatbot_sessions_rdv_cree_id", "rdv_cree_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=True)
     messages = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     symptomes_detectes = Column(ARRAY(String), nullable=False, server_default=text("ARRAY[]::text[]"))
     specialite_suggeree = Column(String(100))
@@ -500,6 +534,11 @@ class ChatbotSession(Base):
 
 class Conversation(Base):
     __tablename__ = "conversations"
+    __table_args__ = (
+        Index("ix_conversations_patient_id", "patient_id"),
+        Index("ix_conversations_medecin_id", "medecin_id"),
+        Index("ix_conversations_rdv_id", "rdv_id"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)

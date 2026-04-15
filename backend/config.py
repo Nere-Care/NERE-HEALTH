@@ -22,6 +22,20 @@ def normalize_database_url(url: str) -> str:
     return normalized
 
 
+def normalize_api_prefix(prefix: str | None) -> str:
+    if not prefix:
+        return ''
+
+    prefix = prefix.strip()
+    if not prefix:
+        return ''
+
+    if not prefix.startswith('/'):
+        prefix = '/' + prefix
+
+    return prefix.rstrip('/')
+
+
 def parse_comma_list(value: str | None, default: str) -> list[str]:
     if value is None or value.strip() == '':
         value = default
@@ -32,18 +46,23 @@ def parse_comma_list(value: str | None, default: str) -> list[str]:
 
 
 class Settings:
-    DATABASE_URL: str = normalize_database_url(
-        os.getenv(
-            'DATABASE_URL',
-            'postgresql://nere_user:nere_pass@localhost:5434/nere_db'
-        )
+    DATABASE_URL_RAW: str = os.getenv(
+        'DATABASE_URL',
+        'postgresql://nere_user:nere_pass@localhost:5434/nere_db'
     )
+    DATABASE_URL: str = normalize_database_url(DATABASE_URL_RAW)
     CORS_ORIGINS = parse_comma_list(os.getenv('CORS_ORIGINS'), '*')
-    ENVIRONMENT: str = os.getenv('ENVIRONMENT', 'development')
+    ENVIRONMENT: str = os.getenv('ENVIRONMENT', 'development').strip().lower()
     DEBUG: bool = ENVIRONMENT == 'development'
-    API_PREFIX: str = os.getenv('API_PREFIX', '')
-    SECRET_KEY: str = os.getenv('SECRET_KEY', '')
-    ALLOWED_HOSTS = parse_comma_list(os.getenv('ALLOWED_HOSTS'), 'localhost,127.0.0.1')
+    API_PREFIX: str = normalize_api_prefix(os.getenv('API_PREFIX', ''))
+    SECRET_KEY: str = os.getenv('SECRET_KEY', '').strip()
+    ALLOWED_HOSTS = parse_comma_list(os.getenv('ALLOWED_HOSTS'), '')
+
+    if ENVIRONMENT not in ('development', 'staging', 'production'):
+        raise ValueError("ENVIRONMENT must be one of 'development', 'staging', or 'production'")
+
+    if not DATABASE_URL_RAW and not DEBUG:
+        raise ValueError('DATABASE_URL must be set in production')
 
     if not SECRET_KEY:
         if DEBUG:
@@ -56,6 +75,9 @@ class Settings:
 
     if CORS_ORIGINS == ['*'] and not DEBUG:
         raise ValueError('CORS_ORIGINS must be restricted in production')
+
+    if not ALLOWED_HOSTS and not DEBUG:
+        raise ValueError('ALLOWED_HOSTS must be set in production')
 
     if not ALLOWED_HOSTS:
         ALLOWED_HOSTS = ['localhost', '127.0.0.1']

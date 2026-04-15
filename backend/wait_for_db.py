@@ -11,7 +11,7 @@ def wait_for_db(timeout: int = 60, interval: int = 2) -> None:
     elapsed = 0
     while elapsed < timeout:
         try:
-            conn = psycopg2.connect(settings.DATABASE_URL, connect_timeout=5)
+            conn = psycopg2.connect(settings.DATABASE_URL_RAW, connect_timeout=5)
             conn.close()
             print('Database ready.')
             return
