@@ -39,8 +39,8 @@ class User(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    email = Column(String(255), nullable=False, unique=True)
-    telephone = Column(String(20), unique=True)
+    email = Column(String(255), nullable=False)
+    telephone = Column(String(20))
     mot_de_passe_hash = Column(String(255), nullable=False)
     role = Column(
         _enum_type(("patient", "medecin", "structure", "admin", "observateur"), "role_utilisateur"),
@@ -95,7 +95,7 @@ class Patient(Base):
     __table_args__ = (UniqueConstraint("numero_patient", name="uq_patients_numero_patient"),)
 
     id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero_patient = Column(String(25), nullable=False, unique=True)
+    numero_patient = Column(String(25), nullable=False)
     date_naissance = Column(Date)
     sexe = Column(
         _enum_type(("M", "F", "Autre", "Non_precise"), "sexe_enum"),
@@ -143,7 +143,7 @@ class Consultation(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero_consultation = Column(String(30), nullable=False, unique=True)
+    numero_consultation = Column(String(30), nullable=False)
     rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"), nullable=False)
     dossier_id = Column(UUID(as_uuid=True), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
@@ -180,7 +180,7 @@ class Ordonnance(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero = Column(String(30), nullable=False, unique=True)
+    numero = Column(String(30), nullable=False)
     consultation_id = Column(UUID(as_uuid=True), ForeignKey("consultations.id"), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
@@ -261,7 +261,7 @@ class Paiement(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    reference = Column(String(50), nullable=False, unique=True)
+    reference = Column(String(50), nullable=False)
     rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
@@ -340,7 +340,7 @@ class DossierMedical(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero_dossier = Column(String(30), nullable=False, unique=True)
+    numero_dossier = Column(String(30), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
     medecin_traitant_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"))
     antecedents_familiaux = Column(Text)
@@ -356,7 +356,7 @@ class DossierMedical(Base):
     glycemie_a_jeun = Column(Numeric(6, 2))
     vaccinations = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     traitements_chroniques = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
-    code_partage = Column(String(20), unique=True)
+    code_partage = Column(String(20))
     code_partage_expires = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -373,7 +373,7 @@ class RendezVous(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero_rdv = Column(String(30), nullable=False, unique=True)
+    numero_rdv = Column(String(30), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
     structure_id = Column(UUID(as_uuid=True), ForeignKey("structures.id"))

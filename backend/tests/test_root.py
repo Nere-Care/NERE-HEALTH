@@ -12,19 +12,17 @@ def test_root_route():
     assert "environment" in payload
 
 
-def test_tables_route():
-    response = client.get("/api/tables")
-    if response.status_code != 200:
-        pytest.skip("Database schema is not ready yet")
+def test_tables_route(admin_auth_header):
+    response = client.get("/api/tables", headers=admin_auth_header)
+    assert response.status_code == 200, response.text
     payload = response.json()
     assert "tables" in payload
     assert isinstance(payload["tables"], list)
 
 
-def test_users_table_access():
-    response = client.get("/api/tables/users")
-    if response.status_code != 200:
-        pytest.skip("Users table is not accessible yet")
+def test_users_table_access(admin_auth_header):
+    response = client.get("/api/tables/users", headers=admin_auth_header)
+    assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["table"] == "users"
     assert "rows" in payload
