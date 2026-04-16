@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from authlib.jose import JoseError, jwt
@@ -48,7 +48,7 @@ def validate_password(password: str) -> None:
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token for the given subject (user email)."""
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=60))
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=60))
     payload = {"sub": subject, "exp": int(expire.timestamp())}
     header = {"alg": "HS256", "typ": "JWT"}
     token = jwt.encode(header, payload, settings.SECRET_KEY)
