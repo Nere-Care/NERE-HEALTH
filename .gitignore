@@ -5,6 +5,9 @@ dist/
 __pycache__/
 *.pyc
 .vscode/
+backend/tmp*.py
+tmp_check_models.py
+.pytest_out.txt
 frontend/mobile/.dart_tool/
 frontend/mobile/build/
 frontend/mobile/.packages

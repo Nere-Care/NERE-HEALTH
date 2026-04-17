@@ -5,6 +5,7 @@ from sqlalchemy import insert, select
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 
+from auth import require_role
 from db import get_db
 from models import get_model, prepare_models
 
@@ -19,7 +20,7 @@ def _get_primary_key_column(model):
 
 
 @router.get("/tables", tags=["database"])
-async def list_tables():
+async def list_tables(current_user=Depends(require_role("admin"))):
     try:
         metadata = prepare_models().metadata
     except Exception as exc:
@@ -32,6 +33,7 @@ async def list_table_rows(
     table_name: str,
     limit: int = Query(20, gt=0, le=200),
     db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
 ):
     try:
         model = get_model(table_name)
@@ -48,7 +50,11 @@ async def list_table_rows(
 
 
 @router.get("/tables/{table_name}/count", tags=["database"])
-async def count_table_rows(table_name: str, db: Session = Depends(get_db)):
+async def count_table_rows(
+    table_name: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
     try:
         model = get_model(table_name)
     except NoSuchTableError as exc:
@@ -64,7 +70,12 @@ async def count_table_rows(table_name: str, db: Session = Depends(get_db)):
 
 
 @router.get("/tables/{table_name}/{pk}", tags=["database"])
-async def get_table_row(table_name: str, pk: str, db: Session = Depends(get_db)):
+async def get_table_row(
+    table_name: str,
+    pk: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
     try:
         model = get_model(table_name)
     except NoSuchTableError as exc:
@@ -86,6 +97,7 @@ async def create_table_row(
     table_name: str,
     values: Dict[str, Any],
     db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
 ):
     try:
         model = get_model(table_name)
