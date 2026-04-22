@@ -1,26 +1,19 @@
-import { useEffect, useState } from 'react'
-import { API_BASE_URL, fetchBackendStatus } from './services/api'
+import Sidebar from './components/sidebar';
+import Header from './components/header';
+import DossierPatient from './pages/dossierpatient';
 
-export default function App() {
-  const [backendStatus, setBackendStatus] = useState('en attente')
-
-  useEffect(() => {
-    fetchBackendStatus()
-      .then((data) => setBackendStatus(data?.message || 'réponse reçue'))
-      .catch(() => setBackendStatus('indisponible'))
-  }, [])
-
+function App() {
   return (
-    <div style={{ fontFamily: 'Arial', padding: 20 }}>
-      <h1>Nere App — React (Vite)</h1>
-      <p>Frontend prêt.</p>
-      <div style={{ marginTop: 16, padding: 16, border: '1px solid #ddd', borderRadius: 8 }}>
-        <p><strong>API backend :</strong> {API_BASE_URL}</p>
-        <p><strong>Statut backend :</strong> {backendStatus}</p>
+    <div className="flex-1 p-4 mt-14 bg-gray-50" style={{ display: "flex", minHeight: "100vh" }}>
+      <Sidebar />
+      <div style={{ marginLeft: "224px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <Header titre="Dossiers Patients" />
+        <main style={{ flex: 1, padding: "16px", backgroundColor: "#f9fafb", marginTop: "5px" }}>
+          <DossierPatient />
+        </main>
       </div>
-      <p style={{ marginTop: 20 }}>
-        Remplacez <code>VITE_API_URL</code> dans <code>frontend/web/.env</code> ou <code>frontend/web/.env.example</code> pour connecter le frontend.
-      </p>
     </div>
-  )
+  );
 }
+
+export default App;
