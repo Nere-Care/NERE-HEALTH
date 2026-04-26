@@ -1,23 +1,26 @@
-import { Routes, Route } from "react-router-dom";
-
-import Auth from "./pages/Auth/Auth";
-import DoctorDirectory from "./pages/doctor/doctorDirectory";
-import Appointment from "./pages/doctor/Appointment";
-import Message from "./pages/doctor/Message";
-import Patient from "./pages/doctor/Patient";
-import TeleConsultation from "./pages/doctor/TeleConsultation";
-import Payments from "./pages/doctor/Payments";
+import { useEffect, useState } from 'react'
+import { API_BASE_URL, fetchBackendStatus } from './services/api'
 
 export default function App() {
+  const [backendStatus, setBackendStatus] = useState('en attente')
+
+  useEffect(() => {
+    fetchBackendStatus()
+      .then((data) => setBackendStatus(data?.message || 'réponse reçue'))
+      .catch(() => setBackendStatus('indisponible'))
+  }, [])
+
   return (
-    <Routes>
-      <Route path="/" element={<Auth />} />
-      <Route path="/doctors" element={<DoctorDirectory />} />
-      <Route path="/appointments" element={<Appointment />} />
-      <Route path="/messages" element={<Message />} />
-      <Route path="/patients" element={<Patient />} />
-      <Route path="/teleconsultation" element={<TeleConsultation />} />
-      <Route path="/payments" element={<Payments />} />
-    </Routes>
-  );
+    <div style={{ fontFamily: 'Arial', padding: 20 }}>
+      <h1>Nere App — React (Vite)</h1>
+      <p>Frontend prêt.</p>
+      <div style={{ marginTop: 16, padding: 16, border: '1px solid #ddd', borderRadius: 8 }}>
+        <p><strong>API backend :</strong> {API_BASE_URL}</p>
+        <p><strong>Statut backend :</strong> {backendStatus}</p>
+      </div>
+      <p style={{ marginTop: 20 }}>
+        Remplacez <code>VITE_API_URL</code> dans <code>frontend/web/.env</code> ou <code>frontend/web/.env.example</code> pour connecter le frontend.
+      </p>
+    </div>
+  )
 }
