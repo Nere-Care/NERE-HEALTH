@@ -1,14 +1,30 @@
-import { Bell, Sun, Moon } from 'lucide-react';
+import { Bell, Sun, Moon, Globe } from 'lucide-react';
 
-export default function Header({ titre, darkMode, setDarkMode }) {
+export default function Header({ titre, darkMode, setDarkMode, langue, setLangue }) {
   return (
-    <div className="fixed top-0 left-56 right-0 z-40 flex items-center justify-between px-6 py-4 bg-white shadow-sm">
-      
+    <div className={`fixed top-0 left-0 right-0 lg:left-56 z-40 flex items-center justify-between px-6 py-4 shadow-sm
+      ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+
       {/* Titre */}
-      <h1 className="text-xl font-bold text-gray-800">{titre}</h1>
+      <h1 className={`text-xl font-bold lg:ml-0 ml-10 ${darkMode ? "text-white" : "text-gray-800"}`}>
+        {titre}
+      </h1>
 
       {/* Droite */}
       <div className="flex items-center gap-4">
+
+        {/* Bouton langue */}
+        <button
+          onClick={() => setLangue(langue === 'fr' ? 'en' : 'fr')}
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all
+            ${darkMode
+              ? "border-gray-600 text-gray-300 hover:bg-gray-700"
+              : "border-gray-200 text-gray-600 hover:bg-gray-100"
+            }`}
+        >
+          <Globe size={14} />
+          {langue === 'fr' ? 'EN' : 'FR'}
+        </button>
 
         {/* Bouton jour/nuit */}
         <button
@@ -27,7 +43,7 @@ export default function Header({ titre, darkMode, setDarkMode }) {
 
         {/* Cloche */}
         <div className="relative cursor-pointer">
-          <Bell size={22} className="text-gray-600" />
+          <Bell size={22} className={darkMode ? "text-gray-300" : "text-gray-600"} />
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
             3
           </span>
@@ -38,7 +54,9 @@ export default function Header({ titre, darkMode, setDarkMode }) {
           <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
             <span className="text-green-600 text-sm font-bold">M</span>
           </div>
-          <span className="text-sm font-medium text-gray-700">Mle agine</span>
+          <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+            Mle agine
+          </span>
         </div>
 
       </div>

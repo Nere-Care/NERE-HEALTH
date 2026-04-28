@@ -12,26 +12,31 @@ import StructuresSante from './pages/structuressante';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
+  const [langue, setLangue] = useState('fr');
 
   return (
     <BrowserRouter>
-      <div style={{ display: "flex", minHeight: "100vh" }}
-        className={darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}>
+      <div className={`flex min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+  
+        <Sidebar darkMode={darkMode} langue={langue} />
         
-        <Sidebar darkMode={darkMode} />
-        
-        <div style={{ marginLeft: "224px", flex: 1, display: "flex", flexDirection: "column" }}>
-          <Header darkMode={darkMode} setDarkMode={setDarkMode} />
-          <main style={{ flex: 1, padding: "16px", marginTop: "56px" }}>
+        <div className="flex flex-col flex-1 lg:ml-56">
+          <Header 
+            darkMode={darkMode} 
+            setDarkMode={setDarkMode}
+            langue={langue}
+            setLangue={setLangue}
+          />
+          <main className="flex-1 p-4 mt-14 overflow-x-hidden">
             <Routes>
               <Route path="/" element={<Annuaire />} />
               <Route path="/annuaire" element={<Annuaire />} />
               <Route path="/dossiers" element={<DossierPatient />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/aide" element={<Aide />} />
+              <Route path="/aide" element={<Aide  />} />
               <Route path="/parametres" element={<Parametres />} />
-              <Route path="/structures" element={<StructuresSante />} />
+              <Route path="/structures" element={<StructuresSante  />} />
             </Routes>
           </main>
         </div>
