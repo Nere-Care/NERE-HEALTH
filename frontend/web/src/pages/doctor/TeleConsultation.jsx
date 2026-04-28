@@ -10,24 +10,22 @@ import {
   Stethoscope,
 } from "lucide-react";
 
-export default function TeleConsultation() {
+export default function TeleConsultation({ darkMode }) {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8]">
-
-      {/* DASHBOARD OFFSET */}
-      <div className="ml-0 md:ml-[260px] pt-0 md:pt-[90px] p-3 sm:p-4 md:p-6">
+    <div className={`min-h-screen ${darkMode ? "bg-gray-950" : "bg-gray-50"}`}>
+      <div className="p-3 sm:p-4 md:p-6">
 
         {/* ================= HEADER ================= */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
 
           <div>
-            <h1 className="text-lg md:text-xl font-semibold text-[#2C3850]">
+            <h1 className="text-lg md:text-xl font-semibold text-[#3b82f6]">
               Teleconsultation Room
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500">
+            <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
               Real-time medical consultation session
             </p>
           </div>
@@ -83,32 +81,47 @@ export default function TeleConsultation() {
           </div>
 
           {/* ================= MEDICAL PANEL ================= */}
-          <div className="bg-white rounded-2xl p-4 sm:p-5 space-y-4 sm:space-y-5 shadow-sm h-auto lg:max-h-[70vh] lg:overflow-y-auto">
+          <div
+            className={`rounded-2xl p-4 sm:p-5 space-y-4 sm:space-y-5 shadow-sm h-auto lg:max-h-[70vh] lg:overflow-y-auto
+            ${darkMode ? "bg-gray-900 text-gray-200" : "bg-white text-gray-700"}`}
+          >
 
             {/* HEADER PANEL */}
-            <div className="flex items-center gap-2 font-semibold text-[#2C3850] text-sm sm:text-base">
+            <div className={`flex items-center gap-2 font-semibold text-sm sm:text-base
+              ${darkMode ? "text-white" : "text-[#2C3850]"}`}>
               <Stethoscope className="w-4 h-4" />
               Clinical Panel
             </div>
 
             {/* PATIENT CARD */}
-            <div className="p-3 bg-gray-50 rounded-xl text-sm space-y-1">
-              <div className="flex items-center gap-2 text-gray-600 text-xs sm:text-sm">
+            <div className={`p-3 rounded-xl text-sm space-y-1
+              ${darkMode ? "bg-gray-800" : "bg-gray-50"}`}>
+
+              <div className={`flex items-center gap-2 text-xs sm:text-sm
+                ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                 <User className="w-4 h-4" />
                 Patient
               </div>
 
-              <p className="font-medium">John Doe</p>
-              <p className="text-xs text-gray-500">ID: PT-2026-001</p>
+              <p className={`font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>
+                John Doe
+              </p>
+
+              <p className={darkMode ? "text-gray-400 text-xs" : "text-gray-500 text-xs"}>
+                ID: PT-2026-001
+              </p>
             </div>
 
             {/* NOTES */}
             <div className="space-y-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">
+              <label className={`text-xs sm:text-sm font-medium
+                ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 Clinical Notes
               </label>
+
               <textarea
-                className="w-full border p-2 sm:p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border p-2 sm:p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"}`}
                 rows={3}
                 placeholder="Write clinical observations..."
               />
@@ -116,22 +129,28 @@ export default function TeleConsultation() {
 
             {/* DIAGNOSIS */}
             <div className="space-y-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">
+              <label className={`text-xs sm:text-sm font-medium
+                ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 Diagnosis
               </label>
+
               <input
-                className="w-full border p-2 sm:p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border p-2 sm:p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"}`}
                 placeholder="Enter medical diagnosis..."
               />
             </div>
 
             {/* PRESCRIPTION */}
             <div className="space-y-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">
+              <label className={`text-xs sm:text-sm font-medium
+                ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 Prescription
               </label>
+
               <textarea
-                className="w-full border p-2 sm:p-3 rounded-xl text-sm"
+                className={`w-full border p-2 sm:p-3 rounded-xl text-sm
+                ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-300"}`}
                 rows={3}
                 placeholder="Drugs, dosage, duration..."
               />
@@ -144,7 +163,10 @@ export default function TeleConsultation() {
                 Save Consultation
               </button>
 
-              <button className="w-full border py-2 rounded-xl text-gray-600 hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm sm:text-base">
+              <button
+                className={`w-full border py-2 rounded-xl transition flex items-center justify-center gap-2 text-sm sm:text-base
+                ${darkMode ? "border-gray-700 text-gray-300 hover:bg-gray-800" : "text-gray-600 hover:bg-gray-50"}`}
+              >
                 <FileText className="w-4 h-4" />
                 Generate Report
               </button>

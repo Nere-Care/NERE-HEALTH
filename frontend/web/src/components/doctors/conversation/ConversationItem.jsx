@@ -4,13 +4,22 @@ export default function ConversationItem({
   chat,
   isSelected,
   onClick,
+  darkMode,
 }) {
   return (
     <div
       onClick={onClick}
       className={`
         flex gap-3 p-3 rounded-2xl cursor-pointer transition
-        ${isSelected ? "bg-white shadow" : "hover:bg-white/70"}
+        ${
+          isSelected
+            ? darkMode
+              ? "bg-gray-700 shadow"
+              : "bg-white shadow"
+            : darkMode
+            ? "hover:bg-gray-700"
+            : "hover:bg-white/70"
+        }
       `}
     >
       {/* AVATAR */}
@@ -30,7 +39,11 @@ export default function ConversationItem({
             {chat.name}
           </p>
 
-          <span className="text-[10px] md:text-[11px] text-gray-400 whitespace-nowrap">
+          <span
+            className={`text-[10px] md:text-[11px] whitespace-nowrap ${
+              darkMode ? "text-gray-400" : "text-gray-400"
+            }`}
+          >
             {chat.time}
           </span>
 
@@ -39,7 +52,11 @@ export default function ConversationItem({
         {/* ROLE + UNREAD */}
         <div className="flex justify-between items-center">
 
-          <p className="text-xs text-gray-500 truncate">
+          <p
+            className={`text-xs truncate ${
+              darkMode ? "text-gray-300" : "text-gray-500"
+            }`}
+          >
             {chat.role}
           </p>
 
@@ -52,7 +69,11 @@ export default function ConversationItem({
         </div>
 
         {/* LAST MESSAGE */}
-        <p className="text-xs md:text-sm text-gray-600 truncate">
+        <p
+          className={`text-xs md:text-sm truncate ${
+            darkMode ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
           {chat.lastMessage}
         </p>
 

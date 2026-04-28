@@ -1,3 +1,6 @@
+// ================================
+// DoctorDetails.jsx
+// ================================
 import {
   X,
   FileText,
@@ -12,12 +15,12 @@ export default function DoctorDetails({
   onClose,
   showMore,
   setShowMore,
+  darkMode,
 }) {
   if (!doctor) return null;
 
   return (
     <div className="w-full h-full relative">
-
       {/* CLOSE */}
       <button
         onClick={onClose}
@@ -34,24 +37,30 @@ export default function DoctorDetails({
       />
 
       {/* NAME */}
-      <h2 className="text-xl font-semibold mt-4">
+      <h2
+        className={`text-xl font-semibold mt-4 ${
+          darkMode ? "text-white" : "text-black"
+        }`}
+      >
         {doctor.name}
       </h2>
 
-      <p className="text-gray-500">
+      <p className={darkMode ? "text-gray-300" : "text-gray-500"}>
         {doctor.specialty}
       </p>
 
       {/* INFO */}
-      <div className="mt-4 space-y-3 text-gray-600 text-sm">
-
+      <div
+        className={`mt-4 space-y-3 text-sm ${
+          darkMode ? "text-gray-300" : "text-gray-600"
+        }`}
+      >
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 " />
           <span>{doctor.hospital}</span>
         </div>
 
         <div className="flex items-center justify-between gap-4">
-
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 " />
             <span>{doctor.city}</span>
@@ -61,25 +70,30 @@ export default function DoctorDetails({
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span>{doctor.rating}</span>
           </div>
-
         </div>
 
         <div className="flex items-center gap-2">
           <BriefcaseBusiness className="w-4 h-4 " />
           <span>{doctor.experience} years experience</span>
         </div>
-
       </div>
 
       {/* DESCRIPTION */}
       <div className="mt-5">
-
-        <div className="flex items-center gap-2 text-gray-700 font-semibold mb-2">
+        <div
+          className={`flex items-center gap-2 font-semibold mb-2 ${
+            darkMode ? "text-white" : "text-gray-700"
+          }`}
+        >
           <FileText className="w-4 h-4 " />
           <span>Description</span>
         </div>
 
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <p
+          className={`text-sm leading-relaxed ${
+            darkMode ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
           {showMore
             ? doctor.description
             : doctor.description?.slice(0, 120) + "..."}
@@ -93,14 +107,12 @@ export default function DoctorDetails({
             {showMore ? "See less" : "See more"}
           </button>
         )}
-
       </div>
 
       {/* ACTION */}
       <button className="w-full mt-6 bg-blue-500 text-white py-2 rounded-lg">
         Ask for opinion
       </button>
-
     </div>
   );
 }

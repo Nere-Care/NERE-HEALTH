@@ -5,7 +5,6 @@ import {
   History,
   Download,
   Info,
-  X,
 } from "lucide-react";
 
 import SearchBar from "../../components/common/SearchBar";
@@ -20,9 +19,9 @@ import PatientHistory from "../../components/doctors/patient/PatientHistory";
 import PatientInfo from "../../components/doctors/patient/PatientInfo";
 import NewConsultationForm from "../../components/doctors/consultation/NewConsultationForm";
 
-import PatientConsultationDetails from "../../components/doctors/patient/PatientConsultationDetails"
+import PatientConsultationDetails from "../../components/doctors/patient/PatientConsultationDetails";
 
-export default function Patients() {
+export default function Patients({ darkMode }) {
   const [activeTab, setActiveTab] = useState("All");
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patientTab, setPatientTab] = useState("Consultation");
@@ -31,9 +30,10 @@ export default function Patients() {
   const [consultationSearch, setConsultationSearch] = useState("");
 
   const [selectedConsultation, setSelectedConsultation] = useState(null);
+  const [isNewConsultation, setIsNewConsultation] = useState(false);
 
   /* ===============================
-     SAFE FILTER PATIENTS
+     FILTER PATIENTS
   =============================== */
   const filteredPatients = patients.filter((patient) => {
     const keyword = search?.toLowerCase() || "";
@@ -43,19 +43,14 @@ export default function Patients() {
 
     const matches = name.includes(keyword) || id.includes(keyword);
 
-    if (activeTab === "Male") {
-      return matches && patient?.gender === "Male";
-    }
-
-    if (activeTab === "Female") {
-      return matches && patient?.gender === "Female";
-    }
+    if (activeTab === "Male") return matches && patient?.gender === "Male";
+    if (activeTab === "Female") return matches && patient?.gender === "Female";
 
     return matches;
   });
 
   /* ===============================
-     SAFE FILTER CONSULTATIONS
+     FILTER CONSULTATIONS
   =============================== */
   const filteredConsultations =
     (selectedPatient?.consultations ?? []).filter((item) => {
@@ -72,62 +67,65 @@ export default function Patients() {
       );
     });
 
+  /* ===============================
+     TAB STYLE (darkMode like Sidebar)
+  =============================== */
   const tabClass = (tab) =>
-    `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+    `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap
+    ${
       activeTab === tab
         ? "bg-blue-600 text-white"
+        : darkMode
+        ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
     }`;
 
   const patientTabClass = (tab) =>
-    `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
+    `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap
+    ${
       patientTab === tab
         ? "bg-blue-600 text-white"
+        : darkMode
+        ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
     }`;
 
   const consultations = selectedPatient?.consultations || [];
 
-  const totalConsultations = consultations.length;
-
-  const totalPrescriptions = consultations.reduce(
-    (acc, c) => acc + (c.prescriptions?.length || 0),
-    0
-  );
-
-  const totalLabResults = consultations.reduce(
-    (acc, c) => acc + (c.labResults?.length || 0),
-    0
-  );
-
-  const lastConsultation =
-    consultations.length > 0
-      ? consultations[0]
-      : null;
-
-  const [isNewConsultation, setIsNewConsultation] = useState(false);
-
   return (
-    <div className="min-h-screen bg-[#F8F8F8] p-3 sm:p-4 md:p-8">
-      <div className="ml-0 md:ml-[260px] pt-0 md:pt-[90px]">
-        <div className="bg-white rounded-2xl shadow-sm p-3 sm:p-4 md:p-6">
+    <div className="min-h-screen">
+      <div className="p-3 sm:p-4 md:p-6">
+
+        {/* MAIN CARD */}
+        <div
+          className={`rounded-2xl shadow-sm p-3 sm:p-4 md:p-6
+          ${darkMode ? "bg-gray-900" : "bg-white"}`}
+        >
 
           {/* HEADER */}
           {!selectedPatient && (
             <>
               <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
                 <div>
-                  <h1 className="text-lg sm:text-xl font-semibold text-[#2C3850]">
+                  <h1 className="text-lg sm:text-xl font-semibold text-[#3b82f6]">
                     Patients
                   </h1>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
+
+                  <p
+                    className={`text-xs sm:text-sm mt-1
+                    ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
                     Manage your patients and consultation history.
                   </p>
                 </div>
               </div>
 
-              <div className="h-[1px] bg-gray-200 my-6"></div>
+              <div
+                className={`h-[1px] my-6
+                ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}
+              />
 
+              {/* TABS */}
               <div className="flex gap-3 overflow-x-auto pb-1 mb-6">
                 {["All", "Male", "Female"].map((tab) => (
                   <button
@@ -140,13 +138,21 @@ export default function Patients() {
                 ))}
               </div>
 
+              {/* TOOLBAR */}
               <div className="flex flex-col xl:flex-row xl:justify-between gap-4">
+
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center
+                    ${darkMode ? "bg-green-900" : "bg-green-100"}`}
+                  >
                     <Users className="w-4 h-4 text-[#27772B]" />
                   </div>
 
-                  <span className="font-medium text-gray-700">
+                  <span
+                    className={`font-medium
+                    ${darkMode ? "text-gray-200" : "text-gray-700"}`}
+                  >
                     All Patients
                   </span>
                 </div>
@@ -161,11 +167,13 @@ export default function Patients() {
                 </div>
               </div>
 
+              {/* LIST */}
               <div className="mt-6 space-y-4">
                 {filteredPatients.map((patient) => (
                   <PatientListCard
                     key={patient.id}
                     patient={patient}
+                    darkMode={darkMode}
                     onClick={() => {
                       setSelectedPatient(patient);
                       setPatientTab("Consultation");
@@ -183,18 +191,19 @@ export default function Patients() {
             <>
               <button
                 onClick={() => {
-  setSelectedPatient(null);
-  setSearch("");
-  setConsultationSearch("");
-  setSelectedConsultation(null);
-  setIsNewConsultation(false);
-}}
+                  setSelectedPatient(null);
+                  setSearch("");
+                  setConsultationSearch("");
+                  setSelectedConsultation(null);
+                  setIsNewConsultation(false);
+                }}
                 className="text-sm text-blue-600 font-medium mb-5"
               >
                 ← Back to patients
               </button>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
                 <div className="flex items-center gap-3">
                   <img
                     src={selectedPatient?.image}
@@ -202,48 +211,56 @@ export default function Patients() {
                   />
 
                   <div>
-                    <h2 className="font-semibold">
+                    <h2
+                      className={`font-semibold
+                      ${darkMode ? "text-white" : ""}`}
+                    >
                       {selectedPatient?.name}
                     </h2>
 
-                    <p className="text-sm text-gray-500">
+                    <p
+                      className={`text-sm
+                      ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
                       {selectedPatient?.patientId}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-  
-  <button className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-green-700 transition w-full sm:w-auto">
-    <Download className="w-4 h-4" />
-    Medical File
-  </button>
 
-            <button
-  onClick={() => setIsNewConsultation(true)}
-  className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm w-full sm:w-auto"
->
-  + New Consultation
-</button>
+                  <button className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-xl text-sm">
+                    <Download className="w-4 h-4" />
+                    Medical File
+                  </button>
 
-</div>
+                  <button
+                    onClick={() => setIsNewConsultation(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm"
+                  >
+                    + New Consultation
+                  </button>
 
-            
+                </div>
               </div>
 
-              
-  {isNewConsultation && (
-  <NewConsultationForm
-    selectedPatient={selectedPatient}
-    setIsNewConsultation={setIsNewConsultation}
-  />
-)}
+              {/* FORM */}
+              {isNewConsultation && (
+                <NewConsultationForm
+                  selectedPatient={selectedPatient}
+                  setIsNewConsultation={setIsNewConsultation}
+                />
+              )}
 
-              <div className="h-[1px] bg-gray-200 my-6"></div>
+              <div
+                className={`h-[1px] my-6
+                ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}
+              />
 
-              <div className="flex flex-col md:flex-row md:justify-between gap-4 flex-wrap">
+              {/* SUB TABS */}
+              <div className="flex flex-col md:flex-row md:justify-between gap-4">
 
-                <div className="flex gap-3 mb-6 flex-wrap">
+                <div className="flex gap-3 flex-wrap ">
                   <button
                     onClick={() => setPatientTab("Consultation")}
                     className={patientTabClass("Consultation")}
@@ -269,59 +286,57 @@ export default function Patients() {
                   </button>
                 </div>
 
-                <div className="mb-5 w-full md:w-auto">
-                  <SearchBar
-                    placeholder="Search consultation..."
-                    value={consultationSearch}
-                    onChange={(e) =>
-                      setConsultationSearch(e.target.value)
-                    }
-                  />
-                </div>
+                <SearchBar
+                  placeholder="Search consultation..."
+                  value={consultationSearch}
+                  onChange={(e) => setConsultationSearch(e.target.value)}
+                />
               </div>
 
-              {/* CONSULTATION */}
+              {/* CONSULTATIONS */}
               {patientTab === "Consultation" && (
-                <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex flex-col mt-6 md:flex-row gap-4 items-start">
 
-                  {/* LEFT */}
                   <div className="flex-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+
                       {filteredConsultations.length > 0 ? (
                         filteredConsultations.map((consultation) => (
                           <div
                             key={consultation.id}
-                            onClick={() => {
-                              console.log("CONSULTATION CLIQUEE:", consultation);
+                            onClick={() =>
                               setSelectedConsultation({
                                 ...consultation,
                                 prescriptions: consultation.prescriptions || [],
                                 labResults: consultation.labResults || [],
-                              });
-                            }}
+                              })
+                            }
                             className="cursor-pointer"
                           >
                             <PatientConsultationCard
                               consultation={consultation}
+                              darkMode={darkMode}
                             />
                           </div>
                         ))
                       ) : (
-                        <div className="col-span-full">
-                          <p className="text-gray-500 text-sm">
-                            No consultations found.
-                          </p>
-                        </div>
+                        <p
+                          className={`text-sm col-span-full
+                          ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                        >
+                          No consultations found.
+                        </p>
                       )}
+
                     </div>
                   </div>
 
-                  {/* RIGHT (RESPONSIVE FIX) */}
                   {selectedConsultation && (
                     <div className="w-full md:w-[380px]">
                       <PatientConsultationDetails
                         consultation={selectedConsultation}
                         onClose={() => setSelectedConsultation(null)}
+                        darkMode={darkMode}
                       />
                     </div>
                   )}
@@ -329,20 +344,22 @@ export default function Patients() {
                 </div>
               )}
 
-              {/* HISTORIQUE */}
-{patientTab === "Historique" && (
- <PatientHistory
-  selectedPatient={selectedPatient}
-  consultations={selectedPatient?.consultations || []}
-/>
-)}
+              {/* HISTORY */}
+              {patientTab === "Historique" && (
+                <PatientHistory
+                  selectedPatient={selectedPatient}
+                  consultations={consultations}
+                  darkMode={darkMode}
+                />
+              )}
 
-              {/* INFORMATION */}
-{patientTab === "Information" && (
-  <PatientInfo
-  selectedPatient={selectedPatient}
-/>
-)}
+              {/* INFO */}
+              {patientTab === "Information" && (
+                <PatientInfo
+                  selectedPatient={selectedPatient}
+                  darkMode={darkMode}
+                />
+              )}
 
             </>
           )}

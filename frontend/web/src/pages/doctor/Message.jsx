@@ -15,7 +15,7 @@ import {
 import { conversations } from "../../constants/doctors/conversationsData";
 import ConversationItem from "../../components/doctors/conversation/ConversationItem";
 
-export default function Messages() {
+export default function Messages({ darkMode }) {
   const [selectedChat, setSelectedChat] = useState(0);
   const [message, setMessage] = useState("");
   const [showFiles, setShowFiles] = useState(false);
@@ -30,32 +30,52 @@ export default function Messages() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] p-3 md:p-6">
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        darkMode ? "bg-gray-900 text-white" : "bg-white text-black"
+      }`}
+    >
+      <div className="p-3 sm:p-4 md:p-6">
 
-      {/* MAIN CONTAINER */}
-      <div className="md:ml-[260px] pt-[70px] md:pt-[90px]">
-
-        <div className="
-          h-[100vh] md:h-[85vh]
-          flex bg-white md:rounded-3xl shadow-xl overflow-hidden relative
-        ">
+        <div
+          className={`
+            h-[100vh] md:h-[85vh]
+            flex overflow-hidden relative rounded-2xl md:rounded-3xl shadow-xl
+            transition-colors duration-300
+            ${darkMode ? "bg-gray-800" : "bg-white"}
+          `}
+        >
 
           {/* ================= LEFT SIDEBAR ================= */}
-          <div className={`
-            w-full md:w-[360px]
-            bg-[#F7F9FC]
-            flex flex-col border-r border-gray-300
-            ${selectedChat !== null ? "hidden md:flex" : "flex"}
-          `}>
+          <div
+            className={`
+              w-full md:w-[360px]
+              flex flex-col border-r
+              ${darkMode ? "bg-gray-900 border-gray-700" : "bg-[#F7F9FC] border-gray-300"}
+              ${selectedChat !== null ? "hidden md:flex" : "flex"}
+            `}
+          >
 
             {/* HEADER SEARCH */}
-            <div className="p-4 md:p-5 bg-white">
-              <h1 className="text-lg md:text-xl font-semibold">
+            <div
+              className={`p-4 md:p-5 ${
+                darkMode ? "bg-gray-800" : "bg-white"
+              }`}
+            >
+              <h1 className="text-lg md:text-xl font-semibold text-[#3b82f6]">
                 Chats
               </h1>
 
-              <div className="mt-3 flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2">
-                <Search className="w-4 h-4 text-gray-400" />
+              <div
+                className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 ${
+                  darkMode ? "bg-gray-700" : "bg-gray-100"
+                }`}
+              >
+                <Search
+                  className={`w-4 h-4 ${
+                    darkMode ? "text-gray-300" : "text-gray-400"
+                  }`}
+                />
                 <input
                   placeholder="Search..."
                   className="w-full bg-transparent outline-none text-sm"
@@ -71,33 +91,49 @@ export default function Messages() {
                   chat={chat}
                   isSelected={selectedChat === i}
                   onClick={() => setSelectedChat(i)}
+                  darkMode={darkMode}
                 />
               ))}
             </div>
 
             {/* FOOTER */}
-            <div className="p-3 md:p-4 text-center text-green-600 text-xs border-t bg-white">
+            <div
+              className={`p-3 md:p-4 text-center text-xs border-t ${
+                darkMode
+                  ? "bg-gray-800 border-gray-700 text-green-400"
+                  : "bg-white border-gray-200 text-green-600"
+              }`}
+            >
               <Lock className="w-4 h-4 inline mr-1" />
               End-to-end encrypted
             </div>
           </div>
 
           {/* ================= CHAT AREA ================= */}
-          <div className={`
-            flex-1 flex flex-col bg-[#F9FAFB]
-            ${selectedChat === null ? "hidden md:flex" : "flex"}
-          `}>
+          <div
+            className={`
+              flex-1 flex flex-col
+              ${darkMode ? "bg-gray-900" : "bg-[#F9FAFB]"}
+              ${selectedChat === null ? "hidden md:flex" : "flex"}
+            `}
+          >
 
             {/* HEADER */}
             <div
-              className="px-4 md:px-6 py-3 md:py-4 bg-white border-b border-gray-300 flex justify-between items-center"
+              className={`px-4 md:px-6 py-3 md:py-4 border-b flex justify-between items-center cursor-pointer ${
+                darkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-300"
+              }`}
               onClick={() => setShowFiles(true)}
             >
               <div className="flex items-center gap-3">
 
                 {/* BACK BUTTON MOBILE */}
                 <button
-                  className="md:hidden text-gray-600 text-xl"
+                  className={`md:hidden text-xl ${
+                    darkMode ? "text-gray-300" : "text-gray-600"
+                  }`}
                   onClick={() => setSelectedChat(null)}
                 >
                   ←
@@ -105,20 +141,28 @@ export default function Messages() {
 
                 <img
                   src={current.avatar}
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full"
+                  className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover"
                 />
 
                 <div>
                   <p className="font-semibold text-sm md:text-base">
                     {current.name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p
+                    className={`text-xs ${
+                      darkMode ? "text-gray-400" : "text-gray-500"
+                    }`}
+                  >
                     {current.role}
                   </p>
                 </div>
               </div>
 
-              <MoreVertical className="w-5 h-5 text-gray-500" />
+              <MoreVertical
+                className={`w-5 h-5 ${
+                  darkMode ? "text-gray-300" : "text-gray-500"
+                }`}
+              />
             </div>
 
             {/* MESSAGES */}
@@ -127,13 +171,21 @@ export default function Messages() {
               {current.messages.map((msg, i) => (
                 <div
                   key={i}
-                  className={`flex ${msg.fromMe ? "justify-end" : "justify-start"}`}
+                  className={`flex ${
+                    msg.fromMe ? "justify-end" : "justify-start"
+                  }`}
                 >
                   <div
                     className={`
                       px-3 md:px-4 py-2 rounded-2xl text-sm
                       max-w-[85%] md:max-w-[70%]
-                      ${msg.fromMe ? "bg-blue-600 text-white" : "bg-white"}
+                      ${
+                        msg.fromMe
+                          ? "bg-blue-600 text-white"
+                          : darkMode
+                          ? "bg-gray-700 text-white"
+                          : "bg-white text-black"
+                      }
                     `}
                   >
                     <p>{msg.text}</p>
@@ -160,10 +212,17 @@ export default function Messages() {
                   </div>
                 </div>
               ))}
+
             </div>
 
             {/* INPUT */}
-            <div className="p-3 md:p-4 bg-white border-t border-gray-300 flex items-center gap-2 sticky bottom-0">
+            <div
+              className={`p-3 md:p-4 border-t flex items-center gap-2 sticky bottom-0 ${
+                darkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-300"
+              }`}
+            >
 
               <Smile className="w-5 h-5 text-gray-500" />
               <Paperclip className="w-5 h-5 text-gray-500" />
@@ -172,7 +231,11 @@ export default function Messages() {
               <input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="flex-1 bg-gray-100 px-3 py-2 rounded-xl outline-none text-sm"
+                className={`flex-1 px-3 py-2 rounded-xl outline-none text-sm ${
+                  darkMode
+                    ? "bg-gray-700 text-white"
+                    : "bg-gray-100 text-black"
+                }`}
                 placeholder="Write message..."
               />
 
@@ -184,11 +247,13 @@ export default function Messages() {
 
           {/* ================= FILE PANEL ================= */}
           {showFiles && (
-            <div className="
-              absolute right-0 top-0 h-full
-              w-full md:w-[320px]
-              bg-white shadow-2xl border-l p-5
-            ">
+            <div
+              className={`absolute right-0 top-0 h-full w-full md:w-[320px] shadow-2xl border-l p-5 ${
+                darkMode
+                  ? "bg-gray-800 border-gray-700"
+                  : "bg-white border-gray-200"
+              }`}
+            >
 
               <div className="flex justify-between mb-4">
                 <h2 className="font-semibold">Shared files</h2>
@@ -202,7 +267,9 @@ export default function Messages() {
                 {current.files?.map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
+                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer ${
+                      darkMode ? "bg-gray-700" : "bg-gray-50"
+                    }`}
                     onClick={() => setPreviewFile(f)}
                   >
                     <div className="flex items-center gap-3">
@@ -218,9 +285,9 @@ export default function Messages() {
                   </div>
                 ))}
               </div>
+
             </div>
           )}
-
         </div>
       </div>
 
@@ -228,7 +295,11 @@ export default function Messages() {
       {previewFile && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
 
-          <div className="bg-white w-[95%] md:w-[500px] rounded-xl p-4 relative">
+          <div
+            className={`w-[95%] md:w-[500px] rounded-xl p-4 relative ${
+              darkMode ? "bg-gray-800 text-white" : "bg-white text-black"
+            }`}
+          >
 
             <X
               className="absolute top-3 right-3 cursor-pointer"
@@ -255,10 +326,8 @@ export default function Messages() {
             )}
 
           </div>
-
         </div>
       )}
-
     </div>
   );
 }
