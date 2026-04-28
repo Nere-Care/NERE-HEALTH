@@ -5,12 +5,16 @@ import {
   MapPin,
   PhoneCall,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import TeleConsultation from "../../../pages/doctor/TeleConsultation";
 
 export default function AppointmentListCard({
   item,
   getStatusStyle,
   darkMode,
+  onReschedule,
 }) {
+  const navigate = useNavigate();
   return (
     <div
       className={`border rounded-2xl p-4 transition-colors duration-300 ${
@@ -98,6 +102,7 @@ export default function AppointmentListCard({
                 ? "border-green-500 text-green-400 hover:bg-gray-700"
                 : "border-green-600 text-green-600 hover:bg-green-50"
             }`}
+            onClick={() => onReschedule(item)}
           >
             Reschedule
           </button>
@@ -109,6 +114,7 @@ export default function AppointmentListCard({
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-green-600 hover:bg-green-700"
               }`}
+              onClick={() => navigate("/Teleconsultation")}
             >
               <PhoneCall className="w-4 h-4" />
               Join
@@ -201,6 +207,7 @@ export default function AppointmentListCard({
                 ? "border-green-500 text-green-400 hover:bg-gray-700"
                 : "border-green-600 text-green-600 hover:bg-green-50"
             }`}
+            onClick={() => onReschedule(item)}
           >
             Reschedule
           </button>
@@ -212,6 +219,7 @@ export default function AppointmentListCard({
                   ? "bg-green-500 hover:bg-green-600"
                   : "bg-green-600 hover:bg-green-700"
               }`}
+              onClick={() => navigate("/teleconsultation")}
             >
               <PhoneCall className="w-4 h-4" />
               Join

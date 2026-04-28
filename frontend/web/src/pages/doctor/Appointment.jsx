@@ -13,14 +13,29 @@ import SearchBar from "../../components/common/SearchBar";
 import FilterButton from "../../components/common/FilterButton";
 import AppointmentListCard from "../../components/doctors/appointment/AppointmentListCard";
 import AppointmentCalendarDayCard from "../../components/doctors/appointment/AppointmentCalendarDayCard";
+import NewAppointmentForm from "../../components/doctors/appointment/NewAppointmentForm";
+import RescheduleForm from "../../components/doctors/appointment/ResheduleForm";
 
 import { appointments } from "../../constants/doctors/appointmentsData";
 
 export default function Appointment({ darkMode }) {
+  const [openForm, setOpenForm] = useState(false);
   const [activeTab, setActiveTab] = useState("Upcoming  ");
   const [view, setView] = useState("list");
-
+  const [search, setSearch] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [openReschedule, setOpenReschedule] = useState(false);
+
+
+const handleReschedule = (item) => {
+  setSelectedAppointment(item);
+  setOpenReschedule(true);
+};
+
+const handleSaveReschedule = (id, newDate, newTime) => {
+  console.log("Update :", id, newDate, newTime);
+};
 
 const getStatusStyle = (status, darkMode) => {
   switch (status) {
@@ -47,10 +62,11 @@ const getStatusStyle = (status, darkMode) => {
 };
 
   const filteredAppointments = appointments.filter((item) => {
-    if (activeTab === "Uncoming") return item.category === "upcoming";
+    if (activeTab === "Upcoming") return item.category === "upcoming";
     if (activeTab === "Past") return item.category === "past";
     return true;
   });
+
 
   const tabClass = (tab) =>
     `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
@@ -126,8 +142,11 @@ const getStatusStyle = (status, darkMode) => {
               </p>
             </div>
 
-            <button className="bg-[#3B82F6] text-white px-4 sm:px-5 py-2 sm:py-3 rounded-xl text-sm w-full sm:w-auto hover:bg-blue-700 transition">
-              + Create new appointment
+            <button
+              onClick={() => setOpenForm(true)}
+              className="bg-[#3B82F6] text-white px-4 sm:px-5 py-2 sm:py-3 rounded-xl text-sm w-full sm:w-auto hover:bg-blue-700 transition"
+            >
+               + Create new appointment
             </button>
           </div>
 
@@ -164,7 +183,11 @@ const getStatusStyle = (status, darkMode) => {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
-              <SearchBar placeholder="Search appointment..." />
+              <SearchBar
+                  placeholder="Search patient..."
+                  value={search}
+                   onChange={(e) => setSearch(e.target.value)}
+              />
               <FilterButton />
 
               <div className="flex items-center gap-2 overflow-x-auto">
@@ -194,6 +217,7 @@ const getStatusStyle = (status, darkMode) => {
                     item={item}
                     getStatusStyle={getStatusStyle}
                     darkMode={darkMode}
+                    onReschedule={handleReschedule}
                   />
                 ))}
               </div>
@@ -273,6 +297,18 @@ const getStatusStyle = (status, darkMode) => {
 
         </div>
       </div>
+      <NewAppointmentForm
+          open={openForm}
+          onClose={() => setOpenForm(false)}
+          darkMode={darkMode}
+      />
+      <RescheduleForm
+          open={openReschedule}
+          onClose={() => setOpenReschedule(false)}
+          selectedAppointment={selectedAppointment}
+          darkMode={darkMode}
+          onSave={handleSaveReschedule}
+      />
     </div>
   );
 }

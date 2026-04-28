@@ -1,7 +1,10 @@
+
 import { Bell, Sun, Moon } from "lucide-react";
 
-export default function Header({ titre, darkMode, setDarkMode }) {
+
+export default function Header({ titre, darkMode, setDarkMode, langue, setLangue }) {
   return (
+
     <div
       className={`
         fixed top-14 md:top-0 left-0 md:left-56 right-0 z-40
@@ -12,15 +15,18 @@ export default function Header({ titre, darkMode, setDarkMode }) {
       `}
     >
 
+
       {/* ================= TITLE ================= */}
       <h1 className="text-base sm:text-lg md:text-xl font-bold truncate">
         {titre}
       </h1>
 
+
       {/* ================= RIGHT SECTION ================= */}
       <div className="flex items-center gap-3 sm:gap-4">
 
         {/* ================= DARK MODE TOGGLE ================= */}
+
         <button
           onClick={() => setDarkMode(!darkMode)}
           className={`
@@ -45,11 +51,13 @@ export default function Header({ titre, darkMode, setDarkMode }) {
 
         {/* ================= NOTIFICATIONS ================= */}
         <div className="relative cursor-pointer">
+
           <Bell
             size={20}
             className={darkMode ? "text-gray-300" : "text-gray-600"}
           />
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
+
             3
           </span>
         </div>
@@ -73,6 +81,7 @@ export default function Header({ titre, darkMode, setDarkMode }) {
           >
             Mle agine
           </span>
+
 
         </div>
 

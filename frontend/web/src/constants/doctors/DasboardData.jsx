@@ -13,7 +13,7 @@ export const stats = [
   },
   {
     title: "Revenue",
-    value: "245K XAF",
+    value: "245000 FCFA",
     growth: "+15%",
     color: "bg-purple-500",
   },

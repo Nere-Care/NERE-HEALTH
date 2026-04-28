@@ -37,14 +37,21 @@ import Payments from "./pages/doctor/Payments";
 import ObserverDashboard from "./pages/observer/Dashboard";
 
 
-import Dashboard from "./pages/observer/Dashboard";
+import Dashboard from "./pages/doctor/Dashboard";
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
+  const [langue, setLangue] = useState('fr');
+
   
 
   return (
     <BrowserRouter>
+
+  
+
+
+
 
       <Routes>
 
@@ -59,10 +66,10 @@ function App() {
             className={`flex min-h-screen transition-colors duration-300
             ${darkMode ? "bg-gray-900" : "bg-white"}`}
           >
-                <Sidebar darkMode={darkMode} />
+                <Sidebar darkMode={darkMode} langue={langue}  />
 
                 <div className="flex flex-col flex-1 md:ml-56">
-                 <Header darkMode={darkMode} setDarkMode={setDarkMode}  />
+                 <Header darkMode={darkMode} setDarkMode={setDarkMode}  langue={langue} setLangue={setLangue} />
 
     <main className="flex-1 mt-16 p-4 md:p-6 w-full">
       <Routes>
