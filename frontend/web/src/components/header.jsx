@@ -1,13 +1,16 @@
 import { Bell, Sun, Moon, Globe } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
 
-export default function Header({ titre, darkMode, setDarkMode, langue, setLangue }) {
+export default function Header({ darkMode, setDarkMode }) {
+  const { langue, setLangue } = useLanguage();
+
   return (
     <div className={`fixed top-0 left-0 right-0 lg:left-56 z-40 flex items-center justify-between px-6 py-4 shadow-sm
       ${darkMode ? "bg-gray-800" : "bg-white"}`}>
 
       {/* Titre */}
       <h1 className={`text-xl font-bold lg:ml-0 ml-10 ${darkMode ? "text-white" : "text-gray-800"}`}>
-        {titre}
+        
       </h1>
 
       {/* Droite */}

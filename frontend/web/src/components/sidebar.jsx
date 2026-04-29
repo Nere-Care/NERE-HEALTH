@@ -1,30 +1,31 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from '../LanguageContext';
 import {
   LayoutDashboard, Users, Building2, MessageSquare,
   Bell, FolderOpen, Video, Settings, HelpCircle, Sparkles, Menu, X
 } from "lucide-react";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Tableau de Bord", path: "/" },
-  { icon: Users, label: "Annuaire Medecins", path: "/annuaire" },
-  { icon: Building2, label: "Structures de Sante", path: "/structures" },
-  { icon: MessageSquare, label: "Messages", path: "/messages" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
-  { icon: FolderOpen, label: "Dossiers patient", path: "/dossiers" },
-  { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
-  { icon: Settings, label: "Parametres", path: "/parametres" },
-  { icon: HelpCircle, label: "Aide", path: "/aide" },
-];
-
 export default function Sidebar({ darkMode }) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [ouvert, setOuvert] = useState(false);
 
+  const menuItems = [
+    { icon: LayoutDashboard, label: t.tableauDeBord, path: "/" },
+    { icon: Users, label: t.annuaireMedecins, path: "/annuaire" },
+    { icon: Building2, label: t.structuresSante, path: "/structures" },
+    { icon: MessageSquare, label: t.messages, path: "/messages" },
+    { icon: Bell, label: t.notifications, path: "/notifications" },
+    { icon: FolderOpen, label: t.dossiersPatient, path: "/dossiers" },
+    { icon: Video, label: t.teleconsultation, path: "/teleconsultation" },
+    { icon: Settings, label: t.parametres, path: "/parametres" },
+    { icon: HelpCircle, label: t.aide, path: "/aide" },
+  ];
+
   return (
     <>
-      {/* Bouton hamburger - visible quand sidebar fermée */}
       {!ouvert && (
         <button
           onClick={() => setOuvert(true)}
@@ -35,7 +36,6 @@ export default function Sidebar({ darkMode }) {
         </button>
       )}
 
-      {/* Overlay sombre quand sidebar ouverte */}
       {ouvert && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
@@ -43,16 +43,12 @@ export default function Sidebar({ darkMode }) {
         />
       )}
 
-      {/* Sidebar */}
       <div className={`fixed top-0 left-0 h-screen w-56 flex flex-col justify-between py-6 px-4 z-50 shadow-lg transition-transform duration-300
         ${darkMode ? "bg-gray-800" : "bg-white"}
         ${ouvert ? "translate-x-0" : "-translate-x-full"}
         lg:translate-x-0`}>
 
-        {/* Bouton fermer - visible seulement quand ouverte sur petit écran */}
         <div className="flex flex-col gap-1">
-
-          {/* Bouton X pour fermer */}
           <button
             onClick={() => setOuvert(false)}
             className={`lg:hidden self-end p-1 rounded-lg mb-2
@@ -61,20 +57,18 @@ export default function Sidebar({ darkMode }) {
             <X size={18} />
           </button>
 
-          {/* Logo */}
           <div className={`rounded-xl p-3 text-center text-sm font-semibold mb-4
             ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}>
             LOGO
           </div>
 
-          {/* Menu */}
           <nav className="flex flex-col gap-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
                 <button
-                  key={item.label}
+                  key={item.path}
                   onClick={() => {
                     navigate(item.path);
                     setOuvert(false);
@@ -95,11 +89,10 @@ export default function Sidebar({ darkMode }) {
           </nav>
         </div>
 
-        {/* Nere IA */}
         <button className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
           ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}`}>
           <Sparkles size={18} />
-          Nere IA
+          {t.nereIA}
         </button>
 
       </div>

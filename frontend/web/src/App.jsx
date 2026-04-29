@@ -9,34 +9,29 @@ import Notifications from './pages/notifications';
 import Aide from './pages/Aides';
 import Parametres from './pages/parametre';
 import StructuresSante from './pages/structuressante';
+import Dashboard from './pages/dashboard';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [langue, setLangue] = useState('fr');
 
   return (
     <BrowserRouter>
       <div className={`flex min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
   
-        <Sidebar darkMode={darkMode} langue={langue} />
+        <Sidebar darkMode={darkMode} />
         
         <div className="flex flex-col flex-1 lg:ml-56">
-          <Header 
-            darkMode={darkMode} 
-            setDarkMode={setDarkMode}
-            langue={langue}
-            setLangue={setLangue}
-          />
+          <Header darkMode={darkMode} setDarkMode={setDarkMode} />
           <main className="flex-1 p-4 mt-14 overflow-x-hidden">
             <Routes>
-              <Route path="/" element={<Annuaire />} />
+              <Route path="/" element={<Dashboard darkMode={darkMode} />} />
               <Route path="/annuaire" element={<Annuaire />} />
               <Route path="/dossiers" element={<DossierPatient />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/aide" element={<Aide  />} />
+              <Route path="/aide" element={<Aide />} />
               <Route path="/parametres" element={<Parametres />} />
-              <Route path="/structures" element={<StructuresSante  />} />
+              <Route path="/structures" element={<StructuresSante />} />
             </Routes>
           </main>
         </div>
