@@ -2,12 +2,12 @@ import { useLanguage } from '../LanguageContext';
 import { Calendar, MessageSquare, FileText, Pill, Video, Clock, Star, ChevronRight } from 'lucide-react';
 
 const specialites = [
-  { icon: "❤️", nom: "Cardiologue", nomEn: "Cardiologist" },
-  { icon: "🦷", nom: "Dentiste", nomEn: "Dentist" },
-  { icon: "🧠", nom: "Neurologue", nomEn: "Neurologist" },
-  { icon: "👁️", nom: "Ophtalmologue", nomEn: "Ophthalmologist" },
-  { icon: "🦴", nom: "Orthopédiste", nomEn: "Orthopedist" },
-  { icon: "🧬", nom: "Généraliste", nomEn: "General Practitioner" },
+  { icon: "", nom: "Cardiologue", nomEn: "Cardiologist" },
+  { icon: "", nom: "Dentiste", nomEn: "Dentist" },
+  { icon: "", nom: "Neurologue", nomEn: "Neurologist" },
+  { icon: "", nom: "Ophtalmologue", nomEn: "Ophthalmologist" },
+  { icon: "", nom: "Orthopédiste", nomEn: "Orthopedist" },
+  { icon: "", nom: "Généraliste", nomEn: "General Practitioner" },
 ];
 
 const consultationsRecentes = [
