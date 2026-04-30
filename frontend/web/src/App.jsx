@@ -25,13 +25,13 @@ function App() {
           <main className="flex-1 p-4 mt-14 overflow-x-hidden">
             <Routes>
               <Route path="/" element={<Dashboard darkMode={darkMode} />} />
-              <Route path="/annuaire" element={<Annuaire />} />
-              <Route path="/dossiers" element={<DossierPatient />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/aide" element={<Aide />} />
-              <Route path="/parametres" element={<Parametres />} />
-              <Route path="/structures" element={<StructuresSante />} />
+              <Route path="/annuaire" element={<Annuaire darkMode={darkMode}/>} />
+              <Route path="/dossiers" element={<DossierPatient darkMode={darkMode}/>} />
+              <Route path="/messages" element={<Messages darkMode={darkMode}/>} />
+              <Route path="/notifications" element={<Notifications darkMode={darkMode}/>} />
+              <Route path="/aide" element={<Aide darkMode={darkMode}/>} />
+              <Route path="/parametres" element={<Parametres darkMode={darkMode}/>} />
+              <Route path="/structures" element={<StructuresSante darkMode={darkMode}/>} />
             </Routes>
           </main>
         </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Phone, Clock, Search } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
 
 const data = {
   Hopitaux: [
@@ -28,13 +29,7 @@ const data = {
   ],
 };
 
-const icones = {
-  Hopitaux: "H",
-  Cliniques: "C",
-  Pharmacies: "P",
-  Laboratoires: "L",
-};
-
+const icones = { Hopitaux: "H", Cliniques: "C", Pharmacies: "P", Laboratoires: "L" };
 const couleurs = {
   Hopitaux: { bg: "bg-blue-100", text: "text-blue-600", active: "bg-blue-500" },
   Cliniques: { bg: "bg-green-100", text: "text-green-600", active: "bg-green-500" },
@@ -42,7 +37,8 @@ const couleurs = {
   Laboratoires: { bg: "bg-orange-100", text: "text-orange-600", active: "bg-orange-500" },
 };
 
-export default function StructuresSante() {
+export default function StructuresSante({ darkMode }) {
+  const { t } = useLanguage();
   const [onglet, setOnglet] = useState("Hopitaux");
   const [recherche, setRecherche] = useState("");
 
@@ -52,27 +48,30 @@ export default function StructuresSante() {
   );
 
   return (
-    <div className="p-4">
+    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
-      {/* Titre */}
-      <h1 className="text-lg font-bold text-blue-600 mb-2"></h1>
-      <button className="flex items-center gap-1 text-sm font-semibold text-gray-700 mb-4">
+      <h1 className="text-lg font-bold text-blue-600 mb-2">{t.structuresSante}</h1>
+      <button className={`flex items-center gap-1 text-sm font-semibold mb-4
+        ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+        <span className="text-blue-500 text-xl">+</span> {t.patient}
       </button>
 
-      {/* Barre de recherche */}
-      <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2 shadow mb-4">
+      {/* Recherche */}
+      <div className={`flex items-center gap-2 rounded-xl px-4 py-2 shadow mb-4
+        ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <Search size={16} className="text-gray-400" />
         <input
           type="text"
-          placeholder="Rechercher une structure..."
-          className="outline-none text-sm w-full"
+          placeholder={t.rechercher}
+          className={`outline-none text-sm w-full
+            ${darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""}`}
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
         />
       </div>
 
       {/* Onglets */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {Object.keys(data).map((tab) => (
           <button
             key={tab}
@@ -80,68 +79,53 @@ export default function StructuresSante() {
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all
               ${onglet === tab
                 ? `${couleurs[tab].active} text-white shadow`
-                : "bg-white text-gray-500 hover:bg-gray-50 shadow"
+                : darkMode
+                  ? "bg-gray-800 text-gray-300 hover:bg-gray-700 shadow"
+                  : "bg-white text-gray-500 hover:bg-gray-50 shadow"
               }`}
           >
-            {tab}
+            {t[tab.toLowerCase()] || tab}
           </button>
         ))}
       </div>
 
-      {/* Compteur */}
       <p className="text-xs text-gray-400 mb-3">{structures.length} structure(s) trouvée(s)</p>
 
       {/* Liste */}
       <div className="flex flex-col gap-3">
         {structures.map((structure) => (
-          <div
-            key={structure.id}
-            className="bg-white rounded-2xl shadow p-4 flex items-center gap-4 hover:shadow-md transition-all"
-          >
-            {/* Icône */}
+          <div key={structure.id}
+            className={`rounded-2xl shadow p-4 flex items-center gap-4 hover:shadow-md transition-all
+              ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <div className={`w-14 h-14 rounded-2xl ${couleurs[onglet].bg} flex items-center justify-center flex-shrink-0`}>
-              <span className={`text-xl font-bold ${couleurs[onglet].text}`}>
-                {icones[onglet]}
-              </span>
+              <span className={`text-xl font-bold ${couleurs[onglet].text}`}>{icones[onglet]}</span>
             </div>
-
-            {/* Infos */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="font-bold text-gray-800">{structure.nom}</h3>
+                <h3 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{structure.nom}</h3>
                 <span className={`text-xs px-2 py-1 rounded-full font-semibold
-                  ${structure.statut === "Ouvert"
-                    ? "bg-green-100 text-green-600"
-                    : "bg-red-100 text-red-500"
-                  }`}>
-                  {structure.statut}
+                  ${structure.statut === "Ouvert" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
+                  {structure.statut === "Ouvert" ? t.ouvert : t.ferme}
                 </span>
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <MapPin size={12} />
-                  {structure.ville} • {structure.bp}
+                  <MapPin size={12} />{structure.ville} • {structure.bp}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Clock size={12} />
-                  {structure.horaire}
+                  <Clock size={12} />{structure.horaire}
                 </div>
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-                <Phone size={12} />
-                {structure.tel}
+                <Phone size={12} />{structure.tel}
               </div>
             </div>
-
-            {/* Bouton */}
             <button className={`px-4 py-2 rounded-xl text-white text-xs font-semibold flex-shrink-0 ${couleurs[onglet].active}`}>
-              Contacter
+              {t.contacter}
             </button>
-
           </div>
         ))}
       </div>
-
     </div>
   );
 }
