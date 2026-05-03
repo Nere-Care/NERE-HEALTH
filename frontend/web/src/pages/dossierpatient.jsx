@@ -270,10 +270,9 @@ export default function DossierPatient({ darkMode }) {
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <h1 className="text-lg font-bold text-blue-600 mb-2">{t.dossierTitre}</h1>
+      <h1 className="text-lg font-bold text-blue-600 mb-2">{/*t.dossierTitre*/}</h1>
       <button className={`flex items-center gap-1 text-sm font-semibold mb-4
         ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-        <span className="text-blue-500 text-xl">+</span> {t.patient}
       </button>
 
       {/* Onglets */}
