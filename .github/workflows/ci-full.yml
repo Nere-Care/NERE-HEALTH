@@ -22,22 +22,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: nere_user
-          POSTGRES_PASSWORD: nere_pass
-          POSTGRES_DB: nere_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U nere_user -d nere_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
       DATABASE_URL: postgresql://nere_user:nere_pass@localhost:5432/nere_db
       API_PREFIX: /api
       ENVIRONMENT: development
