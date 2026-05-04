@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from auth import require_role
-from db import get_db
-from models import AuditLog
-from schemas import AuditLogRead
+from ..auth import require_role
+from ..db import get_db
+from ..models import AuditLog
+from ..schemas import AuditLogRead
 
 router = APIRouter(tags=["audit"])
 

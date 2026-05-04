@@ -184,8 +184,99 @@ git push -u origin feature/<description>
 - Ne pas committer `backend/.env` ni `frontend/web/.env`.
 - Utiliser `*.env.example` comme modèle uniquement.
 - Mettre à jour les secrets dans `.env` localement.
+- Middlewares de sécurité activés en production :
+  - Compression GZip
+  - Trusted Host validation
+  - Headers de sécurité (HSTS, XSS protection, etc.)
+  - Rate limiting avec SlowAPI
 
 ## 13) Remarques
 - Le dossier `frontend/mobile` contient une application Flutter prête à être développée.
 - Le projet est conçu pour être lancé en local avec Docker ou en mode développement séparé.
 - En cas de conflit PostgreSQL local, Docker expose la base sur le port `5433`.
+
+## 14) Phase 2 : pipeline de production
+Cette phase vise à mettre en place une livraison continue pour la production :
+- `main` et les tags `v*` construisent et publient des images Docker de production sur GitHub Container Registry.
+
+## 15) Phase 3 : fonctionnalités avancées
+Cette phase ajoute les fonctionnalités avancées suivantes :
+
+### Fonctionnalités implémentées
+- **IA Diagnostics** : Intégration OpenAI pour l'analyse des symptômes et recommandations médicales
+- **Paiements Stripe** : Système de paiement intégré pour les consultations
+- **Téléconsultation** : Endpoints WebRTC pour les consultations vidéo
+- **Authentification JWT** : Système d'authentification sécurisé
+- **Monitoring Sentry** : Suivi des erreurs et performances en production
+
+### Configuration Phase 3
+Ajouter ces variables dans `backend/.env` :
+```env
+# OpenAI pour IA diagnostics
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Stripe pour paiements
+STRIPE_API_KEY=sk_test_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+STRIPE_PUBLISHABLE_KEY=pk_test_your_publishable_key
+
+# Monitoring
+SENTRY_DSN=your_sentry_dsn_here
+```
+
+### Routes Phase 3
+- `POST /api/v1/ia/diagnostic` : Analyse IA des symptômes
+- `POST /api/v1/payments/create-session` : Création session de paiement Stripe
+- `POST /api/v1/teleconsultation/prepare` : Préparation téléconsultation WebRTC
+- `GET /api/v1/teleconsultation/{session_id}` : Récupération session téléconsultation
+
+### Tests Phase 3
+```powershell
+cd backend
+pytest tests/test_phase3.py -v
+```
+
+### Problèmes résolus récemment
+- **Installation frontend** : Conflits de dépendances npm résolus avec `--legacy-peer-deps`
+- **Versions compatibles** : Mise à jour Vite 8.0.8, @vitejs/plugin-react 6.0.1, Vitest 2.1.8
+- **Backend Phase 3** : Routes IA, paiements et téléconsultation ajoutées dans main.py
+- **Dépendances Python** : Installation stripe, openai, sentry-sdk, pytest-asyncio==0.25.1
+
+### Statut Phase 3
+✅ Backend : Routes implémentées, tests validés, dépendances installées
+✅ Frontend : Installation npm réussie, build fonctionnel
+✅ Mobile : Prêt pour développement (Flutter)
+✅ Tests : Backend Phase 3 validé, frontend build OK
+✅ Documentation : Mise à jour README_SETUP.md
+- Un déploiement SSH pull des images est exécuté sur l’hôte de production.
+- Le workflow s’appelle `.github/workflows/deploy-production.yml`.
+
+### Validation de sécurité et tests intégrés
+- `.github/workflows/ci-full.yml` couvre :
+  - backend lint, tests et audit Python
+  - frontend tests unitaires + E2E avec Cypress
+  - mobile tests unitaires + intégration avec Flutter
+  - scan de l’image backend avec Trivy sur `main` ou les tags `v*`
+
+### Release semver automatique
+- `.github/workflows/release.yml` utilise `release-please` pour générer une release semver automatique sur chaque push vers `main`.
+- Le fichier de configuration est `.release-please-config.json`.
+
+### Secrets à définir dans GitHub Actions
+- `PRODUCTION_SSH_KEY`
+- `PRODUCTION_SSH_HOST`
+- `PRODUCTION_SSH_PORT`
+- `PRODUCTION_SSH_USER`
+- `PRODUCTION_REGISTRY_USERNAME`
+- `PRODUCTION_REGISTRY_PASSWORD`
+- `PRODUCTION_DATABASE_URL`
+- `PRODUCTION_SECRET_KEY`
+- `PRODUCTION_CORS_ORIGINS`
+- `PRODUCTION_API_PREFIX`
+- `PRODUCTION_FRONTEND_API_URL`
+
+### Comportement attendu
+- Fusionner sur `main` déclenche un pipeline CI complet.
+- Une release semver est proposée puis publiée automatiquement par `release-please`.
+- Les images Docker backend et frontend sont poussées vers GHCR.
+- L’hôte de production arrête l’ancienne version et démarre les conteneurs `nere-backend-prod` et `nere-frontend-prod`.

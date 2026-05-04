@@ -2,15 +2,16 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Consultation, Ordonnance, OrdonnanceLigne, Patient, User
-from schemas import OrdonnanceCreate, OrdonnanceRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..limiter import api_limiter
+from ..models import Consultation, Ordonnance, OrdonnanceLigne, Patient, User
+from ..schemas import OrdonnanceCreate, OrdonnanceRead
 
 router = APIRouter(tags=["ordonnances"])
 
@@ -41,7 +42,9 @@ async def list_ordonnances(
 
 
 @router.post("/ordonnances", response_model=OrdonnanceRead, status_code=status.HTTP_201_CREATED)
+@api_limiter.limit("5/minute")  # Ordonnances médicales: 5/minute (très strict)
 async def create_ordonnance(
+    request: Request,
     ordonnance_create: OrdonnanceCreate,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),

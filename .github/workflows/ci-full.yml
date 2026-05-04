@@ -1,0 +1,189 @@
+name: Full CI
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+      - 'README_SETUP.md'
+      - 'docker-compose.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/**'
+      - 'README_SETUP.md'
+      - 'docker-compose.yml'
+
+jobs:
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: nere_user
+          POSTGRES_PASSWORD: nere_pass
+          POSTGRES_DB: nere_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nere_user -d nere_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://nere_user:nere_pass@localhost:5432/nere_db
+      API_PREFIX: /api
+      ENVIRONMENT: development
+      PYTHONDONTWRITEBYTECODE: 1
+      PIP_NO_CACHE_DIR: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir -r backend/requirements.txt
+          python -m pip install --no-cache-dir pycodestyle pip-audit
+
+      - name: Lint backend source
+        run: |
+          cd backend
+          python -m pycodestyle --max-line-length=79 . --exclude=alembic/versions
+
+      - name: Security scan Python dependencies
+        run: |
+          python -m pip_audit --fail-on high
+
+      - name: Wait for PostgreSQL
+        run: |
+          python - <<'PY'
+          import time
+          import os
+          import psycopg2
+
+          url = os.environ['DATABASE_URL']
+          for _ in range(30):
+              try:
+                  conn = psycopg2.connect(url)
+                  conn.close()
+                  print('PostgreSQL ready')
+                  break
+              except Exception as exc:
+                  print('Waiting for PostgreSQL...', exc)
+                  time.sleep(2)
+          else:
+              raise SystemExit('PostgreSQL did not become available in time')
+          PY
+
+      - name: Run Alembic migrations
+        run: |
+          cd backend
+          python -m alembic upgrade head
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          python -m pytest tests -q
+
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend/web
+          npm install
+
+      - name: Run frontend tests
+        run: |
+          cd frontend/web
+          npm test
+
+      - name: Run frontend E2E tests
+        run: |
+          cd frontend/web
+          npm run test:e2e
+
+      - name: Run frontend security audit
+        run: |
+          cd frontend/web
+          npm audit --audit-level=high
+
+      - name: Build frontend
+        run: |
+          cd frontend/web
+          npm run build
+
+  mobile:
+    name: Mobile CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install mobile dependencies
+        run: |
+          cd frontend/mobile
+          flutter pub get
+
+      - name: Run mobile tests
+        run: |
+          cd frontend/mobile
+          flutter test
+
+      - name: Run mobile integration tests
+        run: |
+          cd frontend/mobile
+          flutter test integration_test
+
+  security-scan:
+    name: Security scan image
+    runs-on: ubuntu-latest
+    needs: backend
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image for scan
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          load: true
+          tags: nere-backend-ci:latest
+
+      - name: Scan backend image with Trivy
+        uses: aquasec/trivy-action@v2
+        with:
+          image-ref: nere-backend-ci:latest
+          format: table
+          exit-code: 1

@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Structure
-from schemas import StructureCreate, StructureRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Structure
+from ..schemas import StructureCreate, StructureRead
 
 router = APIRouter(tags=["structures"])
 

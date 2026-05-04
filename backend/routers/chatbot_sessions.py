@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import ChatbotSession, Patient, RendezVous, User
-from schemas import ChatbotSessionCreate, ChatbotSessionRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import ChatbotSession, Patient, RendezVous, User
+from ..schemas import ChatbotSessionCreate, ChatbotSessionRead
 
 router = APIRouter(tags=["chatbot_sessions"])
 

@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import MedecinSpecialite, User
-from schemas import MedecinSpecialiteCreate, MedecinSpecialiteRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import MedecinSpecialite, User
+from ..schemas import MedecinSpecialiteCreate, MedecinSpecialiteRead
 
 router = APIRouter(tags=["medecin_specialites"])
 

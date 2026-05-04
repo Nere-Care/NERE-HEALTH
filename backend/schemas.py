@@ -222,6 +222,25 @@ class PaiementRead(PaiementBase):
     model_config = {"from_attributes": True}
 
 
+class PaiementCheckoutRequest(BaseModel):
+    rdv_id: UUID
+    patient_id: UUID
+    medecin_id: UUID
+    montant_total: Decimal
+    devise: Optional[str] = "XAF"
+    methode: Optional[str] = "carte_visa"
+    fournisseur: Optional[str] = "stripe"
+    description: Optional[str] = "Paiement consultation NERE"
+
+
+class PaiementCheckoutResponse(BaseModel):
+    paiement_id: UUID
+    checkout_url: str
+    reference: str
+    statut: str
+    fournisseur_session_id: Optional[str] = None
+
+
 class NotificationBase(BaseModel):
     utilisateur_id: UUID
     type: str
@@ -487,6 +506,50 @@ class MedecinBase(BaseModel):
     annees_experience: Optional[int] = 0
     biographie: Optional[str] = None
     diplomes: Optional[List[Dict[str, object]]] = None
+
+
+# Phase 3: IA Diagnostics
+class IADiagnosticRequest(BaseModel):
+    patient_id: UUID
+    symptomes_declares: List[str]
+    contexte: Optional[str] = None
+    rdv_id: Optional[UUID] = None
+    messages: Optional[List[Dict[str, str]]] = None
+
+
+class IADiagnosticResponse(BaseModel):
+    session_id: UUID
+    analyse: str
+    specialite_suggeree: str
+    niveau_urgence: str
+    rdv_recommande: Optional[UUID] = None
+    modele_ia: str
+    cout_estime_usd: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+# Phase 3: Teleconsultation
+class TeleconsultationPrepareRequest(BaseModel):
+    rendez_vous_id: UUID
+
+
+class TeleconsultationPrepareResponse(BaseModel):
+    rendez_vous_id: UUID
+    webrtc_room_id: str
+    lien_video: str
+    token_patient: str
+    token_medecin: str
+    type: str
+
+    model_config = {"from_attributes": True}
+
+
+class TeleconsultationSignalRequest(BaseModel):
+    signal_type: str
+    candidate: Optional[Dict[str, object]] = None
+    offer: Optional[Dict[str, object]] = None
+    answer: Optional[Dict[str, object]] = None
     certifications: Optional[List[Dict[str, object]]] = None
     langues_parlees: Optional[List[str]] = None
     tarif_consultation: Optional[Decimal] = Decimal("5000.00")

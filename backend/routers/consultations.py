@@ -2,15 +2,16 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Consultation, Patient, User
-from schemas import ConsultationCreate, ConsultationRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..limiter import api_limiter
+from ..models import Consultation, Patient, User
+from ..schemas import ConsultationCreate, ConsultationRead
 
 router = APIRouter(tags=["consultations"])
 
@@ -37,7 +38,9 @@ async def list_consultations(
 
 
 @router.post("/consultations", response_model=ConsultationRead, status_code=status.HTTP_201_CREATED)
+@api_limiter.limit("10/minute")  # Création consultations: 10/minute
 async def create_consultation(
+    request: Request,
     consultation_create: ConsultationCreate,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),
@@ -84,7 +87,9 @@ async def read_consultation(
 
 
 @router.put("/consultations/{consultation_id}", response_model=ConsultationRead)
+@api_limiter.limit("15/minute")  # Mise à jour consultations: 15/minute
 async def update_consultation(
+    request: Request,
     consultation_id: UUID,
     consultation_update: ConsultationCreate,
     db: Session = Depends(get_db),

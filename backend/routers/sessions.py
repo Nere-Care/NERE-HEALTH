@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Session as UserSession
-from schemas import SessionRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Session as UserSession
+from backend.schemas import SessionRead
 
 router = APIRouter(tags=["sessions"])
 

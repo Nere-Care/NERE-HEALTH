@@ -1,0 +1,23 @@
+name: Release automation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    name: Generate release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create GitHub release with release-please
+        uses: google-github-actions/release-please-action@v3
+        with:
+          package-name: nere-app
+          release-type: simple
+          create-release: true
+          bump-minor-pre-major: true
+          token: ${{ secrets.GITHUB_TOKEN }}

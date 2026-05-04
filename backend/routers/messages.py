@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user
-from db import get_db
-from models import Conversation, Message
-from schemas import MessageCreate, MessageRead
+from ..auth import get_current_active_user
+from ..db import get_db
+from ..models import Conversation, Message
+from ..schemas import MessageCreate, MessageRead
 
 router = APIRouter(tags=["messages"])
 
