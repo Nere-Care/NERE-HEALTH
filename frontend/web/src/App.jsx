@@ -71,7 +71,7 @@ function App() {
                 <div className="flex flex-col flex-1 md:ml-56">
                  <Header darkMode={darkMode} setDarkMode={setDarkMode}  langue={langue} setLangue={setLangue} />
 
-    <main className="flex-1 mt-16 p-4 md:p-6 w-full">
+    <main className="flex-1 mt-8 p-4 md:p-6 w-full">
       <Routes>
         <Route path="/annuaire" element={<Annuaire />} />
         <Route path="/dossiers" element={<DossierPatient />} />

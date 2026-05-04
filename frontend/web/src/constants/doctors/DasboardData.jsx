@@ -1,27 +1,42 @@
+import {
+  CalendarDays,
+  CheckCircle,
+  Wallet,
+  Smile,
+} from "lucide-react";
+
 export const stats = [
   {
-    title: "Patients Today",
-    value: 24,
-    growth: "+12%",
-    color: "bg-blue-500",
+    title: "Consultations à venir",
+    value: 10,
+    subtitle: "Aujourd’hui",
+    growth: "+5%",
+    icon: CalendarDays,
+    color: "green",
   },
   {
-    title: "Consultations",
-    value: 18,
+    title: "Consultations terminées",
+    value: 14,
+    subtitle: "Aujourd’hui",
     growth: "+8%",
-    color: "bg-green-500",
+    icon: CheckCircle,
+    color: "blue",
   },
   {
-    title: "Revenue",
-    value: "245000 FCFA",
-    growth: "+15%",
-    color: "bg-purple-500",
+    title: "Revenu journalier",
+    value: "85 000 FCFA",
+    subtitle: "Aujourd’hui",
+    growth: "+12%",
+    icon: Wallet,
+    color: "purple",
   },
   {
-    title: "Satisfaction",
+    title: "Satisfaction patients",
     value: "96%",
+    subtitle: "Moyenne globale",
     growth: "+2%",
-    color: "bg-orange-500",
+    icon: Smile,
+    color: "orange",
   },
 ];
 
@@ -50,9 +65,27 @@ export const specialtyData = [
 ];
 
 export const appointments = [
-  { time: "08:30", patient: "John Doe", type: "Consultation" },
-  { time: "10:00", patient: "Alice Smith", type: "Follow-up" },
-  { time: "14:00", patient: "Robert King", type: "Teleconsultation" },
+  {
+    time: "08:30",
+    patient: "John Doe",
+    type: "Consultation",
+    clinic: "Central Hospital Yaoundé",
+    reason: "General check-up",
+  },
+  {
+    time: "10:00",
+    patient: "Alice Smith",
+    type: "Follow-up",
+    clinic: "Clinique du Centre",
+    reason: "Diabetes monitoring",
+  },
+  {
+    time: "14:00",
+    patient: "Robert King",
+    type: "Teleconsultation",
+    clinic: "Online",
+    reason: "Skin infection",
+  },
 ];
 
 export const patients = [
@@ -65,4 +98,28 @@ export const notifications = [
   "3 new lab results available",
   "2 appointments confirmed",
   "1 pending payment",
+];
+
+export const news = [
+  {
+    id: 1,
+    title: "System Update",
+    description: "New teleconsultation features and performance improvements.",
+    type: "update",
+    date: "Today",
+  },
+  {
+    id: 2,
+    title: "Privacy Policy Update",
+    description: "Changes in data protection and patient confidentiality.",
+    type: "policy",
+    date: "2 days ago",
+  },
+  {
+    id: 3,
+    title: "Payment System",
+    description: "Stripe payments are now fully integrated.",
+    type: "payment",
+    date: "1 week ago",
+  },
 ];

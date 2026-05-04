@@ -26,7 +26,8 @@ export const conversations = [
   {
     id: 2,
     name: "Dr Ndzi",
-    role: "Cardiologist",
+    role: "Doctor", // ✅ corrigé
+    specialty: "Cardiologist", // 👉 optionnel (info métier)
     lastMessage: "Need your opinion.",
     time: "08:45",
     unread: 0,
@@ -50,7 +51,8 @@ export const conversations = [
   {
     id: 4,
     name: "Dr Awa",
-    role: "Neurologist",
+    role: "Doctor", // ✅ corrigé
+    specialty: "Neurologist",
     lastMessage: "Let’s review scan.",
     time: "Yesterday",
     unread: 0,
@@ -74,7 +76,8 @@ export const conversations = [
   {
     id: 6,
     name: "Dr Mbarga",
-    role: "General Doctor",
+    role: "Doctor", // ✅ corrigé
+    specialty: "General Doctor",
     lastMessage: "Check file.",
     time: "Sun",
     unread: 3,
@@ -93,5 +96,31 @@ export const conversations = [
     avatar: "https://randomuser.me/api/portraits/women/12.jpg",
     messages: [],
     files: [],
+  },
+
+  // ✅ NOUVEAU : LABORATOIRE
+  {
+    id: 8,
+    name: "LabCare Center",
+    role: "Laboratory",
+    lastMessage: "تحالyses disponibles.", // ou "تحالyses available."
+    time: "10:15",
+    unread: 1,
+    avatar: "https://via.placeholder.com/150/00bcd4/ffffff?text=LAB",
+    files: [
+      { type: "pdf", name: "lab-results.pdf", url: "#" },
+    ],
+    messages: [
+      {
+        fromMe: false,
+        text: "Your lab results are ready.",
+        time: "10:10",
+      },
+      {
+        fromMe: true,
+        text: "Thanks, I will check them.",
+        time: "10:12",
+      },
+    ],
   },
 ];

@@ -7,7 +7,7 @@ export default function Header({ titre, darkMode, setDarkMode, langue, setLangue
 
     <div
       className={`
-        fixed top-14 md:top-0 left-0 md:left-56 right-0 z-40
+        sticky top-14 md:top-0 left-0 md:left-56 right-0 z-40
         flex items-center justify-between
         px-3 sm:px-4 md:px-6 py-3 md:py-4
         shadow-sm transition-colors

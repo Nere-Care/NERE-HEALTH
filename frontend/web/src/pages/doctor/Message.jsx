@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import {
-  Search,
   Send,
   Paperclip,
   MoreVertical,
-  Lock,
   Smile,
   Image,
   FileText,
@@ -13,181 +11,89 @@ import {
 } from "lucide-react";
 
 import { conversations } from "../../constants/doctors/conversationsData";
-import ConversationItem from "../../components/doctors/conversation/ConversationItem";
+import ChatSidebar from "../../components/doctors/messages/ChatSidebar";
 
 export default function Messages({ darkMode }) {
-  const [selectedChat, setSelectedChat] = useState(0);
+
   const [message, setMessage] = useState("");
   const [showFiles, setShowFiles] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
+  const [selectedChat, setSelectedChat] = useState(null);
 
-  const current = conversations[selectedChat] || {
-    name: "",
-    role: "",
-    avatar: "",
-    messages: [],
-    files: [],
-  };
+  // ✅ FIX IMPORTANT (id et non index)
+  const current = conversations.find(c => c.id === selectedChat) || {
+      name: "",
+      role: "",
+      avatar: "",
+      messages: [],
+      files: [],
+    };
 
   return (
-    <div
-      className={`min-h-screen transition-colors duration-300 ${
-        darkMode ? "bg-gray-900 text-white" : "bg-white text-black"
-      }`}
-    >
-      <div className="p-3 sm:p-4 md:p-6">
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-white text-black"}`}>
 
-        <div
-          className={`
-            h-[100vh] md:h-[85vh]
-            flex overflow-hidden relative rounded-2xl md:rounded-3xl shadow-xl
-            transition-colors duration-300
-            ${darkMode ? "bg-gray-800" : "bg-white"}
-          `}
-        >
+      <div className="p-2 sm:p-3 md:p-6">
 
-          {/* ================= LEFT SIDEBAR ================= */}
-          <div
-            className={`
-              w-full md:w-[360px]
-              flex flex-col border-r
-              ${darkMode ? "bg-gray-900 border-gray-700" : "bg-[#F7F9FC] border-gray-300"}
-              ${selectedChat !== null ? "hidden md:flex" : "flex"}
-            `}
-          >
+        <div className={`
+          h-[100dvh] md:h-[85vh]
+          flex overflow-hidden relative
+          rounded-none md:rounded-2xl lg:rounded-3xl shadow-xl
+          ${darkMode ? "bg-gray-800" : "bg-white"}
+        `}>
 
-            {/* HEADER SEARCH */}
-            <div
-              className={`p-4 md:p-5 ${
-                darkMode ? "bg-gray-800" : "bg-white"
-              }`}
-            >
-              <h1 className="text-lg md:text-xl font-semibold text-[#3b82f6]">
-                Chats
-              </h1>
+          {/* SIDEBAR */}
+          <ChatSidebar
+            conversations={conversations}
+            selectedChat={selectedChat}
+            setSelectedChat={setSelectedChat}
+            darkMode={darkMode}
+          />
 
-              <div
-                className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 ${
-                  darkMode ? "bg-gray-700" : "bg-gray-100"
-                }`}
-              >
-                <Search
-                  className={`w-4 h-4 ${
-                    darkMode ? "text-gray-300" : "text-gray-400"
-                  }`}
-                />
-                <input
-                  placeholder="Search..."
-                  className="w-full bg-transparent outline-none text-sm"
-                />
-              </div>
-            </div>
-
-            {/* LIST */}
-            <div className="flex-1 overflow-y-auto space-y-2 p-2">
-              {conversations.map((chat, i) => (
-                <ConversationItem
-                  key={chat.id}
-                  chat={chat}
-                  isSelected={selectedChat === i}
-                  onClick={() => setSelectedChat(i)}
-                  darkMode={darkMode}
-                />
-              ))}
-            </div>
-
-            {/* FOOTER */}
-            <div
-              className={`p-3 md:p-4 text-center text-xs border-t ${
-                darkMode
-                  ? "bg-gray-800 border-gray-700 text-green-400"
-                  : "bg-white border-gray-200 text-green-600"
-              }`}
-            >
-              <Lock className="w-4 h-4 inline mr-1" />
-              End-to-end encrypted
-            </div>
-          </div>
-
-          {/* ================= CHAT AREA ================= */}
-          <div
-            className={`
-              flex-1 flex flex-col
-              ${darkMode ? "bg-gray-900" : "bg-[#F9FAFB]"}
-              ${selectedChat === null ? "hidden md:flex" : "flex"}
-            `}
-          >
+          {/* CHAT */}
+          <div className={`
+            flex-1 flex flex-col
+            ${darkMode ? "bg-gray-900" : "bg-[#F9FAFB]"}
+            ${selectedChat === null ? "hidden md:flex" : "flex"}
+          `}>
 
             {/* HEADER */}
-            <div
-              className={`px-4 md:px-6 py-3 md:py-4 border-b flex justify-between items-center cursor-pointer ${
-                darkMode
-                  ? "bg-gray-800 border-gray-700"
-                  : "bg-white border-gray-300"
-              }`}
+            <div className={` md:px-6 py-3 md:py-4   px-3 sm:px-4 md:px-6 py-3 border-b flex justify-between items-center
+              ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-300"}
+            `}
               onClick={() => setShowFiles(true)}
             >
               <div className="flex items-center gap-3">
 
-                {/* BACK BUTTON MOBILE */}
-                <button
-                  className={`md:hidden text-xl ${
-                    darkMode ? "text-gray-300" : "text-gray-600"
-                  }`}
-                  onClick={() => setSelectedChat(null)}
-                >
+                <button className="md:hidden text-xl" onClick={() => setSelectedChat(null)}>
                   ←
                 </button>
 
-                <img
-                  src={current.avatar}
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover"
-                />
+                <img src={current.avatar} className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover" />
 
                 <div>
-                  <p className="font-semibold text-sm md:text-base">
-                    {current.name}
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      darkMode ? "text-gray-400" : "text-gray-500"
-                    }`}
-                  >
-                    {current.role}
-                  </p>
+                  <p className="font-semibold text-sm md:text-base">{current.name}</p>
+                  <p className="text-xs text-gray-400">{current.role}</p>
                 </div>
               </div>
 
-              <MoreVertical
-                className={`w-5 h-5 ${
-                  darkMode ? "text-gray-300" : "text-gray-500"
-                }`}
-              />
+              <MoreVertical className="w-5 h-5" />
             </div>
 
             {/* MESSAGES */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto overscroll-contain pb-24 p-4 md:p-6 space-y-4 pb-20  sm:p-4 md:p-6  md:space-y-4 scroll-smooth">
 
               {current.messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${
-                    msg.fromMe ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`
-                      px-3 md:px-4 py-2 rounded-2xl text-sm
-                      max-w-[85%] md:max-w-[70%]
-                      ${
-                        msg.fromMe
-                          ? "bg-blue-600 text-white"
-                          : darkMode
-                          ? "bg-gray-700 text-white"
-                          : "bg-white text-black"
-                      }
-                    `}
-                  >
+                <div key={i} className={`flex ${msg.fromMe ? "justify-end" : "justify-start"}`}>
+                  <div className={`
+                    px-3 md:px-4 py-2 rounded-2xl text-sm
+                    max-w-[85%] sm:max-w-[75%] md:max-w-[70%]
+                    ${msg.fromMe
+                      ? "bg-blue-600 text-white"
+                      : darkMode
+                        ? "bg-gray-700 text-white"
+                        : "bg-white text-black"
+                    }
+                  `}>
                     <p>{msg.text}</p>
 
                     {msg.files?.map((f, idx) => (
@@ -195,7 +101,7 @@ export default function Messages({ darkMode }) {
                         {f.type === "image" ? (
                           <img
                             src={f.url}
-                            className="rounded-lg w-28 md:w-32 cursor-pointer"
+                            className="rounded-lg w-24 sm:w-28 md:w-32 cursor-pointer"
                             onClick={() => setPreviewFile(f)}
                           />
                         ) : (
@@ -216,26 +122,19 @@ export default function Messages({ darkMode }) {
             </div>
 
             {/* INPUT */}
-            <div
-              className={`p-3 md:p-4 border-t flex items-center gap-2 sticky bottom-0 ${
-                darkMode
-                  ? "bg-gray-800 border-gray-700"
-                  : "bg-white border-gray-300"
-              }`}
-            >
-
-              <Smile className="w-5 h-5 text-gray-500" />
-              <Paperclip className="w-5 h-5 text-gray-500" />
-              <Image className="w-5 h-5 text-gray-500" />
+            <div className={`p-2 sm:p-3 md:p-4 border-t flex items-center gap-2 sticky bottom-0
+              ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-300"}
+            `}>
+              <Smile className="w-5 h-5" />
+              <Paperclip className="w-5 h-5" />
+              <Image className="w-5 h-5" />
 
               <input
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className={`flex-1 px-3 py-2 rounded-xl outline-none text-sm ${
-                  darkMode
-                    ? "bg-gray-700 text-white"
-                    : "bg-gray-100 text-black"
-                }`}
+                className={`flex-1 px-3 py-2 rounded-xl text-sm outline-none
+                  ${darkMode ? "bg-gray-700 text-white" : "bg-gray-100"}
+                `}
                 placeholder="Write message..."
               />
 
@@ -245,86 +144,99 @@ export default function Messages({ darkMode }) {
             </div>
           </div>
 
-          {/* ================= FILE PANEL ================= */}
-          {showFiles && (
+          {/* FILE PANEL */}
+{showFiles && (
+  <>
+    {/* OVERLAY */}
+    <div
+      className="fixed inset-0 bg-black/40 z-30"
+      onClick={() => setShowFiles(false)}
+    />
+
+    {/* PANEL */}
+    <div
+      className={`
+        fixed right-0 top-0 h-full w-full md:w-[320px]
+        z-40 p-4 space-y-4 overflow-y-auto
+        transform transition-transform duration-300
+        ${darkMode ? "bg-gray-800 text-white" : "bg-white text-black"}
+      `}
+    >
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h2 className="font-semibold text-lg">Shared files</h2>
+        <X
+          className="cursor-pointer"
+          onClick={() => setShowFiles(false)}
+        />
+      </div>
+
+      {/* FILE LIST */}
+      <div className="space-y-3">
+        {current.files?.length === 0 && (
+          <p className="text-sm text-gray-400">No files available</p>
+        )}
+
+        {current.files?.map((f, i) => (
+          <div
+            key={i}
+            className={`
+              flex items-center justify-between p-3 rounded-xl
+              ${darkMode ? "bg-gray-700" : "bg-gray-100"}
+            `}
+          >
+            {/* LEFT: FILE INFO */}
             <div
-              className={`absolute right-0 top-0 h-full w-full md:w-[320px] shadow-2xl border-l p-5 ${
-                darkMode
-                  ? "bg-gray-800 border-gray-700"
-                  : "bg-white border-gray-200"
-              }`}
+              className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+              onClick={() => setPreviewFile(f)}
             >
+              {f.type === "image" ? (
+                <Image className="w-5 h-5 text-blue-500" />
+              ) : (
+                <FileText className="w-5 h-5 text-red-500" />
+              )}
 
-              <div className="flex justify-between mb-4">
-                <h2 className="font-semibold">Shared files</h2>
-                <X
-                  className="w-5 h-5 cursor-pointer"
-                  onClick={() => setShowFiles(false)}
-                />
-              </div>
+              <span className="text-sm truncate">{f.name}</span>
+            </div>
 
-              <div className="space-y-3">
-                {current.files?.map((f, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer ${
-                      darkMode ? "bg-gray-700" : "bg-gray-50"
-                    }`}
-                    onClick={() => setPreviewFile(f)}
-                  >
-                    <div className="flex items-center gap-3">
-                      {f.type === "image" ? (
-                        <Image className="w-5 h-5 text-blue-500" />
-                      ) : (
-                        <FileText className="w-5 h-5 text-red-500" />
-                      )}
-                      <span className="text-sm">{f.name}</span>
-                    </div>
+            {/* RIGHT: ACTIONS */}
+            <div className="flex items-center gap-2 ml-3">
 
-                    <Download className="w-4 h-4 text-gray-500" />
-                  </div>
-                ))}
-              </div>
+              {/* VIEW */}
+              <button
+                onClick={() => setPreviewFile(f)}
+                className="text-xs px-2 py-1 rounded-md bg-blue-500 text-white active:scale-95"
+              >
+                View
+              </button>
+
+              {/* DOWNLOAD */}
+              <a
+                href={f.url}
+                download
+                className="text-xs px-2 py-1 rounded-md bg-green-500 text-white active:scale-95"
+              >
+                Download
+              </a>
 
             </div>
-          )}
+          </div>
+        ))}
+      </div>
+    </div>
+  </>
+)}
         </div>
       </div>
 
-      {/* ================= FILE PREVIEW ================= */}
+      {/* PREVIEW */}
       {previewFile && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div
-            className={`w-[95%] md:w-[500px] rounded-xl p-4 relative ${
-              darkMode ? "bg-gray-800 text-white" : "bg-white text-black"
-            }`}
-          >
-
-            <X
-              className="absolute top-3 right-3 cursor-pointer"
-              onClick={() => setPreviewFile(null)}
-            />
-
-            {previewFile.type === "image" ? (
-              <img src={previewFile.url} className="w-full rounded-lg" />
-            ) : (
-              <div className="text-center p-6">
-                <FileText className="w-12 h-12 mx-auto text-gray-500" />
-                <p className="mt-3 text-sm font-medium">
-                  {previewFile.name}
-                </p>
-
-                <a
-                  href={previewFile.url}
-                  download
-                  className="mt-4 inline-block bg-blue-600 text-white px-4 py-2 rounded-lg"
-                >
-                  Download file
-                </a>
-              </div>
-            )}
-
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center max-h-[80vh] overflow-auto">
+          <div className="bg-white p-4 rounded-xl w-[95%] md:w-[500px]">
+            <X onClick={() => setPreviewFile(null)} />
+            {previewFile.type === "image"
+              ? <img src={previewFile.url} />
+              : <a href={previewFile.url} download>Download</a>}
           </div>
         </div>
       )}

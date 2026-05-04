@@ -5,6 +5,7 @@ import SpecialtyPieChart from "../../components/doctors/dashboard/SpecialtyPieCh
 import TodayAppointments from "../../components/doctors/dashboard/TodayAppoitment";
 import RecentPatients from "../../components/doctors/dashboard/RecentPatient";
 import NotificationsPanel from "../../components/doctors/dashboard/NotificationsPanel";
+import NewsPanel from "../../components/doctors/dashboard/NewsPanel";
 
 export default function Dashboard({ darkMode }) {
   return (
@@ -18,18 +19,22 @@ export default function Dashboard({ darkMode }) {
 
       <StatsSection darkMode={darkMode} />
 
+
+       {/* Middle section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+        
+        <NewsPanel darkMode={darkMode} />
+        <TodayAppointments darkMode={darkMode} />
+        <RecentPatients darkMode={darkMode} />
+      </div>
+
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         <RevenueChart darkMode={darkMode} />
         <ConsultationChart darkMode={darkMode} />
       </div>
 
-      {/* Middle section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-        <SpecialtyPieChart darkMode={darkMode} />
-        <TodayAppointments darkMode={darkMode} />
-        <RecentPatients darkMode={darkMode} />
-      </div>
+     
 
       <NotificationsPanel darkMode={darkMode} />
 

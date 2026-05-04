@@ -223,75 +223,88 @@ const getStatusStyle = (status, darkMode) => {
               </div>
             )}
 
-            {/* CALENDAR VIEW */}
-            {view === "calendar" && (
-              <div className={`${darkMode ? "bg-gray-900" : "bg-white"} rounded-2xl p-2 sm:p-4 overflow-x-auto`}>
+           {/* CALENDAR VIEW */}
+{view === "calendar" && (
+  <div
+    className={`${
+      darkMode ? "bg-gray-900" : "bg-white"
+    } rounded-2xl p-3 sm:p-4`}
+  >
 
-                <div className="flex items-center justify-between mb-4 min-w-[700px]">
+    {/* HEADER */}
+    <div className="flex items-center justify-between mb-4">
 
-                  <button
-                    onClick={previousMonth}
-                    className={`p-2 rounded-lg border transition ${
-                      darkMode
-                        ? "border-gray-700 hover:bg-gray-800 text-gray-200"
-                        : "border-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
+      <button
+        onClick={previousMonth}
+        className={`p-2 rounded-lg border transition ${
+          darkMode
+            ? "border-gray-700 hover:bg-gray-800 text-gray-200"
+            : "border-gray-200 hover:bg-gray-100"
+        }`}
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
 
-                  <h2 className="font-semibold text-lg capitalize">
-                    {monthName} {year}
-                  </h2>
+      <h2 className="font-semibold text-sm sm:text-lg capitalize text-center">
+        {monthName} {year}
+      </h2>
 
-                  <button
-                    onClick={nextMonth}
-                    className={`p-2 rounded-lg border transition ${
-                      darkMode
-                        ? "border-gray-700 hover:bg-gray-800 text-gray-200"
-                        : "border-gray-200 hover:bg-gray-100"
-                    }`}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+      <button
+        onClick={nextMonth}
+        className={`p-2 rounded-lg border transition ${
+          darkMode
+            ? "border-gray-700 hover:bg-gray-800 text-gray-200"
+            : "border-gray-200 hover:bg-gray-100"
+        }`}
+      >
+        <ChevronRight className="w-4 h-4" />
+      </button>
 
-                </div>
+    </div>
 
-                <div className="grid grid-cols-7 min-w-[700px] text-xs font-semibold mb-3">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                    <div
-                      key={d}
-                      className={`text-center py-2 ${
-                        darkMode ? "text-gray-400" : "text-gray-500"
-                      }`}
-                    >
-                      {d}
-                    </div>
-                  ))}
-                </div>
+    {/* DAYS HEADER */}
+   <div
+  className={`hidden md:grid grid-cols-7 text-xs font-semibold mb-2`}
+>
+  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+    <div
+      key={d}
+      className={`text-center py-2 ${
+        darkMode ? "text-gray-400" : "text-gray-500"
+      }`}
+    >
+      {d}
+    </div>
+  ))}
+</div>
 
-                <div className="grid grid-cols-7 gap-2 min-w-[700px]">
-                  {emptyDays.map((_, index) => (
-                    <div key={`empty-${index}`} />
-                  ))}
+    {/* GRID */}
+    <div
+      className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2"
+    >
+      {/* EMPTY DAYS */}
+      {emptyDays.map((_, index) => (
+        <div key={`empty-${index}`} />
+      ))}
 
-                  {days.map((day) => (
-                    <AppointmentCalendarDayCard
-                      key={day}
-                      day={day}
-                      dayAppointments={getAppointmentsByDay(day)}
-                      isToday={
-                        day === today.getDate() &&
-                        month === today.getMonth() &&
-                        year === today.getFullYear()
-                      }
-                      darkMode={darkMode}
-                    />
-                  ))}
-                </div>
+      {/* REAL DAYS */}
+      {days.map((day) => (
+        <AppointmentCalendarDayCard
+          key={day}
+          day={day}
+          dayAppointments={getAppointmentsByDay(day)}
+          isToday={
+            day === today.getDate() &&
+            month === today.getMonth() &&
+            year === today.getFullYear()
+          }
+          darkMode={darkMode}
+        />
+      ))}
+    </div>
 
-              </div>
-            )}
+  </div>
+)}
 
           </div>
 
