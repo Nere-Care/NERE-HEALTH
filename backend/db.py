@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from backend.config import settings
+from backend.config import _get_settings_instance
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    _get_settings_instance().DATABASE_URL,
     future=True,
     pool_pre_ping=True,
     pool_size=10,

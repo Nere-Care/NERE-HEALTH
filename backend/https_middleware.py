@@ -12,7 +12,7 @@ from starlette.requests import Request
 from starlette.responses import Response, PlainTextResponse
 
 from backend.encryption import get_security_headers
-from backend.config import settings
+from backend.config import _get_settings_instance
 
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ class HTTPSEnforcementMiddleware(BaseHTTPMiddleware):
         """Traite la requête et ajoute les headers de sécurité."""
 
         # En production, rediriger HTTP vers HTTPS
-        if settings.ENVIRONMENT == "production":
+        if _get_settings_instance().ENVIRONMENT == "production":
             is_https = (
                 request.url.scheme == "https" or
                 request.headers.get("X-Forwarded-Proto") == "https" or
@@ -85,7 +85,7 @@ class HTTPSEnforcementMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
 
         # En développement, ajouter un header d'avertissement
-        if settings.ENVIRONMENT == "development":
+        if _get_settings_instance().ENVIRONMENT == "development":
             response.headers["X-Development-Mode"] = "true"
             logger.debug(f"Development mode - full error details may be exposed")
 

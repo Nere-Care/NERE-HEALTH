@@ -9,7 +9,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError as JoseError
 from sqlalchemy.orm import Session
 
-from backend.config import settings
+from backend.config import _get_settings_instance
 from backend.db import get_db
 from backend.jwt_handler import JWTHandler
 from backend.models import User
@@ -67,14 +67,14 @@ def create_access_token(
         expires_delta or timedelta(minutes=60)
     )
     payload = {"sub": subject, "exp": int(expire.timestamp())}
-    token = jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(payload, _get_settings_instance().SECRET_KEY, algorithm="HS256")
     return token if isinstance(token, str) else token.decode("utf-8")
 
 
 def decode_access_token(token: str) -> dict:
     """Decode the JWT token and return the payload."""
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        return jwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
     except JoseError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -217,7 +217,7 @@ def revoke_user_tokens(
 
             # Décoder le token pour obtenir son expiration
             try:
-                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                payload = jwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
                 exp_time = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
 
                 # Ajouter le token à la blacklist

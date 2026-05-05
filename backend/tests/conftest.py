@@ -30,7 +30,7 @@ try:
     from backend.db import SessionLocal, engine, Base
     from backend.main import app
     from backend.models import User
-    from backend.config import settings
+    from backend.config import _get_settings_instance
 except ImportError as e:
     print(f"Import error: {e}")
     get_password_hash = None
@@ -39,7 +39,7 @@ except ImportError as e:
     Base = None
     app = None
     User = None
-    settings = None
+    _get_settings_instance = None
 
 ALEMBIC_INI_PATH = Path(__file__).resolve().parents[1] / "alembic.ini"
 ALEMBIC_SCRIPT_LOCATION = ALEMBIC_INI_PATH.parent / "alembic"
@@ -54,16 +54,15 @@ def ensure_database_schema() -> None:
             f"Alembic configuration missing for tests: {ALEMBIC_INI_PATH} or {ALEMBIC_SCRIPT_LOCATION}"
         )
 
-    required_tables = ["users", "token_blacklist"]
+    required_tables = []
     try:
         with engine.connect() as conn:
             inspector = inspect(conn)
-            if all(inspector.has_table(table) for table in required_tables):
-                return
+            # Always try to create schema for tests
     except Exception as exc:
         pytest.skip(f"Database unavailable for tests: {exc}")
 
-    if settings.DATABASE_URL.startswith("sqlite"):
+    if _get_settings_instance().DATABASE_URL.startswith("sqlite"):
         if Base is not None:
             Base.metadata.create_all(bind=engine)
         return
@@ -71,7 +70,7 @@ def ensure_database_schema() -> None:
     alembic_cfg = Config(str(ALEMBIC_INI_PATH))
     alembic_cfg.set_main_option(
         "sqlalchemy.url",
-        settings.DATABASE_URL,
+        _get_settings_instance().DATABASE_URL,
     )
     alembic_cfg.set_main_option(
         "script_location",
@@ -145,4 +144,13 @@ def medecin_auth_header() -> dict[str, str]:
 @pytest.fixture(scope="function")
 def db() -> SessionLocal:
     with SessionLocal() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            session.rollback()
+            # Nettoyer les tables entre les tests pour éviter les collisions de contraintes uniques
+            for table in reversed(Base.metadata.sorted_tables):
+                if table.name == 'users':
+                    continue
+                session.execute(table.delete())
+            session.commit()

@@ -67,13 +67,10 @@ class EncryptionManager:
             plaintext: Texte à chiffrer
 
         Returns:
-            Texte chiffré en base64, ou "" si vide, None si None
+            Texte chiffré en base64, ou None si None ou vide
         """
-        if plaintext is None:
+        if plaintext is None or plaintext == '':
             return None
-
-        if plaintext == "":
-            return ""
 
         try:
             ciphertext = self._cipher_suite.encrypt(plaintext.encode())
@@ -91,7 +88,7 @@ class EncryptionManager:
             ciphertext_b64: Texte chiffré en base64
 
         Returns:
-            Texte original, ou "" si vide, None si None
+            Texte original, ou None si vide ou None
 
         Raises:
             InvalidToken: Si le token est invalide ou compromis
@@ -100,7 +97,7 @@ class EncryptionManager:
             return None
 
         if ciphertext_b64 == '':
-            return ''
+            return None
 
         try:
             # Décoder depuis base64

@@ -17,7 +17,7 @@ from backend.encryption import (
     get_encryption_manager,
     get_security_headers,
 )
-from backend.config import settings
+from backend.config import _get_settings_instance
 
 
 class TestEncryptionManager:
@@ -219,23 +219,21 @@ class TestSecurityHeaders:
 class TestHTTPSHeaders:
     """Tests des headers spécifiques HTTPS."""
 
-    def test_hsts_max_age_production(self):
+    def test_hsts_max_age_production(self, monkeypatch):
         """La durée HSTS est correcte en production."""
-        # Sauvegarder l'environment
-        original_env = settings.ENVIRONMENT
+        # Simuler la production
+        monkeypatch.setenv('ENVIRONMENT', 'production')
 
-        try:
-            # Simuler la production
-            settings.ENVIRONMENT = "production"
-            headers = get_security_headers()
+        # Reset settings pour prendre en compte la nouvelle valeur
+        import backend.config
+        backend.config._reset_settings()
+        backend.config._get_settings_instance()  # Initialize with new env
 
-            hsts = headers["Strict-Transport-Security"]
-            # Devrait être au moins 1 an (31536000 secondes)
-            assert "31536000" in hsts or "max-age=" in hsts
+        headers = get_security_headers()
 
-        finally:
-            # Restaurer
-            settings.ENVIRONMENT = original_env
+        hsts = headers["Strict-Transport-Security"]
+        # Devrait être au moins 1 an (31536000 secondes)
+        assert "31536000" in hsts or "max-age=" in hsts
 
     def test_csp_script_src_restrictive(self):
         """La CSP restreint les sources de scripts."""

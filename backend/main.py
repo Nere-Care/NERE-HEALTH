@@ -12,9 +12,11 @@ from slowapi.middleware import SlowAPIMiddleware
 import sentry_sdk
 from .cors_config import get_cors_config
 from .limiter import limiter, auth_limiter, payment_limiter, api_limiter, custom_rate_limit_handler, rate_limit_middleware
-from .config import settings
+from .config import _get_settings_instance, log_startup_configuration
 from .routers.root import router as root_router
 from .routers.auth import router as auth_router
+
+settings = _get_settings_instance()
 from .routers.users import router as users_router
 from .routers.patients import router as patients_router
 from .routers.consultations import router as consultations_router
@@ -119,6 +121,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(title='Nere_app API', version='1.0.0')
+log_startup_configuration()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 

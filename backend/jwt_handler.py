@@ -16,7 +16,7 @@ import hashlib
 import jwt
 from sqlalchemy.orm import Session
 
-from .config import settings
+from .config import _get_settings_instance
 from .models import TokenBlacklist, TokenRotationLog, User
 
 
@@ -79,7 +79,7 @@ class JWTHandler:
 
         token = jwt.encode(
             payload,
-            settings.SECRET_KEY,
+            _get_settings_instance().SECRET_KEY,
             algorithm="HS256",
         )
         return token
@@ -121,7 +121,7 @@ class JWTHandler:
 
         token = jwt.encode(
             payload,
-            settings.SECRET_KEY,
+            _get_settings_instance().SECRET_KEY,
             algorithm="HS256",
         )
         return token
@@ -143,7 +143,7 @@ class JWTHandler:
         try:
             payload = jwt.decode(
                 token,
-                settings.SECRET_KEY,
+                _get_settings_instance().SECRET_KEY,
                 algorithms=["HS256"],
             )
             return payload
@@ -224,7 +224,7 @@ class JWTHandler:
         try:
             payload = jwt.decode(
                 token,
-                settings.SECRET_KEY,
+                _get_settings_instance().SECRET_KEY,
                 algorithms=["HS256"],
                 options={"verify_exp": False},  # Accepter expiré
             )

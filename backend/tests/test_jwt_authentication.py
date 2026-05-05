@@ -117,7 +117,7 @@ class TestJWTTokenValidation:
     def test_decode_expired_token(self):
         """Rejette un token expiré."""
         from backend.jwt_handler import JWTHandler
-        from backend.config import settings
+        from backend.config import _get_settings_instance
         from datetime import datetime, timedelta, timezone
 
         user_id = uuid4()
@@ -134,7 +134,7 @@ class TestJWTTokenValidation:
 
         expired_token = jwt.encode(
             payload,
-            settings.SECRET_KEY,
+            _get_settings_instance().SECRET_KEY,
             algorithm="HS256",
         )
 
@@ -160,7 +160,7 @@ class TestJWTTokenRotation:
     def test_should_rotate_token_true(self):
         """Retourne True pour un token approchant l'expiration."""
         from backend.jwt_handler import JWTHandler
-        from backend.config import settings
+        from backend.config import _get_settings_instance
         from datetime import datetime, timedelta, timezone
 
         user_id = uuid4()
@@ -179,7 +179,7 @@ class TestJWTTokenRotation:
 
         token = jwt.encode(
             payload,
-            settings.SECRET_KEY,
+            _get_settings_instance().SECRET_KEY,
             algorithm="HS256",
         )
 

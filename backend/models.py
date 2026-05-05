@@ -29,10 +29,10 @@ from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import TypeDecorator, CHAR
 
-from backend.config import settings
+from backend.config import _get_settings_instance
 from backend.db import Base
 
-_IS_SQLITE = settings.DATABASE_URL.startswith("sqlite")
+_IS_SQLITE = _get_settings_instance().DATABASE_URL.startswith("sqlite")
 
 
 class GUID(TypeDecorator):

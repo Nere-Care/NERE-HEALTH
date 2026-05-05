@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator, model_validator, ConfigDict
 
 ROOT = Path(__file__).resolve().parent
-load_dotenv(ROOT.parent / '.env')
+load_dotenv(ROOT.parent / '.env', override=False)
 
 
 def _mask_secret(secret: str, chars_visible: int = 4) -> str:
@@ -174,14 +174,45 @@ def _validate_environment(env: str) -> str:
 class Settings(BaseSettings):
     """Configuration centralisée sécurisée - AUDIT v2.0"""
 
-    model_config = ConfigDict(env_file=ROOT.parent / '.env', extra='ignore')
+    model_config = ConfigDict(env_file=ROOT.parent / '.env', extra='ignore', env_prefix='')
+
+    @model_validator(mode='before')
+    @classmethod
+    def _load_environment_variables(cls, values):
+        if values is None:
+            values = {}
+
+        values = dict(values)
+
+        if not values.get('ENVIRONMENT'):
+            values['ENVIRONMENT'] = os.getenv('ENVIRONMENT', 'development')
+
+        if not values.get('DATABASE_URL_RAW'):
+            values['DATABASE_URL_RAW'] = os.getenv('DATABASE_URL', '')
+
+        if not values.get('SECRET_KEY'):
+            values['SECRET_KEY'] = os.getenv('SECRET_KEY', '')
+
+        if not values.get('CORS_ORIGINS'):
+            values['CORS_ORIGINS'] = os.getenv('CORS_ORIGINS', values.get('CORS_ORIGINS', '*'))
+
+        if not values.get('ALLOWED_HOSTS'):
+            values['ALLOWED_HOSTS'] = os.getenv('ALLOWED_HOSTS', values.get('ALLOWED_HOSTS', 'localhost'))
+
+        if not values.get('STRIPE_API_KEY'):
+            values['STRIPE_API_KEY'] = os.getenv('STRIPE_API_KEY', '')
+
+        if not values.get('STRIPE_WEBHOOK_SECRET'):
+            values['STRIPE_WEBHOOK_SECRET'] = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+
+        return values
 
     # Environnement
     ENVIRONMENT: str = 'development'
     DEBUG: bool = False
 
     # Base de données
-    DATABASE_URL_RAW: str = Field('', env='DATABASE_URL')
+    DATABASE_URL_RAW: str = Field('')
 
     # Sécurité principal
     SECRET_KEY: str = ''
@@ -248,6 +279,10 @@ class Settings(BaseSettings):
     def validate_database_url_raw(cls, v, info):
         env = info.data.get('ENVIRONMENT', 'development')
         testing = os.getenv('TESTING', '0') == '1'
+
+        # Fallback explicite pour DATABASE_URL lorsque Pydantic ne le charge pas.
+        if not v or not str(v).strip():
+            v = os.getenv('DATABASE_URL', '').strip()
 
         if not v or not str(v).strip():
             if env == 'production':
@@ -408,21 +443,33 @@ def _reset_settings():
     """Reset l'instance globale des settings (pour les tests)"""
     _SettingsProxy._instance = None
 
+def _get_settings_instance():
+    """Obtenir ou créer l'instance settings (pour les tests)"""
+    if _SettingsProxy._instance is None:
+        _SettingsProxy._instance = Settings()
+    return _SettingsProxy._instance
+
 # Instance globale
 settings = _SettingsProxy()
 
-# Log configuration au démarrage (en production uniquement)
-if not settings.DEBUG:
+
+def log_startup_configuration():
+    """Log la configuration sécurisée lors du démarrage en production."""
+    settings_instance = _get_settings_instance()
+    testing = os.getenv('TESTING', '0') == '1'
+    if testing or settings_instance.DEBUG:
+        return
+
     print(f"""
-╔════════════════════════════════════════════════════════════════════╗
+╔════════════════════════════════════════════════════════════════════════════╗
 ║              🚀 NERE APP - DÉMARRAGE SÉCURISÉ                      ║
-╠════════════════════════════════════════════════════════════════════╣
-║ 🔐 ENVIRONMENT      : {settings.ENVIRONMENT.upper()}
-║ 🔐 DEBUG            : {'✓ ON (DEV)' if settings.DEBUG else '✗ OFF (PROD)'}
-║ 🔐 CORS_ORIGINS     : {len(settings.CORS_ORIGINS)} domaine(s) autorisé(s)
-║ 🔐 ALLOWED_HOSTS    : {len(settings.ALLOWED_HOSTS)} host(s) autorisé(s)
-║ 🔐 SECRET_KEY       : {_mask_secret(settings.SECRET_KEY)}
-║ 🔐 STRIPE_KEY       : {_mask_secret(settings.STRIPE_API_KEY) if settings.STRIPE_API_KEY else '⚠️  NON CONFIGURÉ'}
-║ 🔐 DATABASE         : {settings.DATABASE_URL_RAW[:40]}...
-╚════════════════════════════════════════════════════════════════════╝
+╠════════════════════════════════════════════════════════════════════════════╣
+║ 🔐 ENVIRONMENT      : {settings_instance.ENVIRONMENT.upper()}
+║ 🔐 DEBUG            : {'✓ ON (DEV)' if settings_instance.DEBUG else '✗ OFF (PROD)'}
+║ 🔐 CORS_ORIGINS     : {len(settings_instance.CORS_ORIGINS)} domaine(s) autorisé(s)
+║ 🔐 ALLOWED_HOSTS    : {len(settings_instance.ALLOWED_HOSTS)} host(s) autorisé(s)
+║ 🔐 SECRET_KEY       : {_mask_secret(settings_instance.SECRET_KEY)}
+║ 🔐 STRIPE_KEY       : {_mask_secret(settings_instance.STRIPE_API_KEY) if settings_instance.STRIPE_API_KEY else '⚠️  NON CONFIGURÉ'}
+║ 🔐 DATABASE         : {settings_instance.DATABASE_URL_RAW[:40]}...
+╚════════════════════════════════════════════════════════════════════════════════════╝
     """)

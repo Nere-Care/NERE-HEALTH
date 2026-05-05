@@ -14,10 +14,10 @@ fileConfig(config.config_file_name)
 
 
 def get_target_metadata():
-    from backend.config import settings
+    from backend.config import _get_settings_instance
     from backend.db import Base
 
-    config.set_main_option('sqlalchemy.url', settings.DATABASE_URL)
+    config.set_main_option('sqlalchemy.url', _get_settings_instance().DATABASE_URL)
     return Base.metadata
 
 

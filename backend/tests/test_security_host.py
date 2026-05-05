@@ -21,7 +21,9 @@ class TestHostValidation:
         # Simuler un environnement de développement
         import os
         old_env = os.environ.get('ENVIRONMENT')
+        old_debug = os.environ.get('DEBUG')
         os.environ['ENVIRONMENT'] = 'development'
+        os.environ['DEBUG'] = 'true'
 
         try:
             # Recharger les settings
@@ -48,8 +50,10 @@ class TestHostValidation:
         finally:
             if old_env:
                 os.environ['ENVIRONMENT'] = old_env
+            if old_debug is not None:
+                os.environ['DEBUG'] = old_debug
             else:
-                os.environ.pop('ENVIRONMENT', None)
+                os.environ.pop('DEBUG', None)
 
     def test_host_validation_prod_valid_host(self):
         """Test validation host valide en production"""
