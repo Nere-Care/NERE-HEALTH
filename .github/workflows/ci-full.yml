@@ -1,5 +1,8 @@
 name: Full CI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 on:
   push:
     paths:
@@ -21,7 +24,7 @@ jobs:
     name: Backend CI
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       DATABASE_URL: postgresql://nere_user:nere_pass@localhost:5432/nere_db
       API_PREFIX: /api
       ENVIRONMENT: development
@@ -47,9 +50,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
       - name: Set up Python
         uses: actions/setup-python@v5
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
         with:
           python-version: '3.11'
 
@@ -81,14 +88,20 @@ jobs:
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install frontend dependencies
         run: |
@@ -118,9 +131,13 @@ jobs:
   mobile:
     name: Mobile CI
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -147,9 +164,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: backend
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
