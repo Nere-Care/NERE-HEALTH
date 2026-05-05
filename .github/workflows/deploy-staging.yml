@@ -16,7 +16,7 @@ jobs:
     name: Build and push backend image
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout repository
@@ -73,8 +73,8 @@ jobs:
              docker run -d --name nere-backend --restart unless-stopped \
                -p 8000:8000 \
                -e DATABASE_URL='${{ secrets.STAGING_DATABASE_URL }}' \
-               -e API_PREFIX='${{ secrets.STAGING_API_PREFIX:-/api}}' \
+               -e API_PREFIX='${{ secrets.STAGING_API_PREFIX || '/api' }}' \
                -e ENVIRONMENT='staging' \
                -e SECRET_KEY='${{ secrets.STAGING_SECRET_KEY }}' \
-               -e CORS_ORIGINS='${{ secrets.STAGING_CORS_ORIGINS:-http://localhost:4173,http://localhost:5173}}' \
+               -e CORS_ORIGINS='${{ secrets.STAGING_CORS_ORIGINS || 'http://localhost:4173,http://localhost:5173' }}' \
                ghcr.io/${{ github.repository_owner }}/nere-backend:staging"

@@ -18,7 +18,7 @@ jobs:
     name: Build and push production images
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout repository
@@ -89,7 +89,7 @@ jobs:
              docker run -d --name nere-backend-prod --restart unless-stopped \
                -p 8000:8000 \
                -e DATABASE_URL='${{ secrets.PRODUCTION_DATABASE_URL }}' \
-               -e API_PREFIX='${{ secrets.PRODUCTION_API_PREFIX:-/api}}' \
+               -e API_PREFIX='${{ secrets.PRODUCTION_API_PREFIX || '/api' }}' \
                -e ENVIRONMENT='production' \
                -e SECRET_KEY='${{ secrets.PRODUCTION_SECRET_KEY }}' \
                -e CORS_ORIGINS='${{ secrets.PRODUCTION_CORS_ORIGINS }}' \
