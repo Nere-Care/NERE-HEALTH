@@ -64,12 +64,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --no-cache-dir -r backend/requirements.txt
-          python -m pip install --no-cache-dir pycodestyle pip-audit
+          python -m pip install --no-cache-dir black pycodestyle pip-audit
+
+      - name: Format code with black
+        run: |
+          cd backend
+          python -m black . --exclude="alembic/versions" --line-length=120 --check
 
       - name: Lint backend source
         run: |
           cd backend
-          python -m pycodestyle --max-line-length=79 . --exclude=alembic/versions
+          python -m pycodestyle --max-line-length=120 . --exclude=alembic/versions --ignore=E402,W503
 
       - name: Security scan Python dependencies
         run: |
@@ -149,15 +154,17 @@ jobs:
           cd frontend/mobile
           flutter pub get
 
-      - name: Run mobile tests
+      - name: Run mobile unit tests
         run: |
           cd frontend/mobile
-          flutter test
+          flutter test --exclude-tags=integration
 
-      - name: Run mobile integration tests
-        run: |
-          cd frontend/mobile
-          flutter test integration_test
+      # Integration tests require emulator/device - use macos-latest or manual testing
+      # To enable on macOS, use: runs-on: macos-latest
+      # - name: Run mobile integration tests
+      #   run: |
+      #     cd frontend/mobile
+      #     flutter test integration_test
 
   security-scan:
     name: Security scan image
