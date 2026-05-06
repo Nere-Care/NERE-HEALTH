@@ -108,12 +108,20 @@ async def send_teleconsultation_signal(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
 
     if not rendez_vous.webrtc_room_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La salle de téléconsultation n'est pas initialisée")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="La salle de téléconsultation n'est pas initialisée"
+        )
 
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé"
+        )
     if current_user.role == "patient" and rendez_vous.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé"
+        )
 
     return {
         "detail": "Signaling accepted",
