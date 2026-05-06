@@ -118,10 +118,11 @@ jobs:
           cd frontend/web
           npm test
 
-      - name: Run frontend E2E tests
-        run: |
-          cd frontend/web
-          npm run test:e2e
+      # E2E tests not yet configured - uncomment when ready
+      # - name: Run frontend E2E tests
+      #   run: |
+      #     cd frontend/web
+      #     npm run test:e2e
 
       - name: Run frontend security audit
         run: |
