@@ -40,7 +40,9 @@ async def create_structure(
         db.refresh(structure)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la structure") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la structure"
+        ) from exc
     return structure
 
 
@@ -76,7 +78,9 @@ async def update_structure(
         db.refresh(structure)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la structure: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la structure: {exc.orig}"
+        ) from exc
     return structure
 
 

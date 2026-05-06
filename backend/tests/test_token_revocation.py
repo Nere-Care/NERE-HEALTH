@@ -102,7 +102,7 @@ class TestTokenRevocationEndpoint:
             data={
                 "username": "logout_test@example.com",
                 "password": "TestPassword123!",
-            }
+            },
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
@@ -112,17 +112,11 @@ class TestTokenRevocationEndpoint:
     def test_logout_revokes_token(self, medecin_auth_header):
         """Test que le logout révoque le token"""
         # Vérifier que le token fonctionne avant logout
-        response1 = client.get(
-            "/auth/me",
-            headers=medecin_auth_header
-        )
+        response1 = client.get("/auth/me", headers=medecin_auth_header)
         assert response1.status_code == 200
 
         # Logout avec le token
-        response2 = client.post(
-            "/auth/logout",
-            headers=medecin_auth_header
-        )
+        response2 = client.post("/auth/logout", headers=medecin_auth_header)
         assert response2.status_code == 200
         data = response2.json()
         assert data["message"] == "Déconnexion réussie"
@@ -138,10 +132,7 @@ class TestTokenRevocationEndpoint:
         token_blacklist.revoke(token, exp_time)
 
         # Essayer d'utiliser le token révoqué
-        response = client.get(
-            "/api/users/me",
-            headers=medecin_auth_header
-        )
+        response = client.get("/api/users/me", headers=medecin_auth_header)
 
         # Devrait être rejeté (401 avec message de révocation)
         assert response.status_code == 401
@@ -151,27 +142,18 @@ class TestTokenRevocationEndpoint:
     def test_multiple_logout_attempts(self, medecin_auth_header):
         """Test les tentatives de logout multiples"""
         # Premier logout
-        response1 = client.post(
-            "/auth/logout",
-            headers=medecin_auth_header
-        )
+        response1 = client.post("/auth/logout", headers=medecin_auth_header)
         assert response1.status_code == 200
 
         # Deuxième logout avec le même token (devrait échouer - token révoqué)
-        response2 = client.post(
-            "/auth/logout",
-            headers=medecin_auth_header
-        )
+        response2 = client.post("/auth/logout", headers=medecin_auth_header)
         assert response2.status_code == 401  # Token révoqué
 
     def test_logout_invalid_token(self):
         """Test le logout avec un token invalide"""
         invalid_headers = {"Authorization": "Bearer invalid_token_xyz"}
 
-        response = client.post(
-            "/auth/logout",
-            headers=invalid_headers
-        )
+        response = client.post("/auth/logout", headers=invalid_headers)
 
         # Devrait retourner 401
         assert response.status_code == 401
@@ -185,21 +167,14 @@ class TestTokenRevocationAudit:
         from backend.audit_logger import AuditLog
 
         # Compter les logs avant logout
-        initial_count = db.query(AuditLog).filter(
-            AuditLog.action == "deconnexion"
-        ).count()
+        initial_count = db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
 
         # Logout
-        response = client.post(
-            "/auth/logout",
-            headers=medecin_auth_header
-        )
+        response = client.post("/auth/logout", headers=medecin_auth_header)
         assert response.status_code == 200
 
         # Vérifier qu'un log a été créé
-        final_count = db.query(AuditLog).filter(
-            AuditLog.action == "deconnexion"
-        ).count()
+        final_count = db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
 
         assert final_count > initial_count
 
@@ -215,21 +190,14 @@ class TestTokenRevocationAudit:
         token_blacklist.revoke(token, exp_time)
 
         # Compter les logs d'erreur avant
-        initial_count = db.query(AuditLog).filter(
-            AuditLog.action == "tentative_connexion_echec"
-        ).count()
+        initial_count = db.query(AuditLog).filter(AuditLog.action == "tentative_connexion_echec").count()
 
         # Essayer d'utiliser le token révoqué
-        response = client.get(
-            "/auth/me",
-            headers=medecin_auth_header
-        )
+        response = client.get("/auth/me", headers=medecin_auth_header)
         assert response.status_code == 401
 
         # Vérifier qu'un log d'erreur a été créé
-        final_count = db.query(AuditLog).filter(
-            AuditLog.action == "tentative_connexion_echec"
-        ).count()
+        final_count = db.query(AuditLog).filter(AuditLog.action == "tentative_connexion_echec").count()
 
         assert final_count > initial_count
 
@@ -264,31 +232,22 @@ class TestTokenRevocationIntegration:
             data={
                 "username": test_email,
                 "password": "LifecycleTest123!",
-            }
+            },
         )
         assert response.status_code == 200
         token = response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
         # 3. Vérifier accès avant logout
-        response = client.get(
-            "/auth/me",
-            headers=headers
-        )
+        response = client.get("/auth/me", headers=headers)
         assert response.status_code == 200
 
         # 4. Logout
-        response = client.post(
-            "/auth/logout",
-            headers=headers
-        )
+        response = client.post("/auth/logout", headers=headers)
         assert response.status_code == 200
 
         # 5. Vérifier rejet après logout
-        response = client.get(
-            "/auth/me",
-            headers=headers
-        )
+        response = client.get("/auth/me", headers=headers)
         assert response.status_code == 401
 
         # 6. Vérifier que le token est dans la blacklist
@@ -299,10 +258,7 @@ class TestTokenRevocationIntegration:
         import concurrent.futures
 
         def make_request():
-            response = client.get(
-                "/auth/me",
-                headers=medecin_auth_header
-            )
+            response = client.get("/auth/me", headers=medecin_auth_header)
             return response.status_code
 
         # Faire plusieurs requêtes en parallèle
@@ -314,10 +270,7 @@ class TestTokenRevocationIntegration:
         assert all(status == 200 for status in statuses_before)
 
         # Logout
-        response = client.post(
-            "/auth/logout",
-            headers=medecin_auth_header
-        )
+        response = client.post("/auth/logout", headers=medecin_auth_header)
         assert response.status_code == 200
 
         # Faire plusieurs requêtes en parallèle après logout

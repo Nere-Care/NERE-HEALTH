@@ -11,12 +11,17 @@ from slowapi.middleware import SlowAPIMiddleware
 
 import sentry_sdk
 from .cors_config import get_cors_config
-from .limiter import limiter, auth_limiter, payment_limiter, api_limiter, custom_rate_limit_handler, rate_limit_middleware
+from .limiter import (
+    limiter,
+    auth_limiter,
+    payment_limiter,
+    api_limiter,
+    custom_rate_limit_handler,
+    rate_limit_middleware,
+)
 from .config import _get_settings_instance, log_startup_configuration
 from .routers.root import router as root_router
 from .routers.auth import router as auth_router
-
-settings = _get_settings_instance()
 from .routers.users import router as users_router
 from .routers.patients import router as patients_router
 from .routers.consultations import router as consultations_router
@@ -26,22 +31,14 @@ from .routers.ia import router as ia_router
 from .routers.teleconsultation import router as teleconsultation_router
 from .routers.notifications import router as notifications_router
 from .routers.rendez_vous import router as rendez_vous_router
-from .routers.dossiers_medicaux import (
-    router as dossiers_medicaux_router
-)
+from .routers.dossiers_medicaux import router as dossiers_medicaux_router
 from .routers.avis import router as avis_router
-from .routers.chatbot_sessions import (
-    router as chatbot_sessions_router
-)
+from .routers.chatbot_sessions import router as chatbot_sessions_router
 from .routers.conversations import router as conversations_router
 from .routers.disponibilites import router as disponibilites_router
-from .routers.documents_medicaux import (
-    router as documents_medicaux_router
-)
+from .routers.documents_medicaux import router as documents_medicaux_router
 from .routers.medecins import router as medecins_router
-from .routers.medecin_specialites import (
-    router as medecin_specialites_router
-)
+from .routers.medecin_specialites import router as medecin_specialites_router
 from .routers.messages import router as messages_router
 from .routers.sessions import router as sessions_router
 from .routers.specialites import router as specialites_router
@@ -74,37 +71,37 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
         if self.debug:
             return await call_next(request)
 
-        host_header = request.headers.get('host', '').strip()
+        host_header = request.headers.get("host", "").strip()
 
         # Vérifications de sécurité strictes
         if not host_header:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Host header manquant',
+                detail="Host header manquant",
             )
 
         # Protection contre les attaques de host header poisoning
-        if '\n' in host_header or '\r' in host_header or '\t' in host_header:
+        if "\n" in host_header or "\r" in host_header or "\t" in host_header:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Host header invalide',
+                detail="Host header invalide",
             )
 
         # Extraire le host sans port
-        if ':' in host_header:
-            host = host_header.split(':')[0].lower()
+        if ":" in host_header:
+            host = host_header.split(":")[0].lower()
             # Vérifier que le port est valide (80 ou 443 pour production)
             try:
-                port = int(host_header.split(':')[1])
+                port = int(host_header.split(":")[1])
                 if port not in [80, 443]:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Port non autorisé',
+                        detail="Port non autorisé",
                     )
             except ValueError:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Port invalide',
+                    detail="Port invalide",
                 )
         else:
             host = host_header.lower()
@@ -114,13 +111,13 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             # Log de sécurité (optionnel - peut être ajouté plus tard)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Host header non autorisé',
+                detail="Host header non autorisé",
             )
 
         return await call_next(request)
 
 
-app = FastAPI(title='Nere_app API', version='1.0.0')
+app = FastAPI(title="Nere_app API", version="1.0.0")
 log_startup_configuration()
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)

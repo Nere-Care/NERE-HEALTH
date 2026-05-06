@@ -25,8 +25,8 @@ class JWTHandler:
 
     # Durées d'expiration
     ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Court terme, renouvellement fréquent
-    REFRESH_TOKEN_EXPIRE_DAYS = 7     # Long terme, sécurisé
-    TOKEN_ROTATION_THRESHOLD = 5      # Renouveler après 5 min (proactif)
+    REFRESH_TOKEN_EXPIRE_DAYS = 7  # Long terme, sécurisé
+    TOKEN_ROTATION_THRESHOLD = 5  # Renouveler après 5 min (proactif)
 
     @staticmethod
     def create_access_token(
@@ -50,9 +50,9 @@ class JWTHandler:
         """
         # Support both dict and individual params for backward compatibility
         if isinstance(user_data, dict):
-            user_id = user_data.get('sub', user_id)
-            email = user_data.get('email', email)
-            role = user_data.get('role', role)
+            user_id = user_data.get("sub", user_id)
+            email = user_data.get("email", email)
+            role = user_data.get("role", role)
         elif user_data is not None and not isinstance(user_data, dict):
             # Accepter la signature historique create_access_token(user_id, email, role)
             if user_id is not None and email is not None and role is None:
@@ -63,9 +63,7 @@ class JWTHandler:
                 user_id = user_data
 
         if expires_delta is None:
-            expires_delta = timedelta(
-                minutes=JWTHandler.ACCESS_TOKEN_EXPIRE_MINUTES
-            )
+            expires_delta = timedelta(minutes=JWTHandler.ACCESS_TOKEN_EXPIRE_MINUTES)
 
         expire = datetime.now(timezone.utc) + expires_delta
         payload = {
@@ -99,8 +97,8 @@ class JWTHandler:
         """
         # Support both dict and individual params
         if isinstance(user_data, dict):
-            user_id = user_data.get('sub', user_id)
-            email = user_data.get('email', email)
+            user_id = user_data.get("sub", user_id)
+            email = user_data.get("email", email)
         elif user_data is not None and not isinstance(user_data, dict):
             if user_id is not None and email is None:
                 email = user_id
@@ -108,9 +106,7 @@ class JWTHandler:
             elif user_id is None:
                 user_id = user_data
 
-        expire = datetime.now(timezone.utc) + timedelta(
-            days=JWTHandler.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        expire = datetime.now(timezone.utc) + timedelta(days=JWTHandler.REFRESH_TOKEN_EXPIRE_DAYS)
         payload = {
             "sub": str(user_id),
             "email": email,
@@ -164,9 +160,7 @@ class JWTHandler:
         Returns:
             True si le token est blacklisté, False sinon
         """
-        blacklisted = db.query(TokenBlacklist).filter(
-            TokenBlacklist.token == token
-        ).first()
+        blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
         return blacklisted is not None
 
     @staticmethod
@@ -315,17 +309,11 @@ class JWTHandler:
             Tuple (nouveau_access_token, nouveau_refresh_token)
         """
         # Créer les nouveaux tokens
-        new_access_token = JWTHandler.create_access_token(
-            user.id, user.email, user.role
-        )
-        new_refresh_token = JWTHandler.create_refresh_token(
-            user.id, user.email
-        )
+        new_access_token = JWTHandler.create_access_token(user.id, user.email, user.role)
+        new_refresh_token = JWTHandler.create_refresh_token(user.id, user.email)
 
         # Blacklister l'ancien token
-        JWTHandler.blacklist_token(
-            db, old_access_token, user.id, "rotation"
-        )
+        JWTHandler.blacklist_token(db, old_access_token, user.id, "rotation")
 
         # Logger la rotation pour audit
         old_token_hash = hashlib.sha256(old_access_token.encode()).hexdigest()
@@ -357,8 +345,6 @@ class JWTHandler:
             Nombre de tokens supprimés
         """
         now = datetime.now(timezone.utc)
-        deleted = db.query(TokenBlacklist).filter(
-            TokenBlacklist.expires_at < now
-        ).delete()
+        deleted = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < now).delete()
         db.commit()
         return deleted

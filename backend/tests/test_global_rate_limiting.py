@@ -21,8 +21,8 @@ class TestGlobalRateLimiting:
         from backend.limiter import adaptive_limiter, BASE_LIMIT
 
         # Patcher les limites pour les tests
-        monkeypatch.setattr('backend.limiter.BASE_LIMIT', '10/minute')
-        monkeypatch.setattr(adaptive_limiter, 'should_block', lambda request: False)
+        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "10/minute")
+        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: False)
 
         # Test route IA diagnostic
         responses = []
@@ -32,9 +32,9 @@ class TestGlobalRateLimiting:
                 json={
                     "patient_id": "550e8400-e29b-41d4-a716-446655440000",
                     "symptomes_declares": ["fièvre", "toux"],
-                    "contexte": "Patient adulte"
+                    "contexte": "Patient adulte",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
@@ -47,8 +47,8 @@ class TestGlobalRateLimiting:
         from backend.limiter import adaptive_limiter
 
         # Patcher les limites pour les tests
-        monkeypatch.setattr('backend.limiter.BASE_LIMIT', '5/minute')
-        monkeypatch.setattr(adaptive_limiter, 'should_block', lambda request: False)
+        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "5/minute")
+        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: False)
 
         # Test préparation téléconsultation
         responses = []
@@ -56,7 +56,7 @@ class TestGlobalRateLimiting:
             response = client.post(
                 "/api/teleconsultation/prepare",
                 json={"rendez_vous_id": "550e8400-e29b-41d4-a716-446655440000"},
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
@@ -77,15 +77,17 @@ class TestGlobalRateLimiting:
         dossier_id = uuid.uuid4()
 
         if not db.get(User, patient_id):
-            db.add(User(
-                id=patient_id,
-                email=f"patient{patient_id}@test.com",
-                mot_de_passe_hash=get_password_hash("dummy"),
-                role="patient",
-                statut="actif",
-                nom="Test",
-                prenom="Patient"
-            ))
+            db.add(
+                User(
+                    id=patient_id,
+                    email=f"patient{patient_id}@test.com",
+                    mot_de_passe_hash=get_password_hash("dummy"),
+                    role="patient",
+                    statut="actif",
+                    nom="Test",
+                    prenom="Patient",
+                )
+            )
             db.commit()
 
         if not db.get(Medecin, medecin_id):
@@ -93,21 +95,23 @@ class TestGlobalRateLimiting:
             db.commit()
 
         if not db.get(Patient, patient_id):
-            db.add(Patient(
-                id=patient_id,
-                numero_patient="PAT-TEST-001",
-                sexe="Non_precise",
-                groupe_sanguin="Inconnu",
-                pays="CM",
-                consentement_donnees=False
-            ))
+            db.add(
+                Patient(
+                    id=patient_id,
+                    numero_patient="PAT-TEST-001",
+                    sexe="Non_precise",
+                    groupe_sanguin="Inconnu",
+                    pays="CM",
+                    consentement_donnees=False,
+                )
+            )
             db.commit()
 
         now = datetime.utcnow()
 
         # Patcher les limites pour les tests
-        monkeypatch.setattr('backend.limiter.BASE_LIMIT', '10/minute')
-        monkeypatch.setattr(adaptive_limiter, 'should_block', lambda request: True)
+        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "10/minute")
+        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: True)
 
         responses = []
         for i in range(12):  # Au-delà de la limite de 10/minute
@@ -121,7 +125,7 @@ class TestGlobalRateLimiting:
                     date_heure_debut=now,
                     date_heure_fin=now + timedelta(hours=1),
                     type="presentiel",
-                    statut="en_attente"
+                    statut="en_attente",
                 )
             )
             db.commit()
@@ -135,9 +139,9 @@ class TestGlobalRateLimiting:
                     "dossier_id": str(dossier_id),
                     "numero_consultation": f"CONS-{i:03d}",
                     "date_heure_debut": "2027-01-01T10:00:00Z",
-                    "motif": "Consultation de test"
+                    "motif": "Consultation de test",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
@@ -160,15 +164,17 @@ class TestGlobalRateLimiting:
         consultation_id = uuid.uuid4()
 
         if not db.get(User, patient_id):
-            db.add(User(
-                id=patient_id,
-                email=f"patient{patient_id}@test.com",
-                mot_de_passe_hash=get_password_hash("dummy"),
-                role="patient",
-                statut="actif",
-                nom="Test",
-                prenom="Patient"
-            ))
+            db.add(
+                User(
+                    id=patient_id,
+                    email=f"patient{patient_id}@test.com",
+                    mot_de_passe_hash=get_password_hash("dummy"),
+                    role="patient",
+                    statut="actif",
+                    nom="Test",
+                    prenom="Patient",
+                )
+            )
             db.commit()
 
         if not db.get(Medecin, medecin_id):
@@ -176,14 +182,16 @@ class TestGlobalRateLimiting:
             db.commit()
 
         if not db.get(Patient, patient_id):
-            db.add(Patient(
-                id=patient_id,
-                numero_patient="PAT-TEST-ORDO-001",
-                sexe="Non_precise",
-                groupe_sanguin="Inconnu",
-                pays="CM",
-                consentement_donnees=False
-            ))
+            db.add(
+                Patient(
+                    id=patient_id,
+                    numero_patient="PAT-TEST-ORDO-001",
+                    sexe="Non_precise",
+                    groupe_sanguin="Inconnu",
+                    pays="CM",
+                    consentement_donnees=False,
+                )
+            )
             db.commit()
 
         db.add(
@@ -195,7 +203,7 @@ class TestGlobalRateLimiting:
                 date_heure_debut=datetime.utcnow(),
                 date_heure_fin=datetime.utcnow() + timedelta(hours=1),
                 type="presentiel",
-                statut="en_attente"
+                statut="en_attente",
             )
         )
         db.add(
@@ -208,14 +216,14 @@ class TestGlobalRateLimiting:
                 patient_id=patient_id,
                 date_heure_debut=datetime.utcnow(),
                 motif="Consultation liée à l'ordonnance",
-                statut="termine"
+                statut="termine",
             )
         )
         db.commit()
 
         # Patcher les limites pour les tests
-        monkeypatch.setattr('backend.limiter.BASE_LIMIT', '5/minute')
-        monkeypatch.setattr(adaptive_limiter, 'should_block', lambda request: True)
+        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "5/minute")
+        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: True)
 
         responses = []
         for i in range(7):  # Au-delà de la limite de 5/minute
@@ -229,16 +237,16 @@ class TestGlobalRateLimiting:
                     "date_emission": "2024-01-01",
                     "date_expiration": "2024-02-01",
                     "qr_code_data": "FAKE-QRCODE-DATA",
-                    "statut": "active"
+                    "statut": "active",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
         rate_limited = any(r.status_code == 429 for r in responses)
         assert rate_limited, "Rate limiting non appliqué sur création ordonnance"
 
-    @patch('backend.limiter.adaptive_limiter.should_block')
+    @patch("backend.limiter.adaptive_limiter.should_block")
     def test_adaptive_rate_limiting(self, mock_should_block, medecin_auth_header):
         """Test que le rate limiting adaptatif fonctionne"""
         # Simuler un comportement suspect
@@ -254,11 +262,7 @@ class TestGlobalRateLimiting:
 
         # Vérifier les headers de rate limiting (si présents)
         headers = response.headers
-        rate_limit_headers = [
-            'x-ratelimit-limit',
-            'x-ratelimit-remaining',
-            'x-ratelimit-reset'
-        ]
+        rate_limit_headers = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
 
         # Au moins un header de rate limiting devrait être présent
         has_rate_limit_header = any(h in headers for h in rate_limit_headers)

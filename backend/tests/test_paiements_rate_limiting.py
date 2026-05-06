@@ -106,6 +106,7 @@ class TestPaiementRateLimiting:
     def test_create_paiement_rate_limit(self, medecin_auth_header, test_patient, test_medecin, test_rdv):
         """Test que la création de paiement est limitée à 10/minute"""
         import uuid
+
         # Faire 11 requêtes rapidement
         responses = []
         for i in range(11):
@@ -119,9 +120,9 @@ class TestPaiementRateLimiting:
                     "montant_total": 100.0,
                     "devise": "EUR",
                     "methode": "carte_visa",
-                    "fournisseur": "stripe"
+                    "fournisseur": "stripe",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
@@ -148,9 +149,9 @@ class TestPaiementRateLimiting:
                     "devise": "EUR",
                     "methode": "carte_visa",
                     "fournisseur": "stripe",
-                    "description": "Consultation médicale"
+                    "description": "Consultation médicale",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
             responses.append(response)
 
@@ -168,9 +169,7 @@ class TestPaiementRateLimiting:
         responses = []
         for i in range(101):
             response = client.post(
-                "/api/paiements/webhook",
-                json={"test": "data"},
-                headers={"stripe-signature": "test"}
+                "/api/paiements/webhook", json={"test": "data"}, headers={"stripe-signature": "test"}
             )
             responses.append(response)
 
@@ -187,10 +186,7 @@ class TestPaiementRateLimiting:
         # Faire 31 requêtes rapidement
         responses = []
         for i in range(31):
-            response = client.get(
-                "/api/paiements/550e8400-e29b-41d4-a716-446655440000",
-                headers=medecin_auth_header
-            )
+            response = client.get("/api/paiements/550e8400-e29b-41d4-a716-446655440000", headers=medecin_auth_header)
             responses.append(response)
 
         # Les 30 premières devraient réussir ou échouer pour d'autres raisons
@@ -215,9 +211,9 @@ class TestPaiementRateLimiting:
                     "devise": "EUR",
                     "methode": "carte_visa",
                     "fournisseur": "stripe",
-                    "description": "Consultation médicale"
+                    "description": "Consultation médicale",
                 },
-                headers=medecin_auth_header
+                headers=medecin_auth_header,
             )
 
         # Attendre un peu plus d'une minute pour reset
@@ -234,9 +230,9 @@ class TestPaiementRateLimiting:
                 "devise": "EUR",
                 "methode": "carte_visa",
                 "fournisseur": "stripe",
-                "description": "Consultation médicale"
+                "description": "Consultation médicale",
             },
-            headers=medecin_auth_header
+            headers=medecin_auth_header,
         )
 
         # Devrait réussir ou échouer pour d'autres raisons (pas rate limited)

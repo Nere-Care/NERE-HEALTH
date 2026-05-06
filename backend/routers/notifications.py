@@ -84,7 +84,9 @@ async def create_notification(
         db.refresh(notification)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de création de notification: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de création de notification: {exc.orig}"
+        ) from exc
 
     background_tasks.add_task(
         manager.broadcast,

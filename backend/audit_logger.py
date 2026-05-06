@@ -20,15 +20,13 @@ audit_logger.setLevel(logging.INFO)
 # Create console handler for audit logs
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    '%(asctime)s - AUDIT - %(levelname)s - %(message)s'
-)
+formatter = logging.Formatter("%(asctime)s - AUDIT - %(levelname)s - %(message)s")
 console_handler.setFormatter(formatter)
 audit_logger.addHandler(console_handler)
 
 # Create file handler for audit logs
 try:
-    file_handler = logging.FileHandler('/var/log/nere_audit.log', encoding='utf-8')
+    file_handler = logging.FileHandler("/var/log/nere_audit.log", encoding="utf-8")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     audit_logger.addHandler(file_handler)
@@ -52,7 +50,7 @@ class AuditLogger:
         entite_type: Optional[str] = None,
         entite_id: Optional[uuid.UUID] = None,
         request: Optional[Request] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """
         Log an audit event to database and log file.
@@ -102,7 +100,7 @@ class AuditLogger:
                 user_agent=user_agent,
                 endpoint=endpoint,
                 methode_http=methode_http,
-                additional_data=additional_data_str
+                additional_data=additional_data_str,
             )
 
             self.db.add(audit_entry)
@@ -153,7 +151,7 @@ class AuditLogger:
 
         # Fallback to direct client IP, validating it's not "testclient"
         if request.client:
-            ip = getattr(request.client, 'host', None)
+            ip = getattr(request.client, "host", None)
             if ip and ip != "testclient":
                 return ip
 
@@ -169,7 +167,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log successful authentication event"""
         self.log_action(
@@ -183,8 +181,8 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
 
     def log_auth_failure(
@@ -195,7 +193,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log failed authentication attempt"""
         self.log_action(
@@ -208,8 +206,8 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
 
     def log_admin_action(
@@ -221,7 +219,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log administrative actions"""
         self.log_action(
@@ -234,8 +232,8 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
 
     def log_payment_initiated(
@@ -247,7 +245,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log payment initiation"""
         self.log_action(
@@ -262,8 +260,8 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
 
     def log_medical_access(
@@ -275,7 +273,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log access to medical data"""
         self.log_action(
@@ -289,8 +287,8 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
 
     def log_data_export(
@@ -302,7 +300,7 @@ class AuditLogger:
         user_agent: Optional[str] = None,
         endpoint: Optional[str] = None,
         method: Optional[str] = None,
-        additional_data: Optional[Dict[str, Any]] = None
+        additional_data: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Log data export"""
         self.log_action(
@@ -316,10 +314,9 @@ class AuditLogger:
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "endpoint": endpoint,
-                "method": method
-            }
+                "method": method,
+            },
         )
-
 
 
 # Global audit logger instance
@@ -334,44 +331,22 @@ def get_audit_logger(db: Session) -> AuditLogger:
 
 
 # Convenience functions for common audit events
-def log_auth_success(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    request: Request
-) -> None:
+def log_auth_success(db: Session, user: User, session_id: uuid.UUID, request: Request) -> None:
     """Log successful authentication"""
     logger = get_audit_logger(db)
     logger.log_action(
-        action="connexion",
-        utilisateur_id=user.id,
-        role_utilisateur=user.role,
-        session_id=session_id,
-        request=request
+        action="connexion", utilisateur_id=user.id, role_utilisateur=user.role, session_id=session_id, request=request
     )
 
 
-def log_auth_failure(
-    db: Session,
-    email: str,
-    request: Request
-) -> None:
+def log_auth_failure(db: Session, email: str, request: Request) -> None:
     """Log failed authentication attempt"""
     logger = get_audit_logger(db)
-    logger.log_action(
-        action="tentative_connexion_echec",
-        request=request,
-        additional_data={"email_attempted": email}
-    )
+    logger.log_action(action="tentative_connexion_echec", request=request, additional_data={"email_attempted": email})
 
 
 def log_payment_initiated(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    payment_id: uuid.UUID,
-    amount: float,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, payment_id: uuid.UUID, amount: float, request: Request
 ) -> None:
     """Log payment initiation"""
     logger = get_audit_logger(db)
@@ -383,17 +358,12 @@ def log_payment_initiated(
         entite_type="payment",
         entite_id=payment_id,
         request=request,
-        additional_data={"amount": amount}
+        additional_data={"amount": amount},
     )
 
 
 def log_payment_confirmed(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    payment_id: uuid.UUID,
-    amount: float,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, payment_id: uuid.UUID, amount: float, request: Request
 ) -> None:
     """Log payment confirmation"""
     logger = get_audit_logger(db)
@@ -405,7 +375,7 @@ def log_payment_confirmed(
         entite_type="payment",
         entite_id=payment_id,
         request=request,
-        additional_data={"amount": amount}
+        additional_data={"amount": amount},
     )
 
 
@@ -416,7 +386,7 @@ def log_medical_access(
     entity_type: str,
     entity_id: uuid.UUID,
     action: str,
-    request: Request
+    request: Request,
 ) -> None:
     """Log access to medical data"""
     logger = get_audit_logger(db)
@@ -427,7 +397,7 @@ def log_medical_access(
         session_id=session_id,
         entite_type=entity_type,
         entite_id=entity_id,
-        request=request
+        request=request,
     )
 
 
@@ -439,7 +409,7 @@ def log_admin_action(
     entity_type: Optional[str],
     entity_id: Optional[uuid.UUID],
     request: Request,
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[Dict[str, Any]] = None,
 ) -> None:
     """Log administrative actions"""
     logger = get_audit_logger(db)
@@ -451,17 +421,12 @@ def log_admin_action(
         entite_type=entity_type,
         entite_id=entity_id,
         request=request,
-        additional_data=details
+        additional_data=details,
     )
 
 
 def log_data_export(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    entity_type: str,
-    count: int,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, entity_type: str, count: int, request: Request
 ) -> None:
     """Log data export operations"""
     logger = get_audit_logger(db)
@@ -472,17 +437,12 @@ def log_data_export(
         session_id=session_id,
         entite_type=entity_type,
         request=request,
-        additional_data={"exported_records": count}
+        additional_data={"exported_records": count},
     )
 
 
 def log_document_upload(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    document_id: uuid.UUID,
-    entity_type: str,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, document_id: uuid.UUID, entity_type: str, request: Request
 ) -> None:
     """Log document uploads"""
     logger = get_audit_logger(db)
@@ -493,16 +453,12 @@ def log_document_upload(
         session_id=session_id,
         entite_type=entity_type,
         entite_id=document_id,
-        request=request
+        request=request,
     )
 
 
 def log_teleconsultation_start(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    consultation_id: uuid.UUID,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, consultation_id: uuid.UUID, request: Request
 ) -> None:
     """Log teleconsultation start"""
     logger = get_audit_logger(db)
@@ -513,17 +469,12 @@ def log_teleconsultation_start(
         session_id=session_id,
         entite_type="teleconsultation",
         entite_id=consultation_id,
-        request=request
+        request=request,
     )
 
 
 def log_teleconsultation_end(
-    db: Session,
-    user: User,
-    session_id: uuid.UUID,
-    consultation_id: uuid.UUID,
-    duration_minutes: int,
-    request: Request
+    db: Session, user: User, session_id: uuid.UUID, consultation_id: uuid.UUID, duration_minutes: int, request: Request
 ) -> None:
     """Log teleconsultation end"""
     logger = get_audit_logger(db)
@@ -535,16 +486,12 @@ def log_teleconsultation_end(
         entite_type="teleconsultation",
         entite_id=consultation_id,
         request=request,
-        additional_data={"duration_minutes": duration_minutes}
+        additional_data={"duration_minutes": duration_minutes},
     )
 
 
 def log_account_suspension(
-    db: Session,
-    admin_id: uuid.UUID,
-    target_user_id: uuid.UUID,
-    reason: str,
-    request: Request
+    db: Session, admin_id: uuid.UUID, target_user_id: uuid.UUID, reason: str, request: Request
 ) -> None:
     """Log account suspension"""
     logger = get_audit_logger(db)
@@ -555,5 +502,5 @@ def log_account_suspension(
         entite_type="user",
         entite_id=target_user_id,
         request=request,
-        additional_data={"reason": reason}
+        additional_data={"reason": reason},
     )

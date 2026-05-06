@@ -62,7 +62,7 @@ class TestAuditLogger:
             utilisateur_id=user_id,
             role_utilisateur="medecin",
             entite_type=entity_type,
-            entite_id=entity_id
+            entite_id=entity_id,
         )
 
         # Verify database calls
@@ -82,12 +82,7 @@ class TestAuditLogger:
         request.client = Mock(host="192.168.1.1")
 
         user_id = uuid.uuid4()
-        logger.log_action(
-            action="creation",
-            utilisateur_id=user_id,
-            role_utilisateur="medecin",
-            request=request
-        )
+        logger.log_action(action="creation", utilisateur_id=user_id, role_utilisateur="medecin", request=request)
 
         # Verify database calls
         assert db_mock.add.called
@@ -102,10 +97,7 @@ class TestAuditLogger:
         logger = AuditLogger(db_mock)
 
         additional_data = {"amount": 100.50, "currency": "EUR"}
-        logger.log_action(
-            action="paiement_initie",
-            additional_data=additional_data
-        )
+        logger.log_action(action="paiement_initie", additional_data=additional_data)
 
         assert db_mock.add.called
         call_args = db_mock.add.call_args[0][0]
@@ -199,14 +191,7 @@ class TestConvenienceFunctions:
         session_id = uuid.uuid4()
         payment_id = uuid.uuid4()
 
-        log_payment_initiated(
-            db_mock,
-            user_mock,
-            session_id,
-            payment_id,
-            amount=150.00,
-            request=request
-        )
+        log_payment_initiated(db_mock, user_mock, session_id, payment_id, amount=150.00, request=request)
 
         assert db_mock.add.called
 
@@ -228,7 +213,7 @@ class TestConvenienceFunctions:
             entity_type="dossier_medical",
             entity_id=entity_id,
             action="acces_dossier_medical",
-            request=request
+            request=request,
         )
 
         assert db_mock.add.called
@@ -243,14 +228,7 @@ class TestConvenienceFunctions:
         request = Mock(spec=Request)
         session_id = uuid.uuid4()
 
-        log_data_export(
-            db_mock,
-            user_mock,
-            session_id,
-            entity_type="consultation",
-            count=50,
-            request=request
-        )
+        log_data_export(db_mock, user_mock, session_id, entity_type="consultation", count=50, request=request)
 
         assert db_mock.add.called
 
@@ -461,7 +439,7 @@ class TestAuditLoggingIntegration:
             entite_type="consultation",
             entite_id=entity_id,
             request=request,
-            additional_data={"key": "value"}
+            additional_data={"key": "value"},
         )
 
         # Verify all required fields are present
@@ -488,7 +466,7 @@ class TestAuditLoggingIntegration:
             "paiement_confirme",
             "acces_dossier_medical",
             "export_donnees",
-            "suspension_compte"
+            "suspension_compte",
         ]
 
         for action in sensitive_actions:
@@ -503,10 +481,7 @@ class TestAuditLoggingIntegration:
         logger = AuditLogger(db_mock)
 
         # This should not raise an exception
-        logger.log_action(
-            action="creation",
-            additional_data={"test": "data"}
-        )
+        logger.log_action(action="creation", additional_data={"test": "data"})
 
 
 class TestAuditLoggingCompliance:
@@ -519,10 +494,7 @@ class TestAuditLoggingCompliance:
 
         # Log should only add, never update or delete
         user_id = uuid.uuid4()
-        logger.log_action(
-            action="creation",
-            utilisateur_id=user_id
-        )
+        logger.log_action(action="creation", utilisateur_id=user_id)
 
         assert db_mock.add.called
         # Verify that update/merge is not called (immutability)
@@ -536,11 +508,7 @@ class TestAuditLoggingCompliance:
         user_id = uuid.uuid4()
         user_role = "medecin"
 
-        logger.log_action(
-            action="acces_dossier_medical",
-            utilisateur_id=user_id,
-            role_utilisateur=user_role
-        )
+        logger.log_action(action="acces_dossier_medical", utilisateur_id=user_id, role_utilisateur=user_role)
 
         call_args = db_mock.add.call_args[0][0]
         assert call_args.utilisateur_id == user_id
@@ -555,10 +523,7 @@ class TestAuditLoggingCompliance:
         request.headers = {"x-forwarded-for": "192.168.1.100"}
         request.client = Mock(host="10.0.0.1")
 
-        logger.log_action(
-            action="tentative_connexion_echec",
-            request=request
-        )
+        logger.log_action(action="tentative_connexion_echec", request=request)
 
         call_args = db_mock.add.call_args[0][0]
         assert call_args.ip_address is not None
@@ -572,7 +537,7 @@ class TestAuditLoggingCompliance:
 
         # Database should handle timestamp automatically
         call_args = db_mock.add.call_args[0][0]
-        assert hasattr(call_args, 'id')  # AuditLog has id field
+        assert hasattr(call_args, "id")  # AuditLog has id field
 
     def test_sensitive_data_not_logged(self):
         """Test that sensitive data (passwords, tokens) is not logged"""
@@ -580,17 +545,10 @@ class TestAuditLoggingCompliance:
         logger = AuditLogger(db_mock)
 
         # Sensitive data in additional_data should not cause issues
-        sensitive_data = {
-            "password": "secret123",
-            "api_key": "key_abc123",
-            "credit_card": "4111-1111-1111-1111"
-        }
+        sensitive_data = {"password": "secret123", "api_key": "key_abc123", "credit_card": "4111-1111-1111-1111"}
 
         # Should not raise an exception
-        logger.log_action(
-            action="creation",
-            additional_data=sensitive_data
-        )
+        logger.log_action(action="creation", additional_data=sensitive_data)
 
         assert db_mock.add.called
 

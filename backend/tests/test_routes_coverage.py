@@ -31,15 +31,13 @@ def test_all_routes_are_in_openapi():
     schema = response.json()
 
     documented_paths = set(schema.get("paths", {}).keys())
-    actual_route_paths = {
-        route.path for route in app.routes if is_documented_route(route)
-    }
+    actual_route_paths = {route.path for route in app.routes if is_documented_route(route)}
 
     missing_paths = actual_route_paths - documented_paths
-    assert not missing_paths, (
-        "The following application routes are registered but missing "
-        "from OpenAPI schema: "
-        + ", ".join(sorted(missing_paths))
+    assert (
+        not missing_paths
+    ), "The following application routes are registered but missing " "from OpenAPI schema: " + ", ".join(
+        sorted(missing_paths)
     )
 
 
@@ -51,16 +49,10 @@ def test_openapi_routes_return_valid_responses_when_backend_is_ready():
     assert response.status_code == 200
     schema = response.json()
 
-    accepted_status_codes = {
-        200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422
-    }
+    accepted_status_codes = {200, 201, 202, 204, 400, 401, 403, 404, 405, 409, 422}
 
     for path, operations in schema.get("paths", {}).items():
-        if (
-            path in IGNORED_PATHS
-            or path.startswith("/docs")
-            or path.startswith("/redoc")
-        ):
+        if path in IGNORED_PATHS or path.startswith("/docs") or path.startswith("/redoc"):
             continue
 
         test_path = normalize_path(path)

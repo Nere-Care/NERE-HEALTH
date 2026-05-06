@@ -20,7 +20,6 @@ from typing import Optional
 
 from .config import settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -69,7 +68,7 @@ class EncryptionManager:
         Returns:
             Texte chiffré en base64, ou None si None ou vide
         """
-        if plaintext is None or plaintext == '':
+        if plaintext is None or plaintext == "":
             return None
 
         try:
@@ -96,7 +95,7 @@ class EncryptionManager:
         if ciphertext_b64 is None:
             return None
 
-        if ciphertext_b64 == '':
+        if ciphertext_b64 == "":
             return None
 
         try:
@@ -213,6 +212,7 @@ def get_encryption_manager() -> EncryptionManager:
 # Utilitaires pour les headers de sécurité HTTPS/HSTS
 # ============================================================================
 
+
 def get_security_headers() -> dict:
     """
     Retourne les headers de sécurité pour HTTPS/HSTS.
@@ -223,13 +223,10 @@ def get_security_headers() -> dict:
     headers = {
         # HSTS: Forcer HTTPS pour 1 an
         "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
-
         # Prévenir le clickjacking
         "X-Frame-Options": "DENY",
-
         # Prévenir le MIME type sniffing
         "X-Content-Type-Options": "nosniff",
-
         # CSP: Content Security Policy
         "Content-Security-Policy": (
             "default-src 'self'; "
@@ -240,10 +237,8 @@ def get_security_headers() -> dict:
             "connect-src 'self' https:; "
             "frame-ancestors 'none';"
         ),
-
         # Prévenir le tracking entre sites
         "Referrer-Policy": "strict-origin-when-cross-origin",
-
         # Permissions Feature Policy
         "Permissions-Policy": (
             "accelerometer=(), "
@@ -278,22 +273,20 @@ def require_https(func):
 
     Rejette les connexions non-HTTPS en production.
     """
+
     @wraps(func)
     async def wrapper(*args, request: Request = None, **kwargs):
         # En production, forcer HTTPS
         if settings.ENVIRONMENT == "production":
             # Vérifier plusieurs indicateurs HTTPS
             is_https = (
-                request.url.scheme == "https" or
-                request.headers.get("X-Forwarded-Proto") == "https" or
-                request.headers.get("X-Secure-Transport") == "true"
+                request.url.scheme == "https"
+                or request.headers.get("X-Forwarded-Proto") == "https"
+                or request.headers.get("X-Secure-Transport") == "true"
             )
 
             if not is_https:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="HTTPS required"
-                )
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="HTTPS required")
 
         return await func(*args, request=request, **kwargs)
 

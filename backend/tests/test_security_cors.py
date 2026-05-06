@@ -2,6 +2,7 @@
 🔐 TESTS DE SÉCURITÉ - CORS
 Vérifie que les CORS sont restrictifs et ne permettent pas d'origines non-autorisées
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -25,8 +26,10 @@ def test_cors_invalid_origin_rejected():
     )
 
     # L'origine malveillante ne doit pas être dans les headers CORS
-    assert "Access-Control-Allow-Origin" not in response.headers or \
-           response.headers.get("Access-Control-Allow-Origin") != "https://malicious.com"
+    assert (
+        "Access-Control-Allow-Origin" not in response.headers
+        or response.headers.get("Access-Control-Allow-Origin") != "https://malicious.com"
+    )
 
 
 def test_cors_allowed_methods_not_wildcard():
@@ -88,5 +91,5 @@ def test_cors_security_headers_present():
     assert "Strict-Transport-Security" in response.headers
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

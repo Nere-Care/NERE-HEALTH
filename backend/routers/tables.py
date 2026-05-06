@@ -24,10 +24,7 @@ async def list_tables(current_user=Depends(require_role("admin"))):
     try:
         metadata = prepare_models().metadata
     except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Database schema reflection failed: {exc}"
-        )
+        raise HTTPException(status_code=500, detail=f"Database schema reflection failed: {exc}")
     return {"tables": sorted(metadata.tables.keys())}
 
 
@@ -49,11 +46,7 @@ async def list_table_rows(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}")
 
-    return {
-        "table": table_name,
-        "limit": limit,
-        "rows": [dict(row) for row in rows]
-    }
+    return {"table": table_name, "limit": limit, "rows": [dict(row) for row in rows]}
 
 
 @router.get("/tables/{table_name}/count", tags=["database"])
@@ -71,10 +64,7 @@ async def count_table_rows(
     try:
         count = db.execute(stmt).scalar_one()
     except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Count query failed: {exc}"
-        )
+        raise HTTPException(status_code=500, detail=f"Count query failed: {exc}")
 
     return {"table": table_name, "count": count}
 
@@ -93,10 +83,7 @@ async def get_table_row(
 
     pk_column = _get_primary_key_column(model)
     if pk_column is None:
-        raise HTTPException(
-            status_code=400,
-            detail="This table does not have a single primary key column"
-        )
+        raise HTTPException(status_code=400, detail="This table does not have a single primary key column")
 
     stmt = select(model.__table__).where(pk_column == pk)
     row = db.execute(stmt).mappings().first()
@@ -120,10 +107,7 @@ async def create_table_row(
     table = model.__table__
     sanitized = {k: v for k, v in values.items() if k in table.columns}
     if not sanitized:
-        raise HTTPException(
-            status_code=400,
-            detail="No valid columns provided for insertion"
-        )
+        raise HTTPException(status_code=400, detail="No valid columns provided for insertion")
 
     stmt = insert(table).values(**sanitized).returning(*table.columns)
     try:

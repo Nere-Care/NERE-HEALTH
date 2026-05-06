@@ -86,11 +86,7 @@ class TokenBlacklist:
         Cette méthode doit être appelée à l'intérieur du verrou.
         """
         now = datetime.now(timezone.utc)
-        expired_tokens = [
-            token
-            for token, exp_time in self._expiry.items()
-            if exp_time < now
-        ]
+        expired_tokens = [token for token, exp_time in self._expiry.items() if exp_time < now]
 
         for token in expired_tokens:
             self._blacklist.discard(token)

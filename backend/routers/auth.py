@@ -202,7 +202,7 @@ async def logout_user(
             user_agent=request.headers.get("User-Agent"),
             endpoint="/auth/logout",
             method="POST",
-            additional_data={"action": "logout", "tokens_revoked": revoked_count}
+            additional_data={"action": "logout", "tokens_revoked": revoked_count},
         )
 
         return {"message": "Déconnexion réussie", "tokens_revoked": revoked_count}
@@ -243,18 +243,10 @@ async def register_user(
 
     # Vérifier les doublons
     if db.query(User).filter(User.email == user_create.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cet email est déjà utilisé"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cet email est déjà utilisé")
 
-    if user_create.telephone and db.query(User).filter(
-        User.telephone == user_create.telephone
-    ).first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ce numéro de téléphone est déjà utilisé"
-        )
+    if user_create.telephone and db.query(User).filter(User.telephone == user_create.telephone).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ce numéro de téléphone est déjà utilisé")
 
     # Créer l'utilisateur
     hashed_password = get_password_hash(user_create.password)
@@ -283,7 +275,7 @@ async def register_user(
             user_agent=request.headers.get("User-Agent"),
             endpoint="/auth/register",
             method="POST",
-            additional_data={"action": "user_registration"}
+            additional_data={"action": "user_registration"},
         )
 
     except IntegrityError as exc:
@@ -311,9 +303,7 @@ async def register_user(
 
 
 @router.get("/auth/me", response_model=UserRead)
-async def read_current_user(
-    current_user: User = Depends(get_current_active_user_secure)
-):
+async def read_current_user(current_user: User = Depends(get_current_active_user_secure)):
     """
     Récupère les informations de l'utilisateur actuellement authentifié.
 
@@ -355,13 +345,10 @@ async def revoke_all_user_tokens(
             user_agent=request.headers.get("User-Agent"),
             endpoint="/auth/revoke-tokens",
             method="POST",
-            additional_data={"action": "manual_token_revoke", "tokens_revoked": revoked_count}
+            additional_data={"action": "manual_token_revoke", "tokens_revoked": revoked_count},
         )
 
-        return {
-            "message": f"{revoked_count} tokens révoqués avec succès",
-            "tokens_revoked": revoked_count
-        }
+        return {"message": f"{revoked_count} tokens révoqués avec succès", "tokens_revoked": revoked_count}
 
     except Exception as e:
         raise HTTPException(

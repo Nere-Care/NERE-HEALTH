@@ -7,16 +7,16 @@ PROJECT_ROOT = PACKAGE_ROOT.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Environnement de test par défaut pour rendre les tests indépendants d'une base PostgreSQL locale
-os.environ.setdefault('ENVIRONMENT', 'testing')
-os.environ.setdefault('TESTING', '1')
-os.environ.setdefault('DEBUG', 'true')
-os.environ.setdefault('SECRET_KEY', 'a' * 64)
-os.environ.setdefault('DATABASE_URL', 'sqlite:///./test.db')
-os.environ.setdefault('CORS_ORIGINS', 'http://localhost:4173,http://localhost:5173')
-os.environ.setdefault('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver')
-os.environ.setdefault('STRIPE_API_KEY', 'sk_test_fake')
-os.environ.setdefault('STRIPE_WEBHOOK_SECRET', 'whsec_test_fake')
-os.environ.setdefault('OPENAI_API_KEY', 'sk-test-fake')
+os.environ.setdefault("ENVIRONMENT", "testing")
+os.environ.setdefault("TESTING", "1")
+os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("SECRET_KEY", "a" * 64)
+os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
+os.environ.setdefault("CORS_ORIGINS", "http://localhost:4173,http://localhost:5173")
+os.environ.setdefault("ALLOWED_HOSTS", "localhost,127.0.0.1,testserver")
+os.environ.setdefault("STRIPE_API_KEY", "sk_test_fake")
+os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_fake")
+os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake")
 
 import pytest
 from alembic import command
@@ -50,9 +50,7 @@ ADMIN_PASSWORD = "Admin1234!"
 @pytest.fixture(scope="session", autouse=True)
 def ensure_database_schema() -> None:
     if not ALEMBIC_INI_PATH.exists() or not ALEMBIC_SCRIPT_LOCATION.exists():
-        pytest.skip(
-            f"Alembic configuration missing for tests: {ALEMBIC_INI_PATH} or {ALEMBIC_SCRIPT_LOCATION}"
-        )
+        pytest.skip(f"Alembic configuration missing for tests: {ALEMBIC_INI_PATH} or {ALEMBIC_SCRIPT_LOCATION}")
 
     required_tables = []
     try:
@@ -150,7 +148,7 @@ def db() -> SessionLocal:
             session.rollback()
             # Nettoyer les tables entre les tests pour éviter les collisions de contraintes uniques
             for table in reversed(Base.metadata.sorted_tables):
-                if table.name == 'users':
+                if table.name == "users":
                     continue
                 session.execute(table.delete())
             session.commit()

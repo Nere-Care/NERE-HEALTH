@@ -55,7 +55,9 @@ async def create_medecin_specialite(
         db.refresh(medecin_specialite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la spécialité du médecin") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la spécialité du médecin"
+        ) from exc
     return medecin_specialite
 
 
@@ -103,7 +105,9 @@ async def update_medecin_specialite(
         db.refresh(medecin_specialite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la spécialité: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la spécialité: {exc.orig}"
+        ) from exc
     return medecin_specialite
 
 

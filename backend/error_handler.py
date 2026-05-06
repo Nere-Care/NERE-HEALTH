@@ -53,10 +53,7 @@ class SecureErrorResponse:
             Dictionary with safe error information
         """
         # Use provided user message or lookup from mapping
-        message = user_message or ERROR_MESSAGES.get(
-            status_code,
-            "Une erreur s'est produite. Veuillez réessayer."
-        )
+        message = user_message or ERROR_MESSAGES.get(status_code, "Une erreur s'est produite. Veuillez réessayer.")
 
         # Log internal message for debugging
         if internal_message:
@@ -91,7 +88,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                         request=request,
                         additional_data={
                             "status_code": response.status_code,
-                        }
+                        },
                     )
                 finally:
                     db.close()
@@ -114,7 +111,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     status_code=status.HTTP_403_FORBIDDEN,
                     error_id=self._generate_error_id(),
                     internal_message=str(e),
-                    request_id=getattr(request.state, 'request_id', None)
+                    request_id=getattr(request.state, "request_id", None),
                 ),
             )
 
@@ -126,7 +123,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                     status_code=status.HTTP_400_BAD_REQUEST,
                     error_id=self._generate_error_id(),
                     internal_message=f"Missing required field: {str(e)}",
-                    request_id=getattr(request.state, 'request_id', None)
+                    request_id=getattr(request.state, "request_id", None),
                 ),
             )
 
@@ -143,7 +140,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_id=self._generate_error_id(),
                 user_message=exc.detail if isinstance(exc.detail, str) else None,
                 internal_message=str(exc),
-                request_id=getattr(request.state, 'request_id', None)
+                request_id=getattr(request.state, "request_id", None),
             ),
         )
 
@@ -156,7 +153,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 error_id=self._generate_error_id(),
                 user_message="Les données fournies sont invalides.",
                 internal_message=str(exc),
-                request_id=getattr(request.state, 'request_id', None)
+                request_id=getattr(request.state, "request_id", None),
             ),
         )
 
@@ -177,7 +174,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 additional_data={
                     "error_id": error_id,
                     "error_type": type(exc).__name__,
-                }
+                },
             )
         except Exception as log_exc:
             logger.error(f"Failed to log error: {log_exc}")
@@ -191,7 +188,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 error_id=error_id,
                 user_message="Erreur serveur. Veuillez contacter le support avec l'ID: " + error_id,
-                request_id=getattr(request.state, 'request_id', None)
+                request_id=getattr(request.state, "request_id", None),
             ),
         )
 
@@ -199,6 +196,7 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     def _generate_error_id() -> str:
         """Generate a unique error ID for tracking."""
         import uuid
+
         return f"ERR-{str(uuid.uuid4())[:8].upper()}"
 
 
@@ -217,7 +215,7 @@ class ValidationErrorHandler:
 
         for error in errors:
             if isinstance(error, dict):
-                loc = error.get('loc', ['Unknown'])
+                loc = error.get("loc", ["Unknown"])
                 if loc and len(loc) > 1:
                     locations.add(loc[1])  # Get field name
 
@@ -232,23 +230,19 @@ class ValidationErrorHandler:
         """Remove sensitive information from error messages."""
         # Remove database connection strings
         sensitive_patterns = [
-            r'postgresql://[^@]*@[^/]*/',
-            r'mysql://[^@]*@[^/]*/',
-            r'password\s*[=:]\s*\S+',
-            r'secret\s*[=:]\s*\S+',
-            r'api[_-]?key\s*[=:]\s*\S+',
-            r'token\s*[=:]\s*\S+',
+            r"postgresql://[^@]*@[^/]*/",
+            r"mysql://[^@]*@[^/]*/",
+            r"password\s*[=:]\s*\S+",
+            r"secret\s*[=:]\s*\S+",
+            r"api[_-]?key\s*[=:]\s*\S+",
+            r"token\s*[=:]\s*\S+",
         ]
 
         import re
+
         sanitized = message
         for pattern in sensitive_patterns:
-            sanitized = re.sub(
-                pattern,
-                '[REDACTED]',
-                sanitized,
-                flags=re.IGNORECASE
-            )
+            sanitized = re.sub(pattern, "[REDACTED]", sanitized, flags=re.IGNORECASE)
 
         return sanitized
 
@@ -258,6 +252,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         import uuid
+
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
 
@@ -291,9 +286,7 @@ class ValidationException(SecureException):
 
     def __init__(self, message: str, field: str = None):
         super().__init__(
-            user_message=message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            error_code="ERR_VALIDATION"
+            user_message=message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, error_code="ERR_VALIDATION"
         )
         self.field = field
 
@@ -302,22 +295,14 @@ class AuthenticationException(SecureException):
     """Exception for authentication errors."""
 
     def __init__(self, message: str = "Authentification échouée"):
-        super().__init__(
-            user_message=message,
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            error_code="ERR_AUTH"
-        )
+        super().__init__(user_message=message, status_code=status.HTTP_401_UNAUTHORIZED, error_code="ERR_AUTH")
 
 
 class AuthorizationException(SecureException):
     """Exception for authorization errors."""
 
     def __init__(self, message: str = "Accès refusé"):
-        super().__init__(
-            user_message=message,
-            status_code=status.HTTP_403_FORBIDDEN,
-            error_code="ERR_AUTHZ"
-        )
+        super().__init__(user_message=message, status_code=status.HTTP_403_FORBIDDEN, error_code="ERR_AUTHZ")
 
 
 class RateLimitException(SecureException):
@@ -327,7 +312,7 @@ class RateLimitException(SecureException):
         super().__init__(
             user_message=f"Trop de requêtes. Veuillez réessayer dans {retry_after} secondes.",
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error_code="ERR_RATE_LIMIT"
+            error_code="ERR_RATE_LIMIT",
         )
         self.retry_after = retry_after
 
@@ -339,19 +324,16 @@ class ResourceNotFoundException(SecureException):
         super().__init__(
             user_message=f"{resource_type} non trouvée",
             status_code=status.HTTP_404_NOT_FOUND,
-            error_code="ERR_NOT_FOUND"
+            error_code="ERR_NOT_FOUND",
         )
 
 
-def create_error_response(
-    exc: SecureException,
-    request_id: str = None
-) -> Dict[str, Any]:
+def create_error_response(exc: SecureException, request_id: str = None) -> Dict[str, Any]:
     """Create a standardized error response from SecureException."""
     return SecureErrorResponse.get_error_response(
         status_code=exc.status_code,
         error_id=exc.error_code,
         internal_message=exc.internal_message,
         user_message=exc.user_message,
-        request_id=request_id
+        request_id=request_id,
     )

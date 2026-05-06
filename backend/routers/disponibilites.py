@@ -50,7 +50,10 @@ async def create_disponibilite(
         disponibilite_create.medecin_id = current_user.id
     if current_user.role == "admin" and not disponibilite_create.medecin_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin requis pour la disponibilité")
-    if not db.get(User, disponibilite_create.medecin_id) or db.get(User, disponibilite_create.medecin_id).role != "medecin":
+    if (
+        not db.get(User, disponibilite_create.medecin_id)
+        or db.get(User, disponibilite_create.medecin_id).role != "medecin"
+    ):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
 
     disponibilite = Disponibilite(**disponibilite_create.dict(exclude_unset=True))
@@ -60,7 +63,9 @@ async def create_disponibilite(
         db.refresh(disponibilite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la disponibilité") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la disponibilité"
+        ) from exc
     return disponibilite
 
 
@@ -105,7 +110,9 @@ async def update_disponibilite(
         db.refresh(disponibilite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la disponibilité: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la disponibilité: {exc.orig}"
+        ) from exc
     return disponibilite
 
 

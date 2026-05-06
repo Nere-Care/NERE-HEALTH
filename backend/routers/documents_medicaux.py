@@ -66,7 +66,9 @@ async def create_document_medical(
         db.refresh(document)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du document médical") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du document médical"
+        ) from exc
     return document
 
 
@@ -113,7 +115,9 @@ async def update_document_medical(
         db.refresh(document)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour du document médical: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour du document médical: {exc.orig}"
+        ) from exc
     return document
 
 

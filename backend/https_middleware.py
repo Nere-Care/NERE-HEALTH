@@ -14,7 +14,6 @@ from starlette.responses import Response, PlainTextResponse
 from backend.encryption import get_security_headers
 from backend.config import _get_settings_instance
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -34,9 +33,9 @@ class HTTPSEnforcementMiddleware(BaseHTTPMiddleware):
         # En production, rediriger HTTP vers HTTPS
         if _get_settings_instance().ENVIRONMENT == "production":
             is_https = (
-                request.url.scheme == "https" or
-                request.headers.get("X-Forwarded-Proto") == "https" or
-                request.headers.get("X-Secure-Transport") == "true"
+                request.url.scheme == "https"
+                or request.headers.get("X-Forwarded-Proto") == "https"
+                or request.headers.get("X-Secure-Transport") == "true"
             )
 
             # Routes sensibles qui nécessitent HTTPS strictement
@@ -50,15 +49,12 @@ class HTTPSEnforcementMiddleware(BaseHTTPMiddleware):
                 "/api",
             ]
 
-            path_is_sensitive = any(
-                request.url.path.startswith(p) for p in sensitive_paths
-            )
+            path_is_sensitive = any(request.url.path.startswith(p) for p in sensitive_paths)
 
             # Si route sensible et pas HTTPS, rejeter
             if path_is_sensitive and not is_https:
                 logger.warning(
-                    f"Tentative d'accès non-HTTPS à route sensible: {request.url.path} "
-                    f"depuis {request.client.host}"
+                    f"Tentative d'accès non-HTTPS à route sensible: {request.url.path} " f"depuis {request.client.host}"
                 )
                 return PlainTextResponse(
                     "HTTPS Required for this resource",
@@ -124,15 +120,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "/dossiers-medicaux",
         ]
 
-        path_is_sensitive = any(
-            request.url.path.startswith(p) for p in sensitive_paths
-        )
+        path_is_sensitive = any(request.url.path.startswith(p) for p in sensitive_paths)
 
         if path_is_sensitive:
-            response.headers["Cache-Control"] = (
-                "no-store, no-cache, must-revalidate, proxy-revalidate, "
-                "max-age=0"
-            )
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate, " "max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
 

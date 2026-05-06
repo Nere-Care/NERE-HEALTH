@@ -222,10 +222,11 @@ class TestHTTPSHeaders:
     def test_hsts_max_age_production(self, monkeypatch):
         """La durée HSTS est correcte en production."""
         # Simuler la production
-        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setenv("ENVIRONMENT", "production")
 
         # Reset settings pour prendre en compte la nouvelle valeur
         import backend.config
+
         backend.config._reset_settings()
         backend.config._get_settings_instance()  # Initialize with new env
 

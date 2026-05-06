@@ -22,6 +22,7 @@ class TestFAILLE7JWTAuthentication:
         """Test que le module jwt_handler peut être importé"""
         try:
             from backend.jwt_handler import JWTHandler
+
             assert JWTHandler is not None
         except Exception as e:
             pytest.fail(f"Failed to import JWTHandler: {e}")
@@ -43,6 +44,7 @@ class TestFAILLE7JWTAuthentication:
         decoded = pyjwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
         assert decoded["sub"] == "user123"
         assert decoded["type"] == "access"
+
     def test_create_refresh_token(self):
         """Test création d'un refresh token"""
         from backend.jwt_handler import JWTHandler
@@ -59,6 +61,7 @@ class TestFAILLE7JWTAuthentication:
         decoded = pyjwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
         assert decoded["sub"] == "user123"
         assert decoded["type"] == "refresh"
+
     def test_decode_valid_token(self):
         """Test décodage d'un token valide"""
         from backend.jwt_handler import JWTHandler
@@ -71,6 +74,7 @@ class TestFAILLE7JWTAuthentication:
         assert decoded is not None
         assert decoded["sub"] == "user123"
         assert decoded["email"] == "test@example.com"
+
     def test_decode_expired_token(self):
         """Test que les tokens expirés sont rejetés"""
         from backend.jwt_handler import JWTHandler
@@ -84,7 +88,7 @@ class TestFAILLE7JWTAuthentication:
             "email": "test@example.com",
             "type": "access",
             "exp": int((now - timedelta(hours=1)).timestamp()),  # Expiré il y a 1 heure
-            "iat": int((now - timedelta(hours=2)).timestamp())
+            "iat": int((now - timedelta(hours=2)).timestamp()),
         }
 
         expired_token = pyjwt.encode(payload, _get_settings_instance().SECRET_KEY, algorithm="HS256")
@@ -111,17 +115,18 @@ class TestFAILLE7JWTAuthentication:
         # Pour un nouveau token, ne devrait pas besoin de rotation
         # (mais le contrôle devrait être présent)
         assert isinstance(should_rotate, bool)
+
     def test_token_blacklist_structure(self):
         """Test structure du TokenBlacklist model"""
         try:
             from backend.models import TokenBlacklist
 
             # Vérifier les attributs clés
-            assert hasattr(TokenBlacklist, 'id')
-            assert hasattr(TokenBlacklist, 'token')
-            assert hasattr(TokenBlacklist, 'user_id')
-            assert hasattr(TokenBlacklist, 'reason')
-            assert hasattr(TokenBlacklist, 'expires_at')
+            assert hasattr(TokenBlacklist, "id")
+            assert hasattr(TokenBlacklist, "token")
+            assert hasattr(TokenBlacklist, "user_id")
+            assert hasattr(TokenBlacklist, "reason")
+            assert hasattr(TokenBlacklist, "expires_at")
         except Exception as e:
             pytest.fail(f"TokenBlacklist model validation failed: {e}")
 
@@ -131,11 +136,11 @@ class TestFAILLE7JWTAuthentication:
             from backend.models import TokenRotationLog
 
             # Vérifier les attributs clés
-            assert hasattr(TokenRotationLog, 'id')
-            assert hasattr(TokenRotationLog, 'user_id')
-            assert hasattr(TokenRotationLog, 'old_token_hash')
-            assert hasattr(TokenRotationLog, 'new_token_hash')
-            assert hasattr(TokenRotationLog, 'rotation_reason')
+            assert hasattr(TokenRotationLog, "id")
+            assert hasattr(TokenRotationLog, "user_id")
+            assert hasattr(TokenRotationLog, "old_token_hash")
+            assert hasattr(TokenRotationLog, "new_token_hash")
+            assert hasattr(TokenRotationLog, "rotation_reason")
         except Exception as e:
             pytest.fail(f"TokenRotationLog model validation failed: {e}")
 
@@ -147,6 +152,7 @@ class TestFAILLE8DataEncryption:
         """Test que le module encryption peut être importé"""
         try:
             from backend.encryption import EncryptionManager
+
             assert EncryptionManager is not None
         except Exception as e:
             pytest.fail(f"Failed to import EncryptionManager: {e}")
@@ -166,6 +172,7 @@ class TestFAILLE8DataEncryption:
         # Déchiffrer
         decrypted = manager.decrypt(encrypted)
         assert decrypted == original_text
+
     def test_encrypt_empty_string(self):
         """Test chiffrement d'une chaîne vide"""
         from backend.encryption import EncryptionManager
@@ -179,6 +186,7 @@ class TestFAILLE8DataEncryption:
         else:
             # Empty string encryption returns None
             assert encrypted is None
+
     def test_encrypt_special_characters(self):
         """Test chiffrement avec caractères spéciaux"""
         from backend.encryption import EncryptionManager
@@ -190,6 +198,7 @@ class TestFAILLE8DataEncryption:
         decrypted = manager.decrypt(encrypted)
 
         assert decrypted == special_text
+
     def test_encrypt_unicode(self):
         """Test chiffrement avec caractères Unicode"""
         from backend.encryption import EncryptionManager
@@ -202,6 +211,7 @@ class TestFAILLE8DataEncryption:
         # Déchiffrer le texte chiffré
         decrypted_encrypted = manager.decrypt(encrypted)
         assert decrypted_encrypted == unicode_text
+
     def test_password_hash_verify(self):
         """Test hachage et vérification de mot de passe"""
         from backend.encryption import EncryptionManager
@@ -221,6 +231,7 @@ class TestFAILLE8DataEncryption:
         # Faux mot de passe
         is_invalid = manager.verify_password("WrongPassword", hashed)
         assert is_invalid is False
+
     def test_different_encryptions_produce_different_results(self):
         """Test que les chiffrements du même texte produisent des résultats différents (IV aléatoire)"""
         from backend.encryption import EncryptionManager
@@ -237,6 +248,7 @@ class TestFAILLE8DataEncryption:
         # Mais les deux doivent déchiffrer au même texte
         assert manager.decrypt(encrypted1) == text
         assert manager.decrypt(encrypted2) == text
+
     def test_security_headers(self):
         """Test que les headers de sécurité sont configurés"""
         from backend.encryption import get_security_headers
@@ -247,10 +259,12 @@ class TestFAILLE8DataEncryption:
         assert "Content-Security-Policy" in headers
         assert "X-Frame-Options" in headers
         assert "X-Content-Type-Options" in headers
+
     def test_https_middleware_import(self):
         """Test que le middleware HTTPS peut être importé"""
         try:
             from backend.https_middleware import HTTPSEnforcementMiddleware
+
             assert HTTPSEnforcementMiddleware is not None
         except Exception as e:
             pytest.fail(f"Failed to import HTTPSEnforcementMiddleware: {e}")
@@ -263,6 +277,7 @@ class TestFAILLE9InputValidation:
         """Test que le module input_validator peut être importé"""
         try:
             from backend.input_validator import InputValidator
+
             assert InputValidator is not None
         except Exception as e:
             pytest.fail(f"Failed to import InputValidator: {e}")
@@ -277,6 +292,7 @@ class TestFAILLE9InputValidation:
 
         assert "<script>" not in sanitized
         assert "alert" in sanitized
+
     def test_sanitize_text_length_limit(self):
         """Test limite de longueur"""
         from backend.input_validator import InputValidator
@@ -286,6 +302,7 @@ class TestFAILLE9InputValidation:
         sanitized = validator.sanitize_text(long_text, max_length=100)
 
         assert len(sanitized) <= 100
+
     def test_check_sql_injection(self):
         """Test détection d'injection SQL"""
         from backend.input_validator import InputValidator
@@ -303,6 +320,7 @@ class TestFAILLE9InputValidation:
         for injection in sql_injections:
             is_detected = validator.check_sql_injection(injection)
             assert is_detected is True, f"Failed to detect: {injection}"
+
     def test_check_xss_script_tag(self):
         """Test détection d'attaques XSS"""
         from backend.input_validator import InputValidator
@@ -319,6 +337,7 @@ class TestFAILLE9InputValidation:
         for payload in xss_payloads:
             is_detected = validator.check_xss(payload)
             assert is_detected is True, f"Failed to detect XSS: {payload}"
+
     def test_validate_email(self):
         """Test validation email"""
         from backend.input_validator import InputValidator
@@ -345,6 +364,7 @@ class TestFAILLE9InputValidation:
 
         for email in invalid_emails:
             assert validator.validate_email(email) is False, f"Invalid email accepted: {email}"
+
     def test_validate_phone(self):
         """Test validation numéro de téléphone"""
         from backend.input_validator import InputValidator
@@ -360,6 +380,7 @@ class TestFAILLE9InputValidation:
 
         for phone in valid_phones:
             assert validator.validate_phone(phone) is True, f"Valid phone rejected: {phone}"
+
     def test_validate_url(self):
         """Test validation URL"""
         from backend.input_validator import InputValidator
@@ -385,6 +406,7 @@ class TestFAILLE9InputValidation:
 
         for url in invalid_urls:
             assert validator.validate_url(url) is False, f"Invalid URL accepted: {url}"
+
     def test_validate_file_upload(self):
         """Test validation fichier upload"""
         from backend.input_validator import InputValidator
@@ -400,28 +422,19 @@ class TestFAILLE9InputValidation:
 
         is_valid = validator.validate_file_upload(valid_file)
         assert is_valid is True
+
     def test_pydantic_validation_schemas(self):
         """Test que les schemas Pydantic valident correctement"""
         try:
             from backend.schemas import UserCreate, ConsultationCreate
 
             # Test UserRegisterSchema
-            valid_user = UserCreate(
-                email="test@example.com",
-                password="SecurePass123!",
-                prenom="John",
-                nom="Doe"
-            )
+            valid_user = UserCreate(email="test@example.com", password="SecurePass123!", prenom="John", nom="Doe")
             assert valid_user.email == "test@example.com"
 
             # Invalid email should fail
             with pytest.raises(Exception):
-                UserCreate(
-                    email="invalid-email",
-                    password="SecurePass123!",
-                    prenom="John",
-                    nom="Doe"
-                )
+                UserCreate(email="invalid-email", password="SecurePass123!", prenom="John", nom="Doe")
         except Exception as e:
             pytest.fail(f"Pydantic schemas validation failed: {e}")
 
@@ -457,7 +470,7 @@ class TestIntegrationFAILLES789:
         jwt_handler = JWTHandler()
         tokens = {
             "access": jwt_handler.create_access_token({"sub": "user123", "email": user_email, "role": "doctor"}),
-            "refresh": jwt_handler.create_refresh_token({"sub": "user123", "email": user_email})
+            "refresh": jwt_handler.create_refresh_token({"sub": "user123", "email": user_email}),
         }
         assert tokens["access"] is not None
         assert tokens["refresh"] is not None
@@ -468,6 +481,8 @@ class TestIntegrationFAILLES789:
         encrypted_data = manager.encrypt(sensitive_data)
         decrypted_data = manager.decrypt(encrypted_data)
         assert decrypted_data == sensitive_data
+
+
 # ============================================================
 # EXÉCUTION DES TESTS
 # ============================================================

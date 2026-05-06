@@ -69,9 +69,7 @@ class TestJWTTokenCreation:
         user_id = uuid4()
 
         # Créer les deux tokens
-        access_token = JWTHandler.create_access_token(
-            user_id, "test@example.com", "patient"
-        )
+        access_token = JWTHandler.create_access_token(user_id, "test@example.com", "patient")
         refresh_token = JWTHandler.create_refresh_token(user_id, "test@example.com")
 
         # Décoder
@@ -96,9 +94,7 @@ class TestJWTTokenValidation:
         from backend.jwt_handler import JWTHandler
 
         user_id = uuid4()
-        token = JWTHandler.create_access_token(
-            user_id, "test@example.com", "medecin"
-        )
+        token = JWTHandler.create_access_token(user_id, "test@example.com", "medecin")
 
         payload = JWTHandler.decode_token(token)
         assert payload["sub"] == str(user_id)
@@ -191,7 +187,7 @@ class TestJWTTokenRotation:
 class TestJWTBlacklist:
     """Tests de blacklist de tokens."""
 
-    @patch('backend.jwt_handler.Session')
+    @patch("backend.jwt_handler.Session")
     def test_is_token_blacklisted_false(self, mock_session):
         """Retourne False pour un token non blacklisté."""
         from backend.jwt_handler import JWTHandler
@@ -210,7 +206,7 @@ class TestJWTBlacklist:
         is_blacklisted = JWTHandler.is_token_blacklisted(db, token)
         assert is_blacklisted is False
 
-    @patch('backend.jwt_handler.TokenBlacklist')
+    @patch("backend.jwt_handler.TokenBlacklist")
     def test_blacklist_token(self, mock_blacklist_class):
         """Ajoute un token à la blacklist."""
         from backend.jwt_handler import JWTHandler
@@ -230,17 +226,15 @@ class TestJWTBlacklist:
 class TestJWTAuthentication:
     """Tests d'authentification JWT complète."""
 
-    @patch('backend.jwt_handler.Session')
-    @patch('backend.jwt_handler.User')
+    @patch("backend.jwt_handler.Session")
+    @patch("backend.jwt_handler.User")
     def test_validate_token_and_get_user_valid(self, mock_user_class, mock_session):
         """Valide un token et retourne l'utilisateur."""
         from backend.jwt_handler import JWTHandler
 
         db = MagicMock()
         user_id = uuid4()
-        token = JWTHandler.create_access_token(
-            user_id, "test@example.com", "patient"
-        )
+        token = JWTHandler.create_access_token(user_id, "test@example.com", "patient")
 
         # Configurer le mock pour l'utilisateur
         mock_user = MagicMock()
@@ -255,16 +249,14 @@ class TestJWTAuthentication:
         assert payload is not None
         assert payload["type"] == "access"
 
-    @patch('backend.jwt_handler.Session')
+    @patch("backend.jwt_handler.Session")
     def test_validate_token_blacklisted(self, mock_session):
         """Rejette un token blacklisté."""
         from backend.jwt_handler import JWTHandler
 
         db = MagicMock()
         user_id = uuid4()
-        token = JWTHandler.create_access_token(
-            user_id, "test@example.com", "patient"
-        )
+        token = JWTHandler.create_access_token(user_id, "test@example.com", "patient")
 
         # Configurer pour que le token soit blacklisté
         db.query.return_value.filter.return_value.first.return_value = MagicMock()
@@ -279,7 +271,7 @@ class TestJWTAuthentication:
 class TestJWTCleanup:
     """Tests de nettoyage de la blacklist."""
 
-    @patch('backend.jwt_handler.Session')
+    @patch("backend.jwt_handler.Session")
     def test_cleanup_expired_blacklist(self, mock_session):
         """Nettoie les entrées expirées de la blacklist."""
         from backend.jwt_handler import JWTHandler
@@ -323,6 +315,7 @@ class TestJWTAuthRoutes:
 # Tests d'intégration
 # ============================================================================
 
+
 class TestJWTIntegration:
     """Tests d'intégration complets du système JWT."""
 
@@ -360,9 +353,7 @@ class TestJWTIntegration:
         """Un token frais ne doit pas être roté."""
         from backend.jwt_handler import JWTHandler
 
-        token = JWTHandler.create_access_token(
-            uuid4(), "test@example.com", "patient"
-        )
+        token = JWTHandler.create_access_token(uuid4(), "test@example.com", "patient")
 
         # Token frais ne devrait pas être roté
         should_rotate = JWTHandler.should_rotate_token(token)
@@ -372,6 +363,7 @@ class TestJWTIntegration:
 # ============================================================================
 # Fixtures pour tests
 # ============================================================================
+
 
 @pytest.fixture
 def sample_user_id():
@@ -383,13 +375,13 @@ def sample_user_id():
 def sample_access_token(sample_user_id):
     """Retourne un access token de test."""
     from backend.jwt_handler import JWTHandler
-    return JWTHandler.create_access_token(
-        sample_user_id, "test@example.com", "patient"
-    )
+
+    return JWTHandler.create_access_token(sample_user_id, "test@example.com", "patient")
 
 
 @pytest.fixture
 def sample_refresh_token(sample_user_id):
     """Retourne un refresh token de test."""
     from backend.jwt_handler import JWTHandler
+
     return JWTHandler.create_refresh_token(sample_user_id, "test@example.com")

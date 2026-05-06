@@ -58,9 +58,7 @@ def _build_prompt(payload: IADiagnosticRequest) -> List[Dict[str, str]]:
     )
     if payload.messages:
         for message in payload.messages:
-            prompt.append(
-                {"role": message.get("role", "user"), "content": message.get("content", "")}
-            )
+            prompt.append({"role": message.get("role", "user"), "content": message.get("content", "")})
     return prompt
 
 
@@ -97,10 +95,7 @@ async def create_diagnostic(
             )
             analysis = completion.choices[0].message.content.strip()
         except Exception as exc:
-            analysis = (
-                "Impossible d'interroger l'IA pour le moment. "
-                "Veuillez réessayer ultérieurement."
-            )
+            analysis = "Impossible d'interroger l'IA pour le moment. " "Veuillez réessayer ultérieurement."
     else:
         analysis = (
             "Aucune clé OpenAI configurée. Analyse basique effectuée en local : "

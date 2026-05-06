@@ -19,18 +19,13 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 def get_password_hash(password: str) -> str:
     """Hash a password for storage in the database."""
-    return bcrypt.hashpw(
-        password.encode("utf-8"), bcrypt.gensalt()
-    ).decode("utf-8")
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a stored bcrypt hash."""
     try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"),
-            hashed_password.encode("utf-8")
-        )
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
     except (ValueError, TypeError):
         return False
 
@@ -45,27 +40,18 @@ def validate_password(password: str) -> None:
     if password.isalpha() or password.isnumeric():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Le mot de passe doit contenir des lettres et des chiffres."
-            ),
+            detail=("Le mot de passe doit contenir des lettres et des chiffres."),
         )
     if password.lower() == password or password.upper() == password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Le mot de passe doit contenir des lettres majuscules "
-                "et minuscules."
-            ),
+            detail=("Le mot de passe doit contenir des lettres majuscules " "et minuscules."),
         )
 
 
-def create_access_token(
-    subject: str, expires_delta: timedelta | None = None
-) -> str:
+def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
     """Create a JWT access token for the given subject (user email)."""
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=60)
-    )
+    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=60))
     payload = {"sub": subject, "exp": int(expire.timestamp())}
     token = jwt.encode(payload, _get_settings_instance().SECRET_KEY, algorithm="HS256")
     return token if isinstance(token, str) else token.decode("utf-8")
@@ -93,12 +79,8 @@ def create_token_pair(user: User) -> dict:
     Returns:
         Dict avec access_token et refresh_token
     """
-    access_token = JWTHandler.create_access_token(
-        user.id, user.email, user.role
-    )
-    refresh_token = JWTHandler.create_refresh_token(
-        user.id, user.email
-    )
+    access_token = JWTHandler.create_access_token(user.id, user.email, user.role)
+    refresh_token = JWTHandler.create_refresh_token(user.id, user.email)
 
     return {
         "access_token": access_token,
@@ -109,7 +91,7 @@ def create_token_pair(user: User) -> dict:
             "id": str(user.id),
             "email": user.email,
             "role": user.role,
-        }
+        },
     }
 
 
@@ -133,9 +115,7 @@ def refresh_access_token(
         HTTPException: Si le refresh token est invalide
     """
     # Valider le refresh token
-    payload, error = JWTHandler.validate_token_and_get_user(
-        db, refresh_token, "refresh"
-    )
+    payload, error = JWTHandler.validate_token_and_get_user(db, refresh_token, "refresh")
 
     if error:
         raise HTTPException(
@@ -159,6 +139,7 @@ def refresh_access_token(
 
     # Logger le refresh pour audit
     from .audit_logger import get_audit_logger
+
     audit_logger = get_audit_logger(db)
     audit_logger.log_auth_success(
         user_id=user.id,
@@ -168,7 +149,7 @@ def refresh_access_token(
         user_agent=request.headers.get("User-Agent") if request else None,
         endpoint="/auth/refresh",
         method="POST",
-        additional_data={"action": "token_refresh"}
+        additional_data={"action": "token_refresh"},
     )
 
     return token_pair
@@ -200,17 +181,17 @@ def revoke_user_tokens(
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         audit_logger.log_admin_action(
-            admin_user_id=request.state.user.id if request and hasattr(request.state, 'user') else None,
+            admin_user_id=request.state.user.id if request and hasattr(request.state, "user") else None,
             action="revoke_user_tokens",
             target_user_id=user_id,
             ip_address=request.client.host if request and request.client else None,
             user_agent=request.headers.get("User-Agent") if request else None,
-            additional_data={"reason": reason}
+            additional_data={"reason": reason},
         )
 
     # Révoquer le token présent dans la requête si available
     revoked_count = 0
-    if request and hasattr(request, 'headers'):
+    if request and hasattr(request, "headers"):
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
@@ -233,7 +214,7 @@ def revoke_user_tokens(
                 )
 
     # Nettoyer la blacklist (optimisation)
-    if hasattr(JWTHandler, 'cleanup_expired_blacklist'):
+    if hasattr(JWTHandler, "cleanup_expired_blacklist"):
         JWTHandler.cleanup_expired_blacklist(db)
 
     return revoked_count
@@ -304,9 +285,7 @@ def get_current_user_secure(
     return user
 
 
-def get_current_active_user(
-    current_user: User = Depends(get_current_user_secure)
-) -> User:
+def get_current_active_user(current_user: User = Depends(get_current_user_secure)) -> User:
     """Return the authenticated user only if their account is active."""
     if not current_user.is_active:
         raise HTTPException(
@@ -350,15 +329,15 @@ def get_current_active_user_secure(
 def require_role(*roles: str):
     """Return a dependency that requires the current user to have one of the
     given roles."""
-    def role_checker(
-        current_user: User = Depends(get_current_active_user)
-    ) -> User:
+
+    def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission insuffisante",
             )
         return current_user
+
     return role_checker
 
 
@@ -367,6 +346,7 @@ def require_role_secure(*roles: str):
     Return a dependency that requires the current user to have one of the
     given roles (version middleware sécurisée).
     """
+
     def role_checker_secure(request: Request) -> User:
         user = get_current_active_user_secure(request)
         if user.role not in roles:
@@ -375,4 +355,5 @@ def require_role_secure(*roles: str):
                 detail="Permission insuffisante",
             )
         return user
+
     return role_checker_secure

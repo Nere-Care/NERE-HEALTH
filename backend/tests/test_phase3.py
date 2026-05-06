@@ -1,6 +1,7 @@
 """
 Tests pour Phase 3: Fonctionnalités avancées (IA, Paiements, Téléconsultation)
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
@@ -9,7 +10,6 @@ from decimal import Decimal
 from backend.main import app
 from backend.models import User, Patient, RendezVous
 from sqlalchemy.orm import Session
-
 
 client = TestClient(app)
 
@@ -92,11 +92,7 @@ class TestIADiagnostic:
             "patient_id": str(uuid4()),
             "symptomes_declares": ["fièvre", "toux"],
         }
-        response = client.post(
-            "/api/ia/diagnostic",
-            json=payload,
-            headers=admin_auth_header
-        )
+        response = client.post("/api/ia/diagnostic", json=payload, headers=admin_auth_header)
         assert response.status_code == 400
 
 
@@ -112,11 +108,7 @@ class TestTeleconsultation:
     def test_prepare_teleconsultation_invalid_rdv(self, admin_auth_header):
         """Tester avec un rendez-vous invalide."""
         payload = {"rendez_vous_id": str(uuid4())}
-        response = client.post(
-            "/api/teleconsultation/prepare",
-            json=payload,
-            headers=admin_auth_header
-        )
+        response = client.post("/api/teleconsultation/prepare", json=payload, headers=admin_auth_header)
         assert response.status_code == 404
 
     def test_get_teleconsultation_unauthorized(self):
@@ -128,10 +120,7 @@ class TestTeleconsultation:
     def test_get_teleconsultation_not_found(self, admin_auth_header):
         """Tester avec un rendez-vous invalide."""
         rdv_id = uuid4()
-        response = client.get(
-            f"/api/teleconsultation/{rdv_id}",
-            headers=admin_auth_header
-        )
+        response = client.get(f"/api/teleconsultation/{rdv_id}", headers=admin_auth_header)
         assert response.status_code == 404
 
 
@@ -168,11 +157,7 @@ class TestPaiements:
             "fournisseur": "stripe",
             "description": "Test payment",
         }
-        response = client.post(
-            "/api/paiements/checkout",
-            json=payload,
-            headers=admin_auth_header
-        )
+        response = client.post("/api/paiements/checkout", json=payload, headers=admin_auth_header)
         # Si Stripe n'est pas configuré, on doit recevoir 503
         # Sinon, une erreur 400/404 si les IDs sont invalides
         assert response.status_code in [400, 404, 503]

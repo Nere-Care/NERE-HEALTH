@@ -33,9 +33,7 @@ async def list_ordonnances(
     if statut:
         stmt = stmt.where(Ordonnance.statut == statut)
     if current_user.role != "admin":
-        stmt = stmt.where(
-            (Ordonnance.medecin_id == current_user.id) | (Ordonnance.patient_id == current_user.id)
-        )
+        stmt = stmt.where((Ordonnance.medecin_id == current_user.id) | (Ordonnance.patient_id == current_user.id))
     stmt = stmt.order_by(Ordonnance.date_emission.desc()).limit(limit)
     ordonnances = db.execute(stmt).scalars().all()
     return ordonnances
@@ -57,9 +55,7 @@ async def create_ordonnance(
     if not medecin or medecin.role != "medecin":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
 
-    ordonnance = Ordonnance(
-        **{k: v for k, v in ordonnance_create.dict(exclude={"lignes"}).items() if v is not None}
-    )
+    ordonnance = Ordonnance(**{k: v for k, v in ordonnance_create.dict(exclude={"lignes"}).items() if v is not None})
     db.add(ordonnance)
     db.flush()
 

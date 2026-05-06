@@ -11,10 +11,7 @@ def wait_for_db(timeout: int = 60, interval: int = 2) -> None:
     elapsed = 0
     while elapsed < timeout:
         try:
-            conn = psycopg2.connect(
-                settings.DATABASE_URL_RAW,
-                connect_timeout=5
-            )
+            conn = psycopg2.connect(settings.DATABASE_URL_RAW, connect_timeout=5)
             conn.close()
             return
         except OperationalError as exc:
@@ -23,5 +20,5 @@ def wait_for_db(timeout: int = 60, interval: int = 2) -> None:
     sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     wait_for_db()

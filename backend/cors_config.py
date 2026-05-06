@@ -3,6 +3,7 @@
 Implémente une politique CORS stricte
 """
 
+
 class CORSConfig:
     """Configuration CORS stricte pour la production"""
 
@@ -69,9 +70,7 @@ def get_cors_config(settings):
 
     # Headers selon l'environnement
     allowed_headers = (
-        CORSConfig.ALLOWED_HEADERS_PROD
-        if settings.ENVIRONMENT == "production"
-        else CORSConfig.ALLOWED_HEADERS_DEV
+        CORSConfig.ALLOWED_HEADERS_PROD if settings.ENVIRONMENT == "production" else CORSConfig.ALLOWED_HEADERS_DEV
     )
 
     return {
@@ -136,6 +135,7 @@ def _is_valid_origin(origin: str, settings) -> bool:
     # Validation basique du format URL
     try:
         from urllib.parse import urlparse
+
         parsed = urlparse(origin)
         return bool(parsed.scheme and parsed.netloc)
     except Exception:

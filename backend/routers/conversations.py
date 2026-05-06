@@ -75,7 +75,9 @@ async def create_conversation(
         db.refresh(conversation)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la conversation") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la conversation"
+        ) from exc
     return conversation
 
 
@@ -126,7 +128,9 @@ async def update_conversation(
         db.refresh(conversation)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la conversation: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la conversation: {exc.orig}"
+        ) from exc
     return conversation
 
 

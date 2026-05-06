@@ -21,9 +21,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: Callable, exclude_paths: list = None):
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
-            "/docs", "/redoc", "/openapi.json",
-            "/favicon.ico", "/health", "/metrics",
-            "/static"
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/favicon.ico",
+            "/health",
+            "/metrics",
+            "/static",
         ]
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -55,7 +59,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 audit_logger.log_action(
                     action="erreur_systeme",
                     request=request,
-                    additional_data={"error": str(e), "error_type": type(e).__name__}
+                    additional_data={"error": str(e), "error_type": type(e).__name__},
                 )
             except Exception:
                 pass
@@ -85,7 +89,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             "/audit",
             "/documents_medicaux",
             "/medecins",
-            "/sessions"
+            "/sessions",
         ]
 
         # Check if path matches critical operations
@@ -114,7 +118,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             session_id=session_id,
             entite_type=entity_type,
             entite_id=entity_id,
-            request=request
+            request=request,
         )
 
     async def _log_response(self, request: Request, response: Response, db: Session):
@@ -136,8 +140,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 request=request,
                 additional_data={
                     "status_code": response.status_code,
-                    "reason": response.reason if hasattr(response, 'reason') else None
-                }
+                    "reason": response.reason if hasattr(response, "reason") else None,
+                },
             )
 
     def _determine_action(self, request: Request) -> str:

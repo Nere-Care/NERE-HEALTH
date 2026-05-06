@@ -41,9 +41,7 @@ async def list_paiements(
     if statut:
         stmt = stmt.where(Paiement.statut == statut)
     if current_user.role != "admin":
-        stmt = stmt.where(
-            (Paiement.medecin_id == current_user.id) | (Paiement.patient_id == current_user.id)
-        )
+        stmt = stmt.where((Paiement.medecin_id == current_user.id) | (Paiement.patient_id == current_user.id))
     stmt = stmt.order_by(Paiement.created_at.desc()).limit(limit)
     paiements = db.execute(stmt).scalars().all()
     return paiements
