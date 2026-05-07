@@ -6,9 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Allow import from workspace root for package-style imports.
-ROOT_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
-)
+ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, ROOT_PATH)
 
 config = context.config

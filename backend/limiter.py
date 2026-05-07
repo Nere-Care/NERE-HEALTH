@@ -61,7 +61,12 @@ def get_user_limiter(request: Request) -> str:
 
     # Routes d'authentification (très strictes)
     if any(
-        path.startswith(prefix) for prefix in ["/api/auth/login", "/api/auth/register", "/api/auth/forgot-password"]
+        path.startswith(prefix)
+        for prefix in [
+            "/api/auth/login",
+            "/api/auth/register",
+            "/api/auth/forgot-password",
+        ]
     ):
         return AUTH_LIMIT
 

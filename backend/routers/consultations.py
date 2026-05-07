@@ -37,7 +37,11 @@ async def list_consultations(
     return consultations
 
 
-@router.post("/consultations", response_model=ConsultationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/consultations",
+    response_model=ConsultationRead,
+    status_code=status.HTTP_201_CREATED,
+)
 @api_limiter.limit("10/minute")  # Création consultations: 10/minute
 async def create_consultation(
     request: Request,
@@ -82,7 +86,10 @@ async def read_consultation(
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return consultation
 
 
@@ -125,7 +132,8 @@ async def update_consultation(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de consultation: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de consultation: {exc.orig}",
         ) from exc
     return consultation
 

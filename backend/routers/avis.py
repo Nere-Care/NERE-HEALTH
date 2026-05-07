@@ -29,7 +29,10 @@ async def list_avis(
     elif current_user.role == "medecin":
         stmt = stmt.where(Avis.medecin_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(Avis.patient_id == patient_id)
@@ -64,7 +67,10 @@ async def create_avis(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable")
 
     if avis_create.note < 1 or avis_create.note > 5:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La note doit être comprise entre 1 et 5")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La note doit être comprise entre 1 et 5",
+        )
 
     avis = Avis(**avis_create.dict(exclude_unset=True))
     db.add(avis)
@@ -73,7 +79,10 @@ async def create_avis(
         db.refresh(avis)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de l'avis") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de l'avis",
+        ) from exc
     return avis
 
 
@@ -107,7 +116,10 @@ async def update_avis(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     if avis_update.note is not None and (avis_update.note < 1 or avis_update.note > 5):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La note doit être comprise entre 1 et 5")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La note doit être comprise entre 1 et 5",
+        )
 
     for field, value in avis_update.dict(exclude_unset=True).items():
         setattr(avis, field, value)
@@ -119,7 +131,8 @@ async def update_avis(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de l'avis: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de l'avis: {exc.orig}",
         ) from exc
     return avis
 

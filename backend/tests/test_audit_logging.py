@@ -82,7 +82,12 @@ class TestAuditLogger:
         request.client = Mock(host="192.168.1.1")
 
         user_id = uuid.uuid4()
-        logger.log_action(action="creation", utilisateur_id=user_id, role_utilisateur="medecin", request=request)
+        logger.log_action(
+            action="creation",
+            utilisateur_id=user_id,
+            role_utilisateur="medecin",
+            request=request,
+        )
 
         # Verify database calls
         assert db_mock.add.called
@@ -228,7 +233,14 @@ class TestConvenienceFunctions:
         request = Mock(spec=Request)
         session_id = uuid.uuid4()
 
-        log_data_export(db_mock, user_mock, session_id, entity_type="consultation", count=50, request=request)
+        log_data_export(
+            db_mock,
+            user_mock,
+            session_id,
+            entity_type="consultation",
+            count=50,
+            request=request,
+        )
 
         assert db_mock.add.called
 
@@ -508,7 +520,11 @@ class TestAuditLoggingCompliance:
         user_id = uuid.uuid4()
         user_role = "medecin"
 
-        logger.log_action(action="acces_dossier_medical", utilisateur_id=user_id, role_utilisateur=user_role)
+        logger.log_action(
+            action="acces_dossier_medical",
+            utilisateur_id=user_id,
+            role_utilisateur=user_role,
+        )
 
         call_args = db_mock.add.call_args[0][0]
         assert call_args.utilisateur_id == user_id
@@ -545,7 +561,11 @@ class TestAuditLoggingCompliance:
         logger = AuditLogger(db_mock)
 
         # Sensitive data in additional_data should not cause issues
-        sensitive_data = {"password": "secret123", "api_key": "key_abc123", "credit_card": "4111-1111-1111-1111"}
+        sensitive_data = {
+            "password": "secret123",
+            "api_key": "key_abc123",
+            "credit_card": "4111-1111-1111-1111",
+        }
 
         # Should not raise an exception
         logger.log_action(action="creation", additional_data=sensitive_data)

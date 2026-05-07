@@ -26,7 +26,10 @@ async def list_chatbot_sessions(
     if current_user.role == "patient":
         stmt = stmt.where(ChatbotSession.patient_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux administrateurs")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux administrateurs",
+        )
 
     if patient_id:
         stmt = stmt.where(ChatbotSession.patient_id == patient_id)
@@ -37,7 +40,11 @@ async def list_chatbot_sessions(
     return sessions
 
 
-@router.post("/chatbot_sessions", response_model=ChatbotSessionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/chatbot_sessions",
+    response_model=ChatbotSessionRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_chatbot_session(
     chatbot_create: ChatbotSessionCreate,
     db: Session = Depends(get_db),
@@ -61,7 +68,8 @@ async def create_chatbot_session(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la session chatbot"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la session chatbot",
         ) from exc
     return chatbot_session
 
@@ -105,7 +113,8 @@ async def update_chatbot_session(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la session chatbot: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la session chatbot: {exc.orig}",
         ) from exc
     return session
 

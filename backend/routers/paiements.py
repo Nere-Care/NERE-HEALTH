@@ -3,7 +3,15 @@ from typing import List, Optional
 from uuid import UUID, uuid4
 
 import stripe
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -201,7 +209,10 @@ async def handle_stripe_webhook(
     payload = await request.body()
     signature = request.headers.get("stripe-signature")
     if not signature:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="En-tête de signature Stripe manquant")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="En-tête de signature Stripe manquant",
+        )
 
     stripe.api_key = settings.STRIPE_API_KEY
     try:
@@ -250,6 +261,9 @@ async def read_paiement(
     paiement = db.get(Paiement, paiement_id)
     if not paiement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Paiement non trouvé")
-    if current_user.role != "admin" and current_user.id not in (paiement.medecin_id, paiement.patient_id):
+    if current_user.role != "admin" and current_user.id not in (
+        paiement.medecin_id,
+        paiement.patient_id,
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     return paiement

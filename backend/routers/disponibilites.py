@@ -24,7 +24,10 @@ async def list_disponibilites(
     current_user=Depends(get_current_active_user),
 ):
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     stmt = select(Disponibilite)
     if current_user.role == "medecin":
@@ -40,7 +43,11 @@ async def list_disponibilites(
     return disponibilites
 
 
-@router.post("/disponibilites", response_model=DisponibiliteRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/disponibilites",
+    response_model=DisponibiliteRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_disponibilite(
     disponibilite_create: DisponibiliteCreate,
     db: Session = Depends(get_db),
@@ -49,7 +56,10 @@ async def create_disponibilite(
     if current_user.role == "medecin":
         disponibilite_create.medecin_id = current_user.id
     if current_user.role == "admin" and not disponibilite_create.medecin_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin requis pour la disponibilité")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Médecin requis pour la disponibilité",
+        )
     if (
         not db.get(User, disponibilite_create.medecin_id)
         or db.get(User, disponibilite_create.medecin_id).role != "medecin"
@@ -64,7 +74,8 @@ async def create_disponibilite(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la disponibilité"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la disponibilité",
         ) from exc
     return disponibilite
 
@@ -111,7 +122,8 @@ async def update_disponibilite(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la disponibilité: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la disponibilité: {exc.orig}",
         ) from exc
     return disponibilite
 

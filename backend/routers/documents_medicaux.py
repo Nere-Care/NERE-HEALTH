@@ -28,7 +28,10 @@ async def list_documents_medicaux(
     elif current_user.role == "medecin":
         stmt = stmt.where(DocumentMedical.medecin_uploadeur_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(DocumentMedical.patient_id == patient_id)
@@ -39,7 +42,11 @@ async def list_documents_medicaux(
     return documents
 
 
-@router.post("/documents_medicaux", response_model=DocumentMedicalRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/documents_medicaux",
+    response_model=DocumentMedicalRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_document_medical(
     document_create: DocumentMedicalCreate,
     db: Session = Depends(get_db),
@@ -67,7 +74,8 @@ async def create_document_medical(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du document médical"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création du document médical",
         ) from exc
     return document
 
@@ -116,7 +124,8 @@ async def update_document_medical(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour du document médical: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour du document médical: {exc.orig}",
         ) from exc
     return document
 

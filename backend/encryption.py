@@ -17,6 +17,8 @@ import base64
 import binascii
 import logging
 from typing import Optional
+from functools import wraps
+from fastapi import HTTPException, status, Request
 
 from .config import settings
 
@@ -262,9 +264,6 @@ def get_security_headers() -> dict:
 # ============================================================================
 # Décorateur pour HTTPS enforcement
 # ============================================================================
-
-from functools import wraps
-from fastapi import HTTPException, status, Request
 
 
 def require_https(func):

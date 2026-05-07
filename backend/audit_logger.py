@@ -335,18 +335,31 @@ def log_auth_success(db: Session, user: User, session_id: uuid.UUID, request: Re
     """Log successful authentication"""
     logger = get_audit_logger(db)
     logger.log_action(
-        action="connexion", utilisateur_id=user.id, role_utilisateur=user.role, session_id=session_id, request=request
+        action="connexion",
+        utilisateur_id=user.id,
+        role_utilisateur=user.role,
+        session_id=session_id,
+        request=request,
     )
 
 
 def log_auth_failure(db: Session, email: str, request: Request) -> None:
     """Log failed authentication attempt"""
     logger = get_audit_logger(db)
-    logger.log_action(action="tentative_connexion_echec", request=request, additional_data={"email_attempted": email})
+    logger.log_action(
+        action="tentative_connexion_echec",
+        request=request,
+        additional_data={"email_attempted": email},
+    )
 
 
 def log_payment_initiated(
-    db: Session, user: User, session_id: uuid.UUID, payment_id: uuid.UUID, amount: float, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    amount: float,
+    request: Request,
 ) -> None:
     """Log payment initiation"""
     logger = get_audit_logger(db)
@@ -363,7 +376,12 @@ def log_payment_initiated(
 
 
 def log_payment_confirmed(
-    db: Session, user: User, session_id: uuid.UUID, payment_id: uuid.UUID, amount: float, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    amount: float,
+    request: Request,
 ) -> None:
     """Log payment confirmation"""
     logger = get_audit_logger(db)
@@ -426,7 +444,12 @@ def log_admin_action(
 
 
 def log_data_export(
-    db: Session, user: User, session_id: uuid.UUID, entity_type: str, count: int, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    entity_type: str,
+    count: int,
+    request: Request,
 ) -> None:
     """Log data export operations"""
     logger = get_audit_logger(db)
@@ -442,7 +465,12 @@ def log_data_export(
 
 
 def log_document_upload(
-    db: Session, user: User, session_id: uuid.UUID, document_id: uuid.UUID, entity_type: str, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    document_id: uuid.UUID,
+    entity_type: str,
+    request: Request,
 ) -> None:
     """Log document uploads"""
     logger = get_audit_logger(db)
@@ -458,7 +486,11 @@ def log_document_upload(
 
 
 def log_teleconsultation_start(
-    db: Session, user: User, session_id: uuid.UUID, consultation_id: uuid.UUID, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    consultation_id: uuid.UUID,
+    request: Request,
 ) -> None:
     """Log teleconsultation start"""
     logger = get_audit_logger(db)
@@ -474,7 +506,12 @@ def log_teleconsultation_start(
 
 
 def log_teleconsultation_end(
-    db: Session, user: User, session_id: uuid.UUID, consultation_id: uuid.UUID, duration_minutes: int, request: Request
+    db: Session,
+    user: User,
+    session_id: uuid.UUID,
+    consultation_id: uuid.UUID,
+    duration_minutes: int,
+    request: Request,
 ) -> None:
     """Log teleconsultation end"""
     logger = get_audit_logger(db)
@@ -491,7 +528,11 @@ def log_teleconsultation_end(
 
 
 def log_account_suspension(
-    db: Session, admin_id: uuid.UUID, target_user_id: uuid.UUID, reason: str, request: Request
+    db: Session,
+    admin_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+    reason: str,
+    request: Request,
 ) -> None:
     """Log account suspension"""
     logger = get_audit_logger(db)

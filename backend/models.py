@@ -143,12 +143,20 @@ class User(Base):
         UniqueConstraint("telephone", name="uq_users_telephone"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     email = Column(String(255), nullable=False)
     telephone = Column(String(20))
     mot_de_passe_hash = Column(String(255), nullable=False)
     role = Column(
-        _enum_type(("patient", "medecin", "structure", "admin", "observateur"), "role_utilisateur"),
+        _enum_type(
+            ("patient", "medecin", "structure", "admin", "observateur"),
+            "role_utilisateur",
+        ),
         nullable=False,
     )
     statut = Column(
@@ -214,7 +222,10 @@ class Patient(Base):
         server_default=_server_default("'Non_precise'::public.sexe_enum"),
     )
     groupe_sanguin = Column(
-        _enum_type(("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Inconnu"), "groupe_sanguin_enum"),
+        _enum_type(
+            ("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Inconnu"),
+            "groupe_sanguin_enum",
+        ),
         nullable=False,
         server_default=_server_default("'Inconnu'::public.groupe_sanguin_enum"),
     )
@@ -253,7 +264,12 @@ class Consultation(Base):
         Index("ix_consultations_rdv_id", "rdv_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     numero_consultation = Column(String(30), nullable=False)
     rdv_id = Column(GUID(), ForeignKey("rendez_vous.id"), nullable=False)
     dossier_id = Column(GUID(), nullable=False)
@@ -290,7 +306,12 @@ class Ordonnance(Base):
         Index("ix_ordonnances_medecin_id", "medecin_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     numero = Column(String(30), nullable=False)
     consultation_id = Column(GUID(), ForeignKey("consultations.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
@@ -298,7 +319,10 @@ class Ordonnance(Base):
     date_emission = Column(Date, nullable=False, server_default=func.current_date())
     date_expiration = Column(Date, nullable=False)
     statut = Column(
-        _enum_type(("active", "utilisee", "partiellement_utilisee", "expiree", "annulee"), "statut_ordonnance"),
+        _enum_type(
+            ("active", "utilisee", "partiellement_utilisee", "expiree", "annulee"),
+            "statut_ordonnance",
+        ),
         nullable=False,
         server_default=_server_default("'active'::public.statut_ordonnance"),
     )
@@ -317,13 +341,23 @@ class Ordonnance(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    lignes = relationship("OrdonnanceLigne", back_populates="ordonnance", cascade="all, delete-orphan", lazy="selectin")
+    lignes = relationship(
+        "OrdonnanceLigne",
+        back_populates="ordonnance",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class OrdonnanceLigne(Base):
     __tablename__ = "ordonnance_lignes"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     ordonnance_id = Column(GUID(), ForeignKey("ordonnances.id"), nullable=False)
     ordre = Column(SmallInteger, nullable=False, server_default=_server_default("1"))
     medicament_nom = Column(String(300), nullable=False)
@@ -371,7 +405,12 @@ class Paiement(Base):
         Index("ix_paiements_medecin_id", "medecin_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     reference = Column(String(50), nullable=False)
     rdv_id = Column(GUID(), ForeignKey("rendez_vous.id"), nullable=False)
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
@@ -450,7 +489,12 @@ class DossierMedical(Base):
         Index("ix_dossiers_medicaux_medecin_traitant_id", "medecin_traitant_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     numero_dossier = Column(String(30), nullable=False)
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_traitant_id = Column(GUID(), ForeignKey("medecins.id"))
@@ -483,7 +527,12 @@ class RendezVous(Base):
         Index("ix_rendez_vous_date_heure_debut", "date_heure_debut"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     numero_rdv = Column(String(30), nullable=False)
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
@@ -544,7 +593,12 @@ class Notification(Base):
         Index("ix_notifications_utilisateur_id", "utilisateur_id"),
         Index("ix_notifications_statut", "statut"),
     )
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     utilisateur_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     type = Column(
         _enum_type(
@@ -598,7 +652,12 @@ class Avis(Base):
         Index("ix_avis_rdv_id", "rdv_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     rdv_id = Column(GUID(), ForeignKey("rendez_vous.id"), nullable=False)
@@ -622,11 +681,20 @@ class ChatbotSession(Base):
         Index("ix_chatbot_sessions_rdv_cree_id", "rdv_cree_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=True)
     messages = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
-    symptomes_detectes = Column(_array_type(String), nullable=False, server_default=_server_default("ARRAY[]::text[]"))
+    symptomes_detectes = Column(
+        _array_type(String),
+        nullable=False,
+        server_default=_server_default("ARRAY[]::text[]"),
+    )
     specialite_suggeree = Column(String(100))
     niveau_urgence = Column(
         _enum_type(("faible", "modere", "eleve", "urgence_vitale"), "niveau_urgence"),
@@ -651,7 +719,12 @@ class Conversation(Base):
         Index("ix_conversations_rdv_id", "rdv_id"),
     )
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     rdv_id = Column(GUID(), ForeignKey("rendez_vous.id"))
@@ -667,7 +740,12 @@ class Conversation(Base):
 class Disponibilite(Base):
     __tablename__ = "disponibilites"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     jour_semaine = Column(
         _enum_type(
@@ -685,13 +763,20 @@ class Disponibilite(Base):
         server_default=_server_default("'video'::public.type_consultation"),
     )
     recurrence = Column(
-        _enum_type(("unique", "quotidien", "hebdomadaire", "bi_mensuel", "mensuel"), "recurrence_enum"),
+        _enum_type(
+            ("unique", "quotidien", "hebdomadaire", "bi_mensuel", "mensuel"),
+            "recurrence_enum",
+        ),
         nullable=False,
         server_default=_server_default("'hebdomadaire'::public.recurrence_enum"),
     )
     date_debut_validite = Column(Date, nullable=False, server_default=func.current_date())
     date_fin_validite = Column(Date)
-    exceptions = Column(_array_type(Date), nullable=False, server_default=_server_default("ARRAY[]::date[]"))
+    exceptions = Column(
+        _array_type(Date),
+        nullable=False,
+        server_default=_server_default("ARRAY[]::date[]"),
+    )
     actif = Column(Boolean, nullable=False, server_default=_server_default("true"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -700,7 +785,12 @@ class Disponibilite(Base):
 class DocumentMedical(Base):
     __tablename__ = "documents_medicaux"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     consultation_id = Column(GUID(), ForeignKey("consultations.id"))
     medecin_uploadeur_id = Column(GUID(), ForeignKey("medecins.id"))
@@ -731,7 +821,9 @@ class DocumentMedical(Base):
     est_chiffre = Column(Boolean, nullable=False, server_default=_server_default("true"))
     cle_chiffrement_ref = Column(String(100))
     partage_avec_medecins = Column(
-        _array_type(GUID()), nullable=False, server_default=_server_default("ARRAY[]::uuid[]")
+        _array_type(GUID()),
+        nullable=False,
+        server_default=_server_default("ARRAY[]::uuid[]"),
     )
     visible_patient = Column(Boolean, nullable=False, server_default=_server_default("true"))
     description = Column(Text)
@@ -777,7 +869,9 @@ class Medecin(Base):
     diplomes = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
     certifications = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
     langues_parlees = Column(
-        _array_type(String(10)), nullable=False, server_default=_server_default("ARRAY['fr'::text]")
+        _array_type(String(10)),
+        nullable=False,
+        server_default=_server_default("ARRAY['fr'::text]"),
     )
     tarif_consultation = Column(Numeric(10, 2), nullable=False, server_default=_server_default("5000.00"))
     devise = Column(
@@ -798,7 +892,12 @@ class Medecin(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     conversation_id = Column(GUID(), ForeignKey("conversations.id"), nullable=False)
     expediteur_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     contenu_chiffre = Column(_bytea_type(), nullable=False)
@@ -821,7 +920,12 @@ class Message(Base):
 class Session(Base):
     __tablename__ = "sessions"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     utilisateur_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     refresh_token_hash = Column(String(255), nullable=False)
     access_token_jti = Column(String(100))
@@ -841,7 +945,12 @@ class Session(Base):
 class Specialite(Base):
     __tablename__ = "specialites"
 
-    id = Column(GUID(), primary_key=True, server_default=_server_default("gen_random_uuid()"), default=_uuid_default())
+    id = Column(
+        GUID(),
+        primary_key=True,
+        server_default=_server_default("gen_random_uuid()"),
+        default=_uuid_default(),
+    )
     code = Column(String(30), nullable=False)
     libelle_fr = Column(String(150), nullable=False)
     libelle_en = Column(String(150))
@@ -881,7 +990,11 @@ class Structure(Base):
     description = Column(Text)
     logo_url = Column(String(1000))
     horaires_ouverture = Column(_json_type(), nullable=False, server_default=_server_default("'{}'::jsonb"))
-    services_offerts = Column(_array_type(String), nullable=False, server_default=_server_default("ARRAY[]::text[]"))
+    services_offerts = Column(
+        _array_type(String),
+        nullable=False,
+        server_default=_server_default("ARRAY[]::text[]"),
+    )
     capacite_lits = Column(Integer)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -893,7 +1006,10 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True)
     utilisateur_id = Column(GUID(), ForeignKey("users.id"))
     role_utilisateur = Column(
-        _enum_type(("patient", "medecin", "structure", "admin", "observateur"), "role_utilisateur")
+        _enum_type(
+            ("patient", "medecin", "structure", "admin", "observateur"),
+            "role_utilisateur",
+        )
     )
     session_id = Column(GUID(), ForeignKey("sessions.id"))
     action = Column(
@@ -952,7 +1068,10 @@ class TokenBlacklist(Base):
     token = Column(Text, nullable=False, unique=True, index=True)
     user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     reason = Column(
-        _enum_type(("logout", "suspicion", "admin_revoke", "password_change", "expired"), "token_revoke_reason"),
+        _enum_type(
+            ("logout", "suspicion", "admin_revoke", "password_change", "expired"),
+            "token_revoke_reason",
+        ),
         nullable=False,
         server_default=_server_default("'logout'::public.token_revoke_reason"),
     )

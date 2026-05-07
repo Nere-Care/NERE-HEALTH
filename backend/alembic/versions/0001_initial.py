@@ -14,8 +14,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute(
-        """
+    op.execute("""
         DO $$
         BEGIN
             IF EXISTS (
@@ -267,13 +266,11 @@ def upgrade() -> None:
             END IF;
         END
         $$;
-        """
-    )
+        """)
 
 
 def downgrade() -> None:
-    op.execute(
-        """
+    op.execute("""
         DROP INDEX IF EXISTS public.ix_notifications_utilisateur_id;
         DROP INDEX IF EXISTS public.ix_notifications_statut;
         DROP INDEX IF EXISTS public.ix_rendez_vous_patient_id;
@@ -298,5 +295,4 @@ def downgrade() -> None:
         DROP INDEX IF EXISTS public.ix_conversations_patient_id;
         DROP INDEX IF EXISTS public.ix_conversations_medecin_id;
         DROP INDEX IF EXISTS public.ix_conversations_rdv_id;
-        """
-    )
+        """)

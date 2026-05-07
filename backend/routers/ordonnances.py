@@ -89,6 +89,9 @@ async def read_ordonnance(
     ordonnance = db.get(Ordonnance, ordonnance_id)
     if not ordonnance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ordonnance non trouvée")
-    if current_user.role != "admin" and current_user.id not in (ordonnance.medecin_id, ordonnance.patient_id):
+    if current_user.role != "admin" and current_user.id not in (
+        ordonnance.medecin_id,
+        ordonnance.patient_id,
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     return ordonnance

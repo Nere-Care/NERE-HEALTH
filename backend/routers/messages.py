@@ -25,7 +25,10 @@ async def list_messages(
     if conversation_id:
         stmt = stmt.where(Message.conversation_id == conversation_id)
     if current_user.role not in ("admin", "medecin", "patient"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux utilisateurs authentifiés")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux utilisateurs authentifiés",
+        )
 
     messages = db.execute(stmt.order_by(Message.created_at.desc()).limit(limit)).scalars().all()
     return messages
@@ -55,7 +58,10 @@ async def create_message(
         db.refresh(message)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du message") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création du message",
+        ) from exc
     return message
 
 

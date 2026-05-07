@@ -286,7 +286,9 @@ class ValidationException(SecureException):
 
     def __init__(self, message: str, field: str = None):
         super().__init__(
-            user_message=message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, error_code="ERR_VALIDATION"
+            user_message=message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code="ERR_VALIDATION",
         )
         self.field = field
 
@@ -295,14 +297,22 @@ class AuthenticationException(SecureException):
     """Exception for authentication errors."""
 
     def __init__(self, message: str = "Authentification échouée"):
-        super().__init__(user_message=message, status_code=status.HTTP_401_UNAUTHORIZED, error_code="ERR_AUTH")
+        super().__init__(
+            user_message=message,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="ERR_AUTH",
+        )
 
 
 class AuthorizationException(SecureException):
     """Exception for authorization errors."""
 
     def __init__(self, message: str = "Accès refusé"):
-        super().__init__(user_message=message, status_code=status.HTTP_403_FORBIDDEN, error_code="ERR_AUTHZ")
+        super().__init__(
+            user_message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code="ERR_AUTHZ",
+        )
 
 
 class RateLimitException(SecureException):

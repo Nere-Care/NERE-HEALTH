@@ -1,7 +1,16 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -67,7 +76,11 @@ async def list_notifications(
     return notifications
 
 
-@router.post("/notifications", response_model=NotificationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/notifications",
+    response_model=NotificationRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_notification(
     notification_create: NotificationCreate,
     background_tasks: BackgroundTasks,
@@ -85,7 +98,8 @@ async def create_notification(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de création de notification: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de création de notification: {exc.orig}",
         ) from exc
 
     background_tasks.add_task(

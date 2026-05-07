@@ -26,7 +26,10 @@ async def list_dossiers_medicaux(
     if current_user.role == "medecin":
         stmt = stmt.where(DossierMedical.medecin_traitant_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if medecin_traitant_id:
         stmt = stmt.where(DossierMedical.medecin_traitant_id == medecin_traitant_id)
@@ -38,7 +41,11 @@ async def list_dossiers_medicaux(
     return dossiers
 
 
-@router.post("/dossiers_medicaux", response_model=DossierMedicalRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/dossiers_medicaux",
+    response_model=DossierMedicalRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_dossier_medical(
     dossier_create: DossierMedicalCreate,
     db: Session = Depends(get_db),
@@ -82,7 +89,10 @@ async def read_dossier_medical(
     if current_user.role == "medecin" and dossier.medecin_traitant_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return dossier
 
 
@@ -116,7 +126,8 @@ async def update_dossier_medical(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de dossier médical: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de dossier médical: {exc.orig}",
         ) from exc
     return dossier
 

@@ -27,7 +27,10 @@ async def list_rendez_vous(
     if current_user.role == "medecin":
         stmt = stmt.where(RendezVous.medecin_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(RendezVous.patient_id == patient_id)
@@ -84,7 +87,10 @@ async def read_rendez_vous(
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return rendez_vous
 
 
@@ -118,7 +124,8 @@ async def update_rendez_vous(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de rendez-vous: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de rendez-vous: {exc.orig}",
         ) from exc
 
     return rendez_vous

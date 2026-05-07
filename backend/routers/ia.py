@@ -16,7 +16,14 @@ router = APIRouter(tags=["ia"])
 
 
 def _estimate_urgency(symptoms: List[str]) -> str:
-    urgent_keywords = ["douleur", "fièvre", "saignement", "respiration", "étourdissements", "choc"]
+    urgent_keywords = [
+        "douleur",
+        "fièvre",
+        "saignement",
+        "respiration",
+        "étourdissements",
+        "choc",
+    ]
     lower = " ".join(symptoms).lower()
     if any(keyword in lower for keyword in urgent_keywords):
         return "eleve"
@@ -58,7 +65,12 @@ def _build_prompt(payload: IADiagnosticRequest) -> List[Dict[str, str]]:
     )
     if payload.messages:
         for message in payload.messages:
-            prompt.append({"role": message.get("role", "user"), "content": message.get("content", "")})
+            prompt.append(
+                {
+                    "role": message.get("role", "user"),
+                    "content": message.get("content", ""),
+                }
+            )
     return prompt
 
 

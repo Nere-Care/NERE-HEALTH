@@ -16,6 +16,7 @@ import mimetypes
 import logging
 
 from pydantic import BaseModel, validator, Field
+from fastapi import HTTPException, Request, status
 
 logger = logging.getLogger(__name__)
 
@@ -450,8 +451,6 @@ class FileUploadSchema(BaseModel):
 # ============================================================================
 # Middleware de validation
 # ============================================================================
-
-from fastapi import HTTPException, status, Request
 
 
 class InputValidationMiddleware:

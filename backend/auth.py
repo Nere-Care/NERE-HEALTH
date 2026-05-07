@@ -181,7 +181,7 @@ def revoke_user_tokens(
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         audit_logger.log_admin_action(
-            admin_user_id=request.state.user.id if request and hasattr(request.state, "user") else None,
+            admin_user_id=(request.state.user.id if request and hasattr(request.state, "user") else None),
             action="revoke_user_tokens",
             target_user_id=user_id,
             ip_address=request.client.host if request and request.client else None,
@@ -285,7 +285,9 @@ def get_current_user_secure(
     return user
 
 
-def get_current_active_user(current_user: User = Depends(get_current_user_secure)) -> User:
+def get_current_active_user(
+    current_user: User = Depends(get_current_user_secure),
+) -> User:
     """Return the authenticated user only if their account is active."""
     if not current_user.is_active:
         raise HTTPException(

@@ -18,11 +18,11 @@ os.environ.setdefault("STRIPE_API_KEY", "sk_test_fake")
 os.environ.setdefault("STRIPE_WEBHOOK_SECRET", "whsec_test_fake")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake")
 
-import pytest
-from alembic import command
-from alembic.config import Config
-from fastapi.testclient import TestClient
-from sqlalchemy import inspect
+import pytest  # noqa: E402
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import inspect  # noqa: E402
 
 # Imports directs via package root
 try:

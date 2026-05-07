@@ -8,8 +8,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = '854a93350b2e'
-down_revision = '0001_initial'
+revision = "854a93350b2e"
+down_revision = "0001_initial"
 branch_labels = None
 depends_on = None
 
@@ -114,18 +114,14 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("email_otp", sa.String(length=6), nullable=True),
-        sa.Column(
-            "email_otp_expires", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("email_otp_expires", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "telephone_verifie",
             sa.Boolean(),
             server_default=sa.text("false"),
             nullable=False,
         ),
-        sa.Column(
-            "reset_password_token", sa.String(length=255), nullable=True
-        ),
+        sa.Column("reset_password_token", sa.String(length=255), nullable=True),
         sa.Column(
             "reset_password_token_expires",
             sa.DateTime(timezone=True),
@@ -225,9 +221,7 @@ def upgrade():
             server_default=sa.text("now()"),
             nullable=True,
         ),
-        sa.Column(
-            "date_envoi_reel", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_envoi_reel", sa.DateTime(timezone=True), nullable=True),
         sa.Column("date_lecture", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "nb_tentatives",
@@ -236,9 +230,7 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("derniere_erreur", sa.Text(), nullable=True),
-        sa.Column(
-            "prochaine_tentative", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("prochaine_tentative", sa.DateTime(timezone=True), nullable=True),
         sa.Column("reference_externe", sa.String(length=500), nullable=True),
         sa.Column(
             "created_at",
@@ -273,9 +265,7 @@ def upgrade():
         sa.Column("date_naissance", sa.Date(), nullable=True),
         sa.Column(
             "sexe",
-            postgresql.ENUM(
-                "M", "F", "Autre", "Non_precise", name="sexe_enum"
-            ),
+            postgresql.ENUM("M", "F", "Autre", "Non_precise", name="sexe_enum"),
             server_default=sa.text("'Non_precise'::public.sexe_enum"),
             nullable=False,
         ),
@@ -306,22 +296,14 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("code_postal", sa.String(length=10), nullable=True),
-        sa.Column(
-            "latitude", sa.Numeric(precision=10, scale=8), nullable=True
-        ),
-        sa.Column(
-            "longitude", sa.Numeric(precision=11, scale=8), nullable=True
-        ),
-        sa.Column(
-            "taille_cm", sa.Numeric(precision=5, scale=2), nullable=True
-        ),
+        sa.Column("latitude", sa.Numeric(precision=10, scale=8), nullable=True),
+        sa.Column("longitude", sa.Numeric(precision=11, scale=8), nullable=True),
+        sa.Column("taille_cm", sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column("poids_kg", sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column("allergies", sa.ARRAY(sa.Text()), nullable=True),
         sa.Column("antecedents_medicaux", sa.Text(), nullable=True),
         sa.Column("medicaments_en_cours", sa.Text(), nullable=True),
-        sa.Column(
-            "couverture_assurance", sa.String(length=200), nullable=True
-        ),
+        sa.Column("couverture_assurance", sa.String(length=200), nullable=True),
         sa.Column("numero_assurance", sa.String(length=100), nullable=True),
         sa.Column("organisme_assurance", sa.String(length=200), nullable=True),
         sa.Column("contact_urgence_nom", sa.String(length=150), nullable=True),
@@ -333,9 +315,7 @@ def upgrade():
             server_default=sa.text("false"),
             nullable=False,
         ),
-        sa.Column(
-            "date_consentement", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_consentement", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "consentement_marketing",
             sa.Boolean(),
@@ -359,9 +339,7 @@ def upgrade():
             ["users.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "numero_patient", name="uq_patients_numero_patient"
-        ),
+        sa.UniqueConstraint("numero_patient", name="uq_patients_numero_patient"),
     )
     op.create_table(
         "sessions",
@@ -386,9 +364,7 @@ def upgrade():
             server_default=sa.text("false"),
             nullable=False,
         ),
-        sa.Column(
-            "date_revocation", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_revocation", sa.DateTime(timezone=True), nullable=True),
         sa.Column("motif_revocation", sa.String(length=50), nullable=True),
         sa.Column(
             "created_at",
@@ -488,12 +464,8 @@ def upgrade():
             server_default=sa.text("'CM'"),
             nullable=False,
         ),
-        sa.Column(
-            "latitude", sa.Numeric(precision=10, scale=8), nullable=True
-        ),
-        sa.Column(
-            "longitude", sa.Numeric(precision=11, scale=8), nullable=True
-        ),
+        sa.Column("latitude", sa.Numeric(precision=10, scale=8), nullable=True),
+        sa.Column("longitude", sa.Numeric(precision=11, scale=8), nullable=True),
         sa.Column("telephone_pro", sa.String(length=20), nullable=True),
         sa.Column("email_pro", sa.String(length=255), nullable=True),
         sa.Column("site_web", sa.String(length=1000), nullable=True),
@@ -632,9 +604,7 @@ def upgrade():
             server_default=sa.text("'en_attente'::public.statut_verification"),
             nullable=False,
         ),
-        sa.Column(
-            "date_verification", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_verification", sa.DateTime(timezone=True), nullable=True),
         sa.Column("verifie_par_admin_id", sa.UUID(), nullable=True),
         sa.Column(
             "annees_experience",
@@ -669,9 +639,7 @@ def upgrade():
         ),
         sa.Column(
             "devise",
-            postgresql.ENUM(
-                "XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"
-            ),
+            postgresql.ENUM("XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"),
             server_default=sa.text("'XAF'::public.devise_enum"),
             nullable=False,
         ),
@@ -847,15 +815,11 @@ def upgrade():
             server_default=sa.text("'{}'::jsonb"),
             nullable=False,
         ),
-        sa.Column(
-            "taille_cm", sa.Numeric(precision=5, scale=2), nullable=True
-        ),
+        sa.Column("taille_cm", sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column("poids_kg", sa.Numeric(precision=5, scale=2), nullable=True),
         sa.Column("imc", sa.Numeric(precision=4, scale=2), nullable=True),
         sa.Column("tension_arterielle", sa.String(length=20), nullable=True),
-        sa.Column(
-            "glycemie_a_jeun", sa.Numeric(precision=6, scale=2), nullable=True
-        ),
+        sa.Column("glycemie_a_jeun", sa.Numeric(precision=6, scale=2), nullable=True),
         sa.Column(
             "vaccinations",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -869,9 +833,7 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("code_partage", sa.String(length=20), nullable=True),
-        sa.Column(
-            "code_partage_expires", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("code_partage_expires", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -893,15 +855,11 @@ def upgrade():
             ["patients.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "code_partage", name="uq_dossiers_medicaux_code_partage"
-        ),
+        sa.UniqueConstraint("code_partage", name="uq_dossiers_medicaux_code_partage"),
         sa.UniqueConstraint(
             "numero_dossier", name="uq_dossiers_medicaux_numero_dossier"
         ),
-        sa.UniqueConstraint(
-            "patient_id", name="uq_dossiers_medicaux_patient_id"
-        ),
+        sa.UniqueConstraint("patient_id", name="uq_dossiers_medicaux_patient_id"),
     )
     op.create_index(
         "ix_dossiers_medicaux_medecin_traitant_id",
@@ -965,12 +923,8 @@ def upgrade():
         sa.Column("patient_id", sa.UUID(), nullable=False),
         sa.Column("medecin_id", sa.UUID(), nullable=False),
         sa.Column("structure_id", sa.UUID(), nullable=True),
-        sa.Column(
-            "date_heure_debut", sa.DateTime(timezone=True), nullable=False
-        ),
-        sa.Column(
-            "date_heure_fin", sa.DateTime(timezone=True), nullable=False
-        ),
+        sa.Column("date_heure_debut", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("date_heure_fin", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
             "type",
             postgresql.ENUM(
@@ -1016,17 +970,13 @@ def upgrade():
         ),
         sa.Column(
             "devise",
-            postgresql.ENUM(
-                "XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"
-            ),
+            postgresql.ENUM("XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"),
             server_default=sa.text("'XAF'::public.devise_enum"),
             nullable=False,
         ),
         sa.Column("annule_par", sa.UUID(), nullable=True),
         sa.Column("motif_annulation", sa.Text(), nullable=True),
-        sa.Column(
-            "date_annulation", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_annulation", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "rappel_j1_envoye",
             sa.Boolean(),
@@ -1294,9 +1244,7 @@ def upgrade():
         sa.Column("examen_clinique", sa.Text(), nullable=True),
         sa.Column("diagnostic_principal", sa.Text(), nullable=True),
         sa.Column("code_cim10", sa.String(length=10), nullable=True),
-        sa.Column(
-            "diagnostics_secondaires", sa.ARRAY(sa.Text()), nullable=True
-        ),
+        sa.Column("diagnostics_secondaires", sa.ARRAY(sa.Text()), nullable=True),
         sa.Column("plan_traitement", sa.Text(), nullable=True),
         sa.Column("observations", sa.Text(), nullable=True),
         sa.Column(
@@ -1389,12 +1337,8 @@ def upgrade():
             server_default=sa.text("0"),
             nullable=False,
         ),
-        sa.Column(
-            "dernier_message_at", sa.DateTime(timezone=True), nullable=True
-        ),
-        sa.Column(
-            "dernier_message_preview", sa.String(length=200), nullable=True
-        ),
+        sa.Column("dernier_message_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("dernier_message_preview", sa.String(length=200), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1448,14 +1392,10 @@ def upgrade():
         sa.Column("rdv_id", sa.UUID(), nullable=False),
         sa.Column("patient_id", sa.UUID(), nullable=False),
         sa.Column("medecin_id", sa.UUID(), nullable=False),
-        sa.Column(
-            "montant_total", sa.Numeric(precision=10, scale=2), nullable=False
-        ),
+        sa.Column("montant_total", sa.Numeric(precision=10, scale=2), nullable=False),
         sa.Column(
             "devise",
-            postgresql.ENUM(
-                "XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"
-            ),
+            postgresql.ENUM("XAF", "EUR", "USD", "GBP", "XOF", name="devise_enum"),
             server_default=sa.text("'XAF'::public.devise_enum"),
             nullable=False,
         ),
@@ -1471,9 +1411,7 @@ def upgrade():
             server_default=sa.text("0.1000"),
             nullable=False,
         ),
-        sa.Column(
-            "montant_medecin", sa.Numeric(precision=10, scale=2), nullable=True
-        ),
+        sa.Column("montant_medecin", sa.Numeric(precision=10, scale=2), nullable=True),
         sa.Column(
             "methode",
             postgresql.ENUM(
@@ -1516,25 +1454,17 @@ def upgrade():
             server_default=sa.text("'initie'::public.statut_paiement"),
             nullable=False,
         ),
-        sa.Column(
-            "reference_fournisseur", sa.String(length=200), nullable=True
-        ),
-        sa.Column(
-            "transaction_id_externe", sa.String(length=200), nullable=True
-        ),
+        sa.Column("reference_fournisseur", sa.String(length=200), nullable=True),
+        sa.Column("transaction_id_externe", sa.String(length=200), nullable=True),
         sa.Column("url_paiement", sa.String(length=2000), nullable=True),
-        sa.Column(
-            "date_remboursement", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_remboursement", sa.DateTime(timezone=True), nullable=True),
         sa.Column("motif_remboursement", sa.Text(), nullable=True),
         sa.Column(
             "montant_rembourse",
             sa.Numeric(precision=10, scale=2),
             nullable=True,
         ),
-        sa.Column(
-            "reference_remboursement", sa.String(length=200), nullable=True
-        ),
+        sa.Column("reference_remboursement", sa.String(length=200), nullable=True),
         sa.Column(
             "webhook_data",
             postgresql.JSONB(astext_type=sa.Text()),
@@ -1548,17 +1478,11 @@ def upgrade():
             server_default=sa.text("false"),
             nullable=False,
         ),
-        sa.Column(
-            "date_reversement", sa.DateTime(timezone=True), nullable=True
-        ),
-        sa.Column(
-            "reference_reversement", sa.String(length=200), nullable=True
-        ),
+        sa.Column("date_reversement", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("reference_reversement", sa.String(length=200), nullable=True),
         sa.Column("ip_paiement", postgresql.INET(), nullable=True),
         sa.Column("user_agent_paiement", sa.Text(), nullable=True),
-        sa.Column(
-            "date_expiration", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_expiration", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1592,9 +1516,7 @@ def upgrade():
     op.create_index(
         "ix_paiements_patient_id", "paiements", ["patient_id"], unique=False
     )
-    op.create_index(
-        "ix_paiements_rdv_id", "paiements", ["rdv_id"], unique=False
-    )
+    op.create_index("ix_paiements_rdv_id", "paiements", ["rdv_id"], unique=False)
     op.create_table(
         "documents_medicaux",
         sa.Column(
@@ -1623,12 +1545,8 @@ def upgrade():
             ),
             nullable=False,
         ),
-        sa.Column(
-            "nom_fichier_original", sa.String(length=500), nullable=False
-        ),
-        sa.Column(
-            "nom_fichier_stockage", sa.String(length=500), nullable=False
-        ),
+        sa.Column("nom_fichier_original", sa.String(length=500), nullable=False),
+        sa.Column("nom_fichier_stockage", sa.String(length=500), nullable=False),
         sa.Column("url_stockage", sa.String(length=2000), nullable=False),
         sa.Column("checksum_sha256", sa.String(length=64), nullable=False),
         sa.Column("taille_octets", sa.BigInteger(), nullable=False),
@@ -1782,9 +1700,7 @@ def upgrade():
             server_default=sa.text("'active'::public.statut_ordonnance"),
             nullable=False,
         ),
-        sa.Column(
-            "date_utilisation", sa.DateTime(timezone=True), nullable=True
-        ),
+        sa.Column("date_utilisation", sa.DateTime(timezone=True), nullable=True),
         sa.Column("pharmacie_utilisee", sa.String(length=200), nullable=True),
         sa.Column("qr_code_data", sa.Text(), nullable=False),
         sa.Column("qr_code_url", sa.String(length=1000), nullable=True),
@@ -1836,9 +1752,7 @@ def upgrade():
             ["patients.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint(
-            "code_pharmacie", name="uq_ordonnances_code_pharmacie"
-        ),
+        sa.UniqueConstraint("code_pharmacie", name="uq_ordonnances_code_pharmacie"),
         sa.UniqueConstraint("numero", name="uq_ordonnances_numero"),
     )
     op.create_index(
@@ -1876,9 +1790,7 @@ def upgrade():
         ),
         sa.Column("medicament_nom", sa.String(length=300), nullable=False),
         sa.Column("dci", sa.String(length=300), nullable=True),
-        sa.Column(
-            "classe_therapeutique", sa.String(length=150), nullable=True
-        ),
+        sa.Column("classe_therapeutique", sa.String(length=150), nullable=True),
         sa.Column("dosage", sa.String(length=100), nullable=False),
         sa.Column(
             "forme",
@@ -1947,15 +1859,9 @@ def downgrade():
     op.drop_index("ix_consultations_patient_id", table_name="consultations")
     op.drop_index("ix_consultations_medecin_id", table_name="consultations")
     op.drop_table("consultations")
-    op.drop_index(
-        "ix_chatbot_sessions_rdv_cree_id", table_name="chatbot_sessions"
-    )
-    op.drop_index(
-        "ix_chatbot_sessions_patient_id", table_name="chatbot_sessions"
-    )
-    op.drop_index(
-        "ix_chatbot_sessions_medecin_id", table_name="chatbot_sessions"
-    )
+    op.drop_index("ix_chatbot_sessions_rdv_cree_id", table_name="chatbot_sessions")
+    op.drop_index("ix_chatbot_sessions_patient_id", table_name="chatbot_sessions")
+    op.drop_index("ix_chatbot_sessions_medecin_id", table_name="chatbot_sessions")
     op.drop_table("chatbot_sessions")
     op.drop_index("ix_avis_rdv_id", table_name="avis")
     op.drop_index("ix_avis_patient_id", table_name="avis")
@@ -1982,9 +1888,7 @@ def downgrade():
     op.drop_table("token_blacklist")
     op.drop_table("sessions")
     op.drop_table("patients")
-    op.drop_index(
-        "ix_notifications_utilisateur_id", table_name="notifications"
-    )
+    op.drop_index("ix_notifications_utilisateur_id", table_name="notifications")
     op.drop_index("ix_notifications_statut", table_name="notifications")
     op.drop_table("notifications")
     op.drop_table("users")

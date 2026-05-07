@@ -30,7 +30,10 @@ async def list_conversations(
     elif current_user.role == "medecin":
         stmt = stmt.where(Conversation.medecin_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(Conversation.patient_id == patient_id)
@@ -45,7 +48,11 @@ async def list_conversations(
     return conversations
 
 
-@router.post("/conversations", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/conversations",
+    response_model=ConversationRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_conversation(
     conversation_create: ConversationCreate,
     db: Session = Depends(get_db),
@@ -76,7 +83,8 @@ async def create_conversation(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la conversation"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la conversation",
         ) from exc
     return conversation
 
@@ -129,7 +137,8 @@ async def update_conversation(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la conversation: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la conversation: {exc.orig}",
         ) from exc
     return conversation
 

@@ -145,8 +145,6 @@ if not settings.DEBUG:
         debug=settings.DEBUG,
     )
 
-from .cors_config import CORSConfig
-
 # Configure CORS - 🔐 FAILLE #2: Configuration stricte
 # ❌ INTERDIT: allow_methods=["*"] ou allow_headers=["*"] en production
 # Configuration CORS sécurisée

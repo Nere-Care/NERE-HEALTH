@@ -398,7 +398,10 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "🔴 CRITIQUE: CORS_ORIGINS=* est interdite en production\n" "Spécifiez les domaines autorisés"
                 )
-            if not self.ALLOWED_HOSTS or self.ALLOWED_HOSTS == ["localhost", "127.0.0.1"]:
+            if not self.ALLOWED_HOSTS or self.ALLOWED_HOSTS == [
+                "localhost",
+                "127.0.0.1",
+            ]:
                 raise ValueError("🔴 CRITIQUE: ALLOWED_HOSTS doit être configuré pour des domaines réels en production")
             if not self.DATABASE_URL_RAW or self.DATABASE_URL_RAW.startswith("sqlite://"):
                 raise ValueError("🔴 CRITIQUE: DATABASE_URL doit pointer vers une base PostgreSQL en production")
@@ -441,9 +444,7 @@ def log_startup_configuration():
         return
 
     stripe_key = (
-        _mask_secret(settings_instance.STRIPE_API_KEY)
-        if settings_instance.STRIPE_API_KEY
-        else "⚠️  NON CONFIGURÉ"
+        _mask_secret(settings_instance.STRIPE_API_KEY) if settings_instance.STRIPE_API_KEY else "⚠️  NON CONFIGURÉ"
     )
 
     print(f"""

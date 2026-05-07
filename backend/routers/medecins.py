@@ -25,7 +25,10 @@ async def list_medecins(
     elif current_user.role == "admin":
         stmt = select(Medecin).limit(limit)
     else:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     medecins = db.execute(stmt).scalars().all()
     return medecins
@@ -39,7 +42,10 @@ async def create_medecin(
 ):
     user = db.get(User, medecin_create.id)
     if not user or user.role != "medecin":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Utilisateur médecin introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Utilisateur médecin introuvable",
+        )
 
     medecin = Medecin(**medecin_create.dict(exclude_unset=True))
     db.add(medecin)
@@ -48,7 +54,10 @@ async def create_medecin(
         db.refresh(medecin)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du médecin") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création du médecin",
+        ) from exc
     return medecin
 
 
@@ -64,7 +73,10 @@ async def read_medecin(
     if current_user.role == "medecin" and medecin.id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return medecin
 
 
@@ -93,7 +105,8 @@ async def update_medecin(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour du médecin: {exc.orig}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour du médecin: {exc.orig}",
         ) from exc
     return medecin
 

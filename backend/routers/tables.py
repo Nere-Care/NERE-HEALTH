@@ -83,7 +83,10 @@ async def get_table_row(
 
     pk_column = _get_primary_key_column(model)
     if pk_column is None:
-        raise HTTPException(status_code=400, detail="This table does not have a single primary key column")
+        raise HTTPException(
+            status_code=400,
+            detail="This table does not have a single primary key column",
+        )
 
     stmt = select(model.__table__).where(pk_column == pk)
     row = db.execute(stmt).mappings().first()

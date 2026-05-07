@@ -262,7 +262,11 @@ class TestGlobalRateLimiting:
 
         # Vérifier les headers de rate limiting (si présents)
         headers = response.headers
-        rate_limit_headers = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"]
+        rate_limit_headers = [
+            "x-ratelimit-limit",
+            "x-ratelimit-remaining",
+            "x-ratelimit-reset",
+        ]
 
         # Au moins un header de rate limiting devrait être présent
         has_rate_limit_header = any(h in headers for h in rate_limit_headers)

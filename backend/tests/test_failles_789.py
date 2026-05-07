@@ -429,12 +429,22 @@ class TestFAILLE9InputValidation:
             from backend.schemas import UserCreate, ConsultationCreate
 
             # Test UserRegisterSchema
-            valid_user = UserCreate(email="test@example.com", password="SecurePass123!", prenom="John", nom="Doe")
+            valid_user = UserCreate(
+                email="test@example.com",
+                password="SecurePass123!",
+                prenom="John",
+                nom="Doe",
+            )
             assert valid_user.email == "test@example.com"
 
             # Invalid email should fail
             with pytest.raises(Exception):
-                UserCreate(email="invalid-email", password="SecurePass123!", prenom="John", nom="Doe")
+                UserCreate(
+                    email="invalid-email",
+                    password="SecurePass123!",
+                    prenom="John",
+                    nom="Doe",
+                )
         except Exception as e:
             pytest.fail(f"Pydantic schemas validation failed: {e}")
 
