@@ -52,6 +52,8 @@ function App() {
                 <Route path="/aide" element={<Aide darkMode={darkMode} />} />
                 <Route path="/parametres" element={<Parametres darkMode={darkMode} />} />
                 <Route path="/structures" element={<StructuresSante darkMode={darkMode} />} />
+                <Route path="/profilStructure/:id" element={<ProfilStructure darkMode={darkMode} />} />
+
               </Routes>
             </main>
           </div>
@@ -81,6 +83,7 @@ function App() {
               <Route path="/structure/profil" element={<ProfilStructure darkMode={darkMode} />} />
              <Route path="/structure/personnel" element={<PersonnelStructure darkMode={darkMode} />} /> 
              <Route path="/structure/demandes" element={<DemandesStructure darkMode={darkMode} />} />
+
             </Routes>
           </main>
         </div>
