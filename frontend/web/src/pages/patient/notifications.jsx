@@ -21,6 +21,16 @@ export default function Notifications({ darkMode }) {
         ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
       </button>
 
+        {/* Titre */}
+      <div className="mb-6">
+        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+         Notifications
+        </h1>
+        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+         Historique de vos notifications
+        </p>
+      </div>
+
       {/* Résumé */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}>
