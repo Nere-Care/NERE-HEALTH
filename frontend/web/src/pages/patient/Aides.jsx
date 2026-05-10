@@ -1,6 +1,6 @@
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
 import { useState } from 'react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
   { question: "Comment prendre un rendez-vous ?", reponse: "Allez dans Annuaire Médecins, choisissez un médecin et cliquez sur Consulter pour prendre rendez-vous." },

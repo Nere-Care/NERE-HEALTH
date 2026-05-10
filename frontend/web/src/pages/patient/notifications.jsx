@@ -1,5 +1,5 @@
 import { Bell, FileText, Calendar, CreditCard, FlaskConical, Clock } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../../LanguageContext';
 
 const notifications = [
   { id: 1, message: "Rappel de votre rendez-vous de téléconsultation", temps: "Il y a 5 min", lu: false, icon: Calendar, couleur: "bg-blue-100 text-blue-500" },

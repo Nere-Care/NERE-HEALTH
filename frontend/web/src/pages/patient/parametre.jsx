@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, Lock, Bell, Eye, EyeOff, Shield, Smartphone, Globe } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../../LanguageContext';
 
 const sections = ["Profil", "Sécurité", "Notifications", "Confidentialité", "Langue"];
 

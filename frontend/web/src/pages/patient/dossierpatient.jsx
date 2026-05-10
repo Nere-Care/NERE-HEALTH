@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Phone, Mail, MapPin, Droplet, Weight, Ruler } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../../LanguageContext';
 
 function InformationsPersonnelles({ darkMode }) {
   return (

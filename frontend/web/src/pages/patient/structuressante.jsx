@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Phone, Clock, Search } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../../LanguageContext';
 
 const data = {
   Hopitaux: [
