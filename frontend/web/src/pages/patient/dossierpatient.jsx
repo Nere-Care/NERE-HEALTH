@@ -1,39 +1,62 @@
 import { useState } from 'react';
-import { Phone, Mail, MapPin, Droplet, Weight, Ruler } from 'lucide-react';
+import { Phone, Mail, MapPin, Droplet, Weight, Ruler, Plus, Search, Download, Eye, Upload } from 'lucide-react';
 import { useLanguage } from '../../LanguageContext';
 
+const ongletsFr = ["Informations personnelles", "Documents Médicaux", "Antécédents", "Habitudes de vie", "Vaccins", "Examens", "Suivi gynécologique"];
+const ongletsEn = ["Personal Information", "Medical Documents", "Medical History", "Lifestyle", "Vaccines", "Examinations", "Gynecological Follow-up"];
+
 function InformationsPersonnelles({ darkMode }) {
+  const { langue } = useLanguage();
+  const [rempli] = useState(true);
+
+  if (!rempli) return (
+    <div className={`rounded-2xl shadow p-8 text-center ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Plus size={28} className="text-blue-500" />
+      </div>
+      <h3 className={`font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
+        {langue === 'fr' ? "Complétez votre profil" : "Complete your profile"}
+      </h3>
+      <p className="text-sm text-gray-400 mb-4">
+        {langue === 'fr' ? "Ajoutez vos informations personnelles pour un meilleur suivi" : "Add your personal information for better care"}
+      </p>
+      <button className="bg-blue-500 text-white px-6 py-2 rounded-xl text-sm hover:bg-blue-600">
+        {langue === 'fr' ? "Ajouter mes informations" : "Add my information"}
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Carte profil */}
       <div className={`rounded-2xl shadow p-6 flex items-center gap-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold text-blue-500
-          ${darkMode ? "bg-gray-600" : "bg-blue-100"}`}>
-          P
-        </div>
+          ${darkMode ? "bg-gray-600" : "bg-blue-100"}`}>P</div>
         <div>
           <h2 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Jean Dupont</h2>
           <p className="text-sm text-gray-400">Patient • ID : #00123</p>
           <span className="mt-2 inline-block bg-green-100 text-green-600 text-xs px-3 py-1 rounded-full font-semibold">
-            Actif
+            {langue === 'fr' ? "Actif" : "Active"}
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Coordonnées */}
         <div className={`rounded-2xl shadow p-5 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <h3 className={`text-sm font-bold border-b pb-2 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-            Coordonnées
+            {langue === 'fr' ? "Coordonnées" : "Contact Details"}
           </h3>
           {[
-            { icon: Phone, label: "Téléphone", value: "+237 691 234 567", bg: "bg-blue-50" },
-            { icon: Mail, label: "Email", value: "jean.dupont@email.com", bg: "bg-blue-50" },
-            { icon: MapPin, label: "Adresse", value: "Douala, Cameroun", bg: "bg-blue-50" },
+            { icon: Phone, label: langue === 'fr' ? "Téléphone" : "Phone", value: "+237 691 234 567", bg: "bg-blue-50", color: "text-blue-500" },
+            { icon: Mail, label: "Email", value: "jean.dupont@email.com", bg: "bg-blue-50", color: "text-blue-500" },
+            { icon: MapPin, label: langue === 'fr' ? "Adresse" : "Address", value: "Douala, Cameroun", bg: "bg-blue-50", color: "text-blue-500" },
           ].map((item) => {
             const Icon = item.icon;
             return (
               <div key={item.label} className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${darkMode ? "bg-gray-700" : item.bg}`}>
-                  <Icon size={16} className="text-blue-500" />
+                  <Icon size={16} className={item.color} />
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">{item.label}</p>
@@ -44,14 +67,15 @@ function InformationsPersonnelles({ darkMode }) {
           })}
         </div>
 
+        {/* Infos médicales */}
         <div className={`rounded-2xl shadow p-5 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <h3 className={`text-sm font-bold border-b pb-2 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-            Informations médicales
+            {langue === 'fr' ? "Informations médicales" : "Medical Information"}
           </h3>
           {[
-            { icon: Droplet, label: "Groupe sanguin", value: "O+", bg: "bg-red-50", color: "text-red-500" },
-            { icon: Weight, label: "Poids", value: "72 kg", bg: "bg-green-50", color: "text-green-500" },
-            { icon: Ruler, label: "Taille", value: "175 cm", bg: "bg-purple-50", color: "text-purple-500" },
+            { icon: Droplet, label: langue === 'fr' ? "Groupe sanguin" : "Blood Type", value: "O+", bg: "bg-red-50", color: "text-red-500" },
+            { icon: Weight, label: langue === 'fr' ? "Poids" : "Weight", value: "72 kg", bg: "bg-green-50", color: "text-green-500" },
+            { icon: Ruler, label: langue === 'fr' ? "Taille" : "Height", value: "175 cm", bg: "bg-purple-50", color: "text-purple-500" },
           ].map((item) => {
             const Icon = item.icon;
             return (
@@ -69,22 +93,74 @@ function InformationsPersonnelles({ darkMode }) {
         </div>
       </div>
 
+      {/* Infos personnelles */}
       <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <h3 className={`text-sm font-bold border-b pb-2 mb-4 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-          Informations personnelles
+          {langue === 'fr' ? "Informations personnelles" : "Personal Information"}
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
-            { label: "Date de naissance", value: "15/06/1990" },
-            { label: "Âge", value: "35 ans" },
-            { label: "Sexe", value: "Masculin" },
-            { label: "Situation familiale", value: "Marié(e)" },
-            { label: "Profession", value: "Ingénieur" },
-            { label: "Nationalité", value: "Camerounaise" },
+            { label: langue === 'fr' ? "Date de naissance" : "Date of Birth", value: "15/06/1990" },
+            { label: langue === 'fr' ? "Âge" : "Age", value: "35 ans" },
+            { label: langue === 'fr' ? "Sexe" : "Gender", value: langue === 'fr' ? "Masculin" : "Male" },
+            { label: langue === 'fr' ? "Situation familiale" : "Marital Status", value: langue === 'fr' ? "Marié(e)" : "Married" },
+            { label: langue === 'fr' ? "Profession" : "Profession", value: "Ingénieur" },
+            { label: langue === 'fr' ? "Nationalité" : "Nationality", value: langue === 'fr' ? "Camerounaise" : "Cameroonian" },
           ].map((item) => (
             <div key={item.label}>
               <p className="text-xs text-gray-400">{item.label}</p>
               <p className={`text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{item.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Allergies */}
+      <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+            {langue === 'fr' ? "Allergies" : "Allergies"}
+          </h3>
+          <button className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+            <Plus size={12} /> {langue === 'fr' ? "Ajouter" : "Add"}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {["Pénicilline", "Aspirine", "Arachides"].map((a) => (
+            <span key={a} className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded-full font-medium">{a}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Mes proches */}
+      <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+            {langue === 'fr' ? "Mes proches" : "My Family"}
+          </h3>
+          <button className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+            <Plus size={12} /> {langue === 'fr' ? "Ajouter un proche" : "Add family member"}
+          </button>
+        </div>
+        <div className="flex flex-col gap-3">
+          {[
+            { nom: "Marie Dupont", lien: langue === 'fr' ? "Épouse" : "Spouse", tel: "+237 699 111 222" },
+            { nom: "Paul Dupont", lien: langue === 'fr' ? "Fils" : "Son", tel: "+237 677 333 444" },
+          ].map((p, i) => (
+            <div key={i} className={`flex items-center justify-between p-3 rounded-xl
+              ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+                  {p.nom.charAt(0)}
+                </div>
+                <div>
+                  <p className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>{p.nom}</p>
+                  <p className="text-xs text-gray-400">{p.lien} • {p.tel}</p>
+                </div>
+              </div>
+              <button className="text-xs text-blue-500 hover:underline">
+                {langue === 'fr' ? "RDV" : "Book"}
+              </button>
             </div>
           ))}
         </div>
@@ -94,40 +170,51 @@ function InformationsPersonnelles({ darkMode }) {
 }
 
 function DocumentsMedicaux({ darkMode }) {
+  const { langue } = useLanguage();
   const documents = [
     { id: 1, nom: "Ordonnance générale", type: "PDF", date: "12/03/2026", taille: "245 KB" },
     { id: 2, nom: "Résultat prise de sang", type: "PDF", date: "05/03/2026", taille: "1.2 MB" },
     { id: 3, nom: "Radio pulmonaire", type: "Image", date: "28/02/2026", taille: "3.4 MB" },
     { id: 4, nom: "Compte rendu consultation", type: "PDF", date: "15/02/2026", taille: "180 KB" },
-    { id: 5, nom: "Carnet de vaccination", type: "PDF", date: "01/01/2026", taille: "520 KB" },
-    { id: 6, nom: "Echo abdominale", type: "Image", date: "20/12/2025", taille: "2.8 MB" },
   ];
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <button className="bg-blue-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-600">
-          + Ajouter un document
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className={`flex items-center gap-2 border rounded-xl px-4 py-2 flex-1
+          ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-200"}`}>
+          <Search size={16} className="text-gray-400" />
+          <input
+            placeholder={langue === 'fr' ? "Rechercher un document..." : "Search document..."}
+            className={`outline-none text-sm w-full ${darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""}`}
+          />
+        </div>
+        <button className="flex items-center gap-2 bg-blue-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-600">
+          <Upload size={16} />
+          {langue === 'fr' ? "Ajouter" : "Upload"}
         </button>
       </div>
+
       <div className={`rounded-2xl shadow overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <table className="w-full text-sm">
           <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
             <tr>
-              {["NOM DU DOCUMENT", "TYPE", "DATE", "TAILLE", "ACTIONS"].map((h) => (
-                <th key={h} className={`text-left px-6 py-3 text-xs font-semibold
+              {[
+                langue === 'fr' ? "Document" : "Document",
+                "Type",
+                langue === 'fr' ? "Date" : "Date",
+                langue === 'fr' ? "Taille" : "Size",
+                langue === 'fr' ? "Actions" : "Actions"
+              ].map((h) => (
+                <th key={h} className={`text-left px-5 py-3 text-xs font-semibold
                   ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {documents.map((doc, index) => (
-              <tr key={doc.id} className={
-                darkMode
-                  ? index % 2 === 0 ? "bg-gray-800" : "bg-gray-750"
-                  : index % 2 === 0 ? "bg-white" : "bg-gray-50"
-              }>
-                <td className="px-6 py-4">
+              <tr key={doc.id} className={`border-t ${darkMode ? "border-gray-700 hover:bg-gray-700" : "border-gray-50 hover:bg-gray-50"}`}>
+                <td className="px-5 py-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold
                       ${doc.type === "PDF" ? "bg-red-100 text-red-500" : "bg-blue-100 text-blue-500"}`}>
@@ -136,20 +223,21 @@ function DocumentsMedicaux({ darkMode }) {
                     <span className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{doc.nom}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-5 py-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold
                     ${doc.type === "PDF" ? "bg-red-50 text-red-500" : "bg-blue-50 text-blue-500"}`}>
                     {doc.type}
                   </span>
                 </td>
-                <td className={`px-6 py-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doc.date}</td>
-                <td className={`px-6 py-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doc.taille}</td>
-                <td className="px-6 py-4">
+                <td className={`px-5 py-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doc.date}</td>
+                <td className={`px-5 py-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doc.taille}</td>
+                <td className="px-5 py-4">
                   <div className="flex gap-2">
-                    <button className="text-xs bg-blue-50 text-blue-500 px-3 py-1 rounded-lg hover:bg-blue-100">Voir</button>
-                    <button className={`text-xs px-3 py-1 rounded-lg
-                      ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-50 text-gray-500 hover:bg-gray-100"}`}>
-                      Télécharger
+                    <button className={`p-1.5 rounded-lg ${darkMode ? "bg-gray-600 text-gray-300 hover:bg-gray-500" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                      <Eye size={14} />
+                    </button>
+                    <button className={`p-1.5 rounded-lg ${darkMode ? "bg-blue-900 text-blue-400 hover:bg-blue-800" : "bg-blue-50 text-blue-500 hover:bg-blue-100"}`}>
+                      <Download size={14} />
                     </button>
                   </div>
                 </td>
@@ -162,54 +250,45 @@ function DocumentsMedicaux({ darkMode }) {
   );
 }
 
-function Prescriptions({ darkMode }) {
-  const medicaments = [
-    { id: 1, nom: "Amoxiceline", dosage: "250ml", duree: "2mois", medecin: "Dr. Ngassa Pierre", date: "12/03/2026" },
-    { id: 2, nom: "Paracétamol", dosage: "500mg", duree: "1mois", medecin: "Dr. Ngassa Pierre", date: "12/03/2026" },
-    { id: 3, nom: "Ibuprofène", dosage: "400mg", duree: "2semaines", medecin: "Dr. Ngassa Pierre", date: "05/03/2026" },
-    { id: 4, nom: "Doliprane", dosage: "1g", duree: "10jours", medecin: "Dr. Ngassa Pierre", date: "01/03/2026" },
-    { id: 5, nom: "Vitamine C", dosage: "1g", duree: "3mois", medecin: "Dr. Ngassa Pierre", date: "28/02/2026" },
-    { id: 6, nom: "Zinc", dosage: "15mg", duree: "2mois", medecin: "Dr. Ngassa Pierre", date: "20/02/2026" },
+function Antecedents({ darkMode }) {
+  const { langue } = useLanguage();
+  const sections = [
+    {
+      titre: langue === 'fr' ? "Antécédents médicaux" : "Medical History",
+      items: ["Hypertension artérielle (2018)", "Diabète type 2 (2020)", "Asthme (depuis l'enfance)"]
+    },
+    {
+      titre: langue === 'fr' ? "Antécédents familiaux" : "Family History",
+      items: ["Père : Diabète, Hypertension", "Mère : Cancer du sein", "Frère : Asthme"]
+    },
+    {
+      titre: langue === 'fr' ? "Opérations chirurgicales" : "Surgical History",
+      items: ["Appendicectomie (2015)", "Extraction dent de sagesse (2019)"]
+    },
+    {
+      titre: langue === 'fr' ? "Traitements réguliers" : "Regular Treatments",
+      items: ["Metformine 500mg - 2x/jour", "Amlodipine 5mg - 1x/jour"]
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {medicaments.map((med) => (
-        <div key={med.id} className={`rounded-2xl shadow p-4 flex flex-col gap-3
-          ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs text-gray-400">Médicament</p>
-              <p className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{med.nom}</p>
-            </div>
-            <span className="text-gray-400">•••</span>
-          </div>
-          <div className="flex gap-6">
-            <div>
-              <p className="text-xs text-gray-400">Dosage</p>
-              <p className={`text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{med.dosage}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">Durée</p>
-              <p className={`text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{med.duree}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full ${darkMode ? "bg-gray-600" : "bg-gray-200"}`} />
-            <div>
-              <p className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{med.medecin}</p>
-              <p className="text-xs text-gray-400">{med.date}</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button className={`flex-1 border text-xs py-1.5 rounded-lg
-              ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-              Détails
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {sections.map((section) => (
+        <div key={section.titre} className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{section.titre}</h3>
+            <button className="text-xs text-blue-500 hover:underline flex items-center gap-1">
+              <Plus size={12} /> {langue === 'fr' ? "Ajouter" : "Add"}
             </button>
-            <button className={`flex-1 border text-xs py-1.5 rounded-lg
-              ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-              Renouveler
-            </button>
+          </div>
+          <div className="flex flex-col gap-2">
+            {section.items.map((item, i) => (
+              <div key={i} className={`flex items-center gap-2 p-2 rounded-lg
+                ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                <p className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{item}</p>
+              </div>
+            ))}
           </div>
         </div>
       ))}
@@ -217,24 +296,112 @@ function Prescriptions({ darkMode }) {
   );
 }
 
+function HabitudesDeVie({ darkMode }) {
+  const { langue } = useLanguage();
+  const habitudes = [
+    { label: langue === 'fr' ? "Tabac" : "Tobacco", valeur: langue === 'fr' ? "Non fumeur" : "Non-smoker", couleur: "text-green-500" },
+    { label: langue === 'fr' ? "Alcool" : "Alcohol", valeur: langue === 'fr' ? "Occasionnel" : "Occasional", couleur: "text-orange-500" },
+    { label: langue === 'fr' ? "Chicha" : "Hookah", valeur: langue === 'fr' ? "Non" : "No", couleur: "text-green-500" },
+    { label: langue === 'fr' ? "Activité physique" : "Physical Activity", valeur: langue === 'fr' ? "3x/semaine" : "3x/week", couleur: "text-blue-500" },
+    { label: langue === 'fr' ? "Profession" : "Profession", valeur: "Ingénieur", couleur: "text-gray-500" },
+    { label: langue === 'fr' ? "Alimentation" : "Diet", valeur: langue === 'fr' ? "Équilibrée" : "Balanced", couleur: "text-green-500" },
+  ];
+
+  return (
+    <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+          {langue === 'fr' ? "Habitudes de vie" : "Lifestyle"}
+        </h3>
+        <button className="text-xs text-blue-500 hover:underline">
+          {langue === 'fr' ? "Modifier" : "Edit"}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {habitudes.map((h) => (
+          <div key={h.label} className={`p-3 rounded-xl ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+            <p className="text-xs text-gray-400 mb-1">{h.label}</p>
+            <p className={`text-sm font-bold ${h.couleur}`}>{h.valeur}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Vaccins({ darkMode }) {
+  const { langue } = useLanguage();
+  const vaccins = [
+    { nom: "COVID-19", date: "15/01/2022", prochain: "N/A", statut: "Complet" },
+    { nom: "Hépatite B", date: "10/03/2020", prochain: "10/03/2025", statut: "À renouveler" },
+    { nom: "Fièvre jaune", date: "05/06/2019", prochain: "05/06/2029", statut: "Valide" },
+    { nom: "Tétanos", date: "20/09/2018", prochain: "20/09/2028", statut: "Valide" },
+  ];
+
+  return (
+    <div className={`rounded-2xl shadow overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      <div className={`flex items-center justify-between px-5 py-4 border-b
+        ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+        <h3 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+          {langue === 'fr' ? "Carnet de vaccination" : "Vaccination Record"}
+        </h3>
+        <button className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
+          <Plus size={12} /> {langue === 'fr' ? "Ajouter" : "Add"}
+        </button>
+      </div>
+      <table className="w-full text-sm">
+        <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
+          <tr>
+            {[
+              langue === 'fr' ? "Vaccin" : "Vaccine",
+              langue === 'fr' ? "Date" : "Date",
+              langue === 'fr' ? "Prochain rappel" : "Next Booster",
+              langue === 'fr' ? "Statut" : "Status"
+            ].map((h) => (
+              <th key={h} className={`text-left px-5 py-3 text-xs font-semibold
+                ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {vaccins.map((v, index) => (
+            <tr key={index} className={`border-t ${darkMode ? "border-gray-700" : "border-gray-50"}`}>
+              <td className={`px-5 py-3 font-medium ${darkMode ? "text-white" : "text-gray-800"}`}>{v.nom}</td>
+              <td className={`px-5 py-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{v.date}</td>
+              <td className={`px-5 py-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{v.prochain}</td>
+              <td className="px-5 py-3">
+                <span className={`text-xs px-2 py-1 rounded-full font-semibold
+                  ${v.statut === "Valide" || v.statut === "Complet" ? "bg-green-100 text-green-600"
+                    : "bg-orange-100 text-orange-500"}`}>
+                  {v.statut}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function Examens({ darkMode }) {
+  const { langue } = useLanguage();
   const examens = [
-    { id: 1, nom: "Prise de sang", type: "Biologie", date: "10/03/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
-    { id: 2, nom: "Radio thorax", type: "Radiologie", date: "05/03/2026", statut: "Anormal", medecin: "Dr. Ngassa Pierre" },
-    { id: 3, nom: "Echographie abdominale", type: "Imagerie", date: "28/02/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
-    { id: 4, nom: "Electrocardiogramme", type: "Cardiologie", date: "20/02/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
-    { id: 5, nom: "Glycémie à jeun", type: "Biologie", date: "15/02/2026", statut: "Anormal", medecin: "Dr. Ngassa Pierre" },
+    { nom: "Prise de sang", type: "Biologie", date: "10/03/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
+    { nom: "Radio thorax", type: "Radiologie", date: "05/03/2026", statut: "Anormal", medecin: "Dr. Ngassa Pierre" },
+    { nom: "Echographie abdominale", type: "Imagerie", date: "28/02/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
+    { nom: "Electrocardiogramme", type: "Cardiologie", date: "20/02/2026", statut: "Normal", medecin: "Dr. Ngassa Pierre" },
   ];
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <button className="bg-blue-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-600">
-          + Ajouter un examen
+        <button className="flex items-center gap-1 bg-blue-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-600">
+          <Plus size={14} /> {langue === 'fr' ? "Ajouter un examen" : "Add Examination"}
         </button>
       </div>
-      {examens.map((examen) => (
-        <div key={examen.id} className={`rounded-2xl shadow p-4 flex items-center justify-between
+      {examens.map((examen, index) => (
+        <div key={index} className={`rounded-2xl shadow p-4 flex items-center justify-between
           ${darkMode ? "bg-gray-800" : "bg-white"}`}>
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-xs
@@ -250,11 +417,11 @@ function Examens({ darkMode }) {
             <p className="text-sm text-gray-400">{examen.date}</p>
             <span className={`px-3 py-1 rounded-full text-xs font-semibold
               ${examen.statut === "Normal" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
-              {examen.statut}
+              {langue === 'fr' ? examen.statut : examen.statut === "Normal" ? "Normal" : "Abnormal"}
             </span>
             <button className={`text-xs px-3 py-1.5 rounded-lg
               ${darkMode ? "bg-gray-700 text-blue-400 hover:bg-gray-600" : "bg-blue-50 text-blue-500 hover:bg-blue-100"}`}>
-              Voir résultat
+              {langue === 'fr' ? "Voir résultat" : "View Result"}
             </button>
           </div>
         </div>
@@ -263,25 +430,92 @@ function Examens({ darkMode }) {
   );
 }
 
+function SuiviGynecologique({ darkMode }) {
+  const { langue } = useLanguage();
+  const sections = [
+    {
+      titre: langue === 'fr' ? "Contraception" : "Contraception",
+      valeur: langue === 'fr' ? "Pilule contraceptive - Depuis 2020" : "Birth control pill - Since 2020"
+    },
+    {
+      titre: langue === 'fr' ? "Grossesses" : "Pregnancies",
+      valeur: langue === 'fr' ? "2 grossesses - 2 accouchements" : "2 pregnancies - 2 deliveries"
+    },
+    {
+      titre: langue === 'fr' ? "Dernière mammographie" : "Last Mammography",
+      valeur: "15/01/2025"
+    },
+    {
+      titre: langue === 'fr' ? "Dernier frottis" : "Last Pap Smear",
+      valeur: "20/06/2024"
+    },
+    {
+      titre: langue === 'fr' ? "Ménopause" : "Menopause",
+      valeur: langue === 'fr' ? "Non concernée" : "Not applicable"
+    },
+  ];
+
+  return (
+    <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+          {langue === 'fr' ? "Suivi gynécologique" : "Gynecological Follow-up"}
+        </h3>
+        <button className="text-xs text-blue-500 hover:underline">
+          {langue === 'fr' ? "Modifier" : "Edit"}
+        </button>
+      </div>
+      <div className="flex flex-col gap-3">
+        {sections.map((s) => (
+          <div key={s.titre} className={`flex items-center justify-between p-3 rounded-xl
+            ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{s.titre}</p>
+            <p className={`text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{s.valeur}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DossierPatient({ darkMode }) {
-  const { t } = useLanguage();
-  const onglets = [t.infoPerso, t.docsMedicaux, t.prescriptions, t.examens];
-  const [ongletActif, setOngletActif] = useState(t.infoPerso);
+  const { langue } = useLanguage();
+  const onglets = langue === 'fr' ? ongletsFr : ongletsEn;
+  const [ongletActif, setOngletActif] = useState(onglets[0]);
+  const [recherche, setRecherche] = useState("");
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <h1 className="text-lg font-bold text-blue-600 mb-2">{/*t.dossierTitre*/}</h1>
-      <button className={`flex items-center gap-1 text-sm font-semibold mb-4
-        ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-      </button>
+
+      {/* Titre + recherche */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+            {langue === 'fr' ? "Ma Santé" : "My Health"}
+          </h1>
+          <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            {langue === 'fr' ? "Gérez votre dossier médical complet" : "Manage your complete medical record"}
+          </p>
+        </div>
+        <div className={`flex items-center gap-2 border rounded-xl px-4 py-2
+          ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-200"}`}>
+          <Search size={16} className="text-gray-400" />
+          <input
+            placeholder={langue === 'fr' ? "Rechercher..." : "Search..."}
+            className={`outline-none text-sm w-40 ${darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""}`}
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+          />
+        </div>
+      </div>
 
       {/* Onglets */}
-      <div className={`flex flex-wrap gap-2 border-b mb-6 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+      <div className={`flex gap-1 flex-wrap border-b mb-6 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
         {onglets.map((onglet) => (
           <button
             key={onglet}
             onClick={() => setOngletActif(onglet)}
-            className={`px-4 py-2 text-sm rounded-t-lg transition-all
+            className={`px-4 py-2 text-sm rounded-t-lg transition-all whitespace-nowrap
               ${ongletActif === onglet
                 ? "bg-blue-500 text-white font-semibold"
                 : darkMode
@@ -294,10 +528,15 @@ export default function DossierPatient({ darkMode }) {
         ))}
       </div>
 
-      {ongletActif === t.infoPerso && <InformationsPersonnelles darkMode={darkMode} />}
-      {ongletActif === t.docsMedicaux && <DocumentsMedicaux darkMode={darkMode} />}
-      {ongletActif === t.prescriptions && <Prescriptions darkMode={darkMode} />}
-      {ongletActif === t.examens && <Examens darkMode={darkMode} />}
+      {/* Contenu */}
+      {ongletActif === onglets[0] && <InformationsPersonnelles darkMode={darkMode} />}
+      {ongletActif === onglets[1] && <DocumentsMedicaux darkMode={darkMode} />}
+      {ongletActif === onglets[2] && <Antecedents darkMode={darkMode} />}
+      {ongletActif === onglets[3] && <HabitudesDeVie darkMode={darkMode} />}
+      {ongletActif === onglets[4] && <Vaccins darkMode={darkMode} />}
+      {ongletActif === onglets[5] && <Examens darkMode={darkMode} />}
+      {ongletActif === onglets[6] && <SuiviGynecologique darkMode={darkMode} />}
+
     </div>
   );
 }
