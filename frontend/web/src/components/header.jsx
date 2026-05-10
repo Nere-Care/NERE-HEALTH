@@ -1,10 +1,14 @@
+import { Bell, Sun, Moon, Settings, HelpCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import { Bell, Sun, Moon } from "lucide-react";
+export default function Header({
+  titre,
+  darkMode,
+  setDarkMode,
+}) {
+  const navigate = useNavigate();
 
-
-export default function Header({ titre, darkMode, setDarkMode, langue, setLangue }) {
   return (
-
     <div
       className={`
         sticky top-14 md:top-0 left-0 md:left-56 right-0 z-40
@@ -15,18 +19,15 @@ export default function Header({ titre, darkMode, setDarkMode, langue, setLangue
       `}
     >
 
-
       {/* ================= TITLE ================= */}
       <h1 className="text-base sm:text-lg md:text-xl font-bold truncate">
         {titre}
       </h1>
 
-
       {/* ================= RIGHT SECTION ================= */}
       <div className="flex items-center gap-3 sm:gap-4">
 
-        {/* ================= DARK MODE TOGGLE ================= */}
-
+        {/* ================= DARK MODE ================= */}
         <button
           onClick={() => setDarkMode(!darkMode)}
           className={`
@@ -50,29 +51,53 @@ export default function Header({ titre, darkMode, setDarkMode, langue, setLangue
         </button>
 
         {/* ================= NOTIFICATIONS ================= */}
-        <div className="relative cursor-pointer">
-
+        <div
+          onClick={() => navigate("/notifications")}
+          className="relative cursor-pointer"
+        >
           <Bell
             size={20}
             className={darkMode ? "text-gray-300" : "text-gray-600"}
           />
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
 
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-3.5 h-3.5 sm:w-4 sm:h-4 flex items-center justify-center">
             3
           </span>
         </div>
 
+        {/* ================= SETTINGS ================= */}
+        <div
+          onClick={() => navigate("/parametres")}
+          className="cursor-pointer"
+        >
+          <Settings
+            size={20}
+            className={darkMode ? "text-gray-300" : "text-gray-600"}
+          />
+        </div>
+
+        {/* ================= HELP ================= */}
+        <div
+          onClick={() => navigate("/aide")}
+          className="cursor-pointer"
+        >
+          <HelpCircle
+            size={20}
+            className={darkMode ? "text-gray-300" : "text-gray-600"}
+          />
+        </div>
+
         {/* ================= PROFILE ================= */}
-        <div className="flex items-center gap-2 cursor-pointer">
-          
-          {/* Avatar */}
+        <div
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-2 cursor-pointer"
+        >
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-green-100 flex items-center justify-center">
             <span className="text-green-600 text-xs sm:text-sm font-bold">
               M
             </span>
           </div>
 
-          {/* Name (hidden on very small screens) */}
           <span
             className={`
               hidden sm:block text-xs sm:text-sm font-medium
@@ -81,8 +106,6 @@ export default function Header({ titre, darkMode, setDarkMode, langue, setLangue
           >
             Mle agine
           </span>
-
-
         </div>
 
       </div>

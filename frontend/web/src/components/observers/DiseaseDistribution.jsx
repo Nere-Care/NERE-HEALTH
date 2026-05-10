@@ -1,4 +1,12 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+import { Activity } from "lucide-react";
 
 const data = [
   { name: "Malaria", value: 400 },
@@ -11,11 +19,18 @@ const COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444"];
 
 export default function DiseaseDistribution({ darkMode }) {
   return (
-    <div className={`p-4 rounded-xl border
-      ${darkMode ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}
-    `}>
-
-      <h3 className="font-semibold mb-3">Disease Distribution</h3>
+    <div
+      className={`p-4 rounded-xl border transition
+      ${
+        darkMode
+          ? "bg-gray-900 border-gray-800"
+          : "bg-white border-gray-200"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Activity className="w-5 h-5 text-blue-500" />
+        <h3 className="font-semibold">Disease Breakdown</h3>
+      </div>
 
       <ResponsiveContainer width="100%" height={250}>
         <PieChart>
@@ -27,7 +42,6 @@ export default function DiseaseDistribution({ darkMode }) {
           <Tooltip />
         </PieChart>
       </ResponsiveContainer>
-
     </div>
   );
 }

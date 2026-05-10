@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from '../LanguageContext';
 import {
   LayoutDashboard,
   Users,
@@ -14,31 +15,78 @@ import {
   Menu,
   X,
   CreditCard,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Tableau de Bord", path: "/" },
-  { icon: Users, label: "Annuaire Medecins", path: "/annuaire" },
-  { icon: Building2, label: "Structures de Sante", path: "/structures" },
-  { icon: MessageSquare, label: "Messages", path: "/messages" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
-  { icon: FolderOpen, label: "Dossiers patient", path: "/dossiers" },
-  { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
-  { icon: CreditCard, label: "Paiements", path: "/payments" },
-  { icon: Settings, label: "Parametres", path: "/parametres" },
-  { icon: HelpCircle, label: "Aide", path: "/aide" },
-];
+
+
+const menuByRole = {
+  patient: [
+    { icon: LayoutDashboard, label: "Tableau de Bord", path: "/patient-dashboard" },
+    { icon: Users, label: "Annuaire Medecins", path: "/annuaire" },
+    { icon: Building2, label: "Structures de Sante", path: "/structures" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: FolderOpen, label: "Dossiers patient", path: "/dossiers" },
+    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
+    { icon: CreditCard, label: "Paiements", path: "/payments" },
+  ],
+
+  doctor: [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
+    { icon: Users, label: "avis", path: "/doctors" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
+    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
+    { icon: CreditCard, label: "Paiements", path: "/payments" },
+  ],
+
+  nurse: [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
+    { icon: Users, label: "avis", path: "/doctors" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
+    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
+    { icon: CreditCard, label: "Paiements", path: "/payments" },
+  ],
+
+  structure: [
+    { icon: Building2, label: "Structure", path: "/structure-dashboard" },
+    { icon: Users, label: "Personnel", path: "/staff" },
+    { icon: FolderOpen, label: "Dossiers", path: "/dossiers" },
+  ],
+  observer: [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard" },
+  ]
+};
+  
+
 
 export default function Sidebar({ darkMode }) {
   const [open, setOpen] = useState(false);
+  const [role, setRole] = useState(null);
+
+  // NOUVEAU STATE
+  const [collapsed, setCollapsed] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
+
+
+   /* ================= LOAD USER ROLE ================= */
+  useEffect(() => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  setRole(user?.role);
+}, []);
+
+  const items = menuByRole[role] || [];
 
   const handleNavigate = (path) => {
     navigate(path);
     setOpen(false); // ferme le menu mobile après navigation
   };
+
+
 
   return (
     <>
@@ -65,8 +113,10 @@ export default function Sidebar({ darkMode }) {
       {/* ================= SIDEBAR ================= */}
       <div
         className={`
-          fixed top-0 left-0 h-screen w-56 flex flex-col justify-between py-6 px-4 z-50 shadow-lg
-          transform transition-transform duration-300
+          fixed top-0 left-0 h-screen flex flex-col justify-between py-6 px-4 z-50 shadow-lg
+          transform transition-all duration-300
+
+          ${collapsed ? "w-20" : "w-56"}
 
           ${darkMode ? "bg-gray-800" : "bg-white"}
 
@@ -85,18 +135,37 @@ export default function Sidebar({ darkMode }) {
             </button>
           </div>
 
+          {/* BOUTON COLLAPSE DESKTOP */}
+          <div className="hidden md:flex justify-end mb-3">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className={`p-2 rounded-lg transition
+                ${
+                  darkMode
+                    ? "hover:bg-gray-700 text-white"
+                    : "hover:bg-gray-100 text-gray-700"
+                }`}
+            >
+              {collapsed ? (
+                <ChevronRight size={18} />
+              ) : (
+                <ChevronLeft size={18} />
+              )}
+            </button>
+          </div>
+
           {/* LOGO */}
           <div
             className={`rounded-xl p-3 text-center text-sm font-semibold mb-4
             ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}
           >
-            LOGO
+            {collapsed ? "N" : "LOGO"}
           </div>
 
           {/* MENU */}
           <nav className="flex flex-col gap-1">
 
-            {menuItems.map((item) => {
+            {items?.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
 
@@ -111,10 +180,14 @@ export default function Sidebar({ darkMode }) {
                         : darkMode
                         ? "text-gray-300 hover:bg-gray-700"
                         : "text-gray-500 hover:bg-gray-100"
-                    }`}
+                    }
+
+                    ${collapsed ? "justify-center" : ""}
+                  `}
                 >
                   <Icon size={18} />
-                  {item.label}
+
+                  {!collapsed && item.label}
                 </button>
               );
             })}
@@ -122,13 +195,17 @@ export default function Sidebar({ darkMode }) {
           </nav>
         </div>
 
-        {/* ================= BOTTOM ================= */}
+        {/* Nere IA */}
         <button
           className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
-          ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}`}
+          ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}
+
+          ${collapsed ? "justify-center" : ""}
+          `}
         >
           <Sparkles size={18} />
-          Nere IA
+
+          {!collapsed && "nereIA"}
         </button>
       </div>
     </>

@@ -1,12 +1,38 @@
-export default function Input({ icon, placeholder, type = "text" }) {
+export default function Input({  icon,
+  placeholder,
+  type = "text",
+  value,
+  onChange, }) {
   return (
-    <div className="flex items-center bg-[rgba(217,218,220,0.1)] border border-gray-300 rounded-lg px-3 py-3">
-      <span className="mr-2">{icon}</span>
+    <div className="
+      flex items-center
+      bg-white
+      border border-gray-200
+      rounded-2xl
+      px-4 py-4
+      shadow-sm
+      hover:border-[#2F80ED]
+      focus-within:border-[#2F80ED]
+      focus-within:ring-2
+      focus-within:ring-blue-100
+      transition-all
+    ">
+      <span className="mr-3 text-gray-500">
+        {icon}
+      </span>
 
       <input
         type={type}
         placeholder={placeholder}
-        className="w-full outline-none bg-transparent"
+        value={value}
+        onChange={onChange}
+        className="
+          w-full
+          outline-none
+          bg-transparent
+          text-gray-700
+          placeholder:text-gray-400
+        "
       />
     </div>
   );

@@ -17,9 +17,9 @@ import Auth from "./pages/Auth/Auth";
 /* =========================
    YOUR OLD PAGES
 ========================= */
+import DashboardPatient from "./pages/dashboard";
 import Annuaire from "./pages/Annuaire";
 import DossierPatient from "./pages/dossierpatient";
-import Messages from "./pages/messages";
 import Notifications from "./pages/notifications";
 import Aide from "./pages/Aides";
 import Parametres from "./pages/parametre";
@@ -30,29 +30,30 @@ import StructuresSante from "./pages/structuressante";
 ========================= */
 import DoctorDirectory from "./pages/doctor/doctorDirectory";
 import Appointment from "./pages/doctor/Appointment";
-import Message from "./pages/doctor/Message";
+import Messages from "./pages/doctor/Message";
 import Patient from "./pages/doctor/Patient";
 import TeleConsultation from "./pages/doctor/TeleConsultation";
 import Payments from "./pages/doctor/Payments";
 import ObserverDashboard from "./pages/observer/Dashboard";
 
+import AideStructure from "./pages/structure/AideStructure";
+import ParametresStructure from "./pages/structure/ParametresStructure";
+import ProfilStructure from "./pages/structure/profilStructure";
+import DemandesStructure from "./pages/structure/DemandesStructure";
+import PersonnelStructure from "./pages/structure/PersonnelStructure";
+import DashboardStructure from "./pages/structure/DashboardStructure";
 
 import Dashboard from "./pages/doctor/Dashboard";
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [langue, setLangue] = useState('fr');
+  const [langue, setLangue] = useState("fr");
 
-  
+  // SIDEBAR COLLAPSE
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <BrowserRouter>
-
-  
-
-
-
-
       <Routes>
 
         {/* ================= LOGIN PAGE ================= */}
@@ -63,43 +64,130 @@ function App() {
           path="*"
           element={
             <div
-            className={`flex min-h-screen transition-colors duration-300
-            ${darkMode ? "bg-gray-900" : "bg-white"}`}
-          >
-                <Sidebar darkMode={darkMode} langue={langue}  />
+              className={`flex min-h-screen transition-colors duration-300 overflow-x-hidden
+              ${darkMode ? "bg-gray-900" : "bg-white"}`}
+            >
 
-    <div className="flex flex-col flex-1 md:ml-56">
-                 <Header darkMode={darkMode} setDarkMode={setDarkMode}  langue={langue} setLangue={setLangue} />
+              {/* ================= SIDEBAR ================= */}
+              <Sidebar
+                darkMode={darkMode}
+                langue={langue}
+                collapsed={collapsed}
+                setCollapsed={setCollapsed}
+              />
 
-    <main className="flex-1 mt-8 p-4 md:p-6 w-full">
-      <Routes>
-        <Route path="/annuaire" element={<Annuaire />} />
-        <Route path="/dossiers" element={<DossierPatient />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/aide" element={<Aide />} />
-        <Route path="/parametres" element={<Parametres />} />
-        <Route path="/structures" element={<StructuresSante  />} />
+              {/* ================= CONTENT ================= */}
+              <div
+                className={`
+                  flex flex-col flex-1 transition-all duration-300
+                  ${collapsed ? "md:ml-20" : "md:ml-56"}
+                `}
+              >
 
-        <Route path="/doctors" element={<DoctorDirectory darkMode={darkMode} />} />
-        <Route path="/appointments" element={<Appointment darkMode={darkMode} />} />
-        <Route path="/doctors" element={<DoctorDirectory darkMode={darkMode} />} />
-        <Route path="/doctor-messages" element={<Message  darkMode={darkMode}  />} />
-        <Route path="/patients" element={<Patient darkMode={darkMode} />} />
-        <Route path="/teleconsultation" element={<TeleConsultation darkMode={darkMode} />} />
-        <Route path="/payments" element={<Payments darkMode={darkMode} />} />
-        <Route path="/doctor-dashboard" element={<Dashboard darkMode={darkMode} />} />
+                {/* ================= HEADER ================= */}
+                <Header
+                  darkMode={darkMode}
+                  setDarkMode={setDarkMode}
+                  langue={langue}
+                  setLangue={setLangue}
+                />
 
-        <Route path="/observer-dashboard" element={<ObserverDashboard darkMode={darkMode} />} />
-      </Routes>
-    </main>
-  </div>
-</div>
+                {/* ================= MAIN ================= */}
+                <main className="flex-1 mt-8 p-4 md:p-6 overflow-x-hidden">
+                  <Routes>
+
+                    {/* OLD PAGES */}
+                    <Route path="/patient-dashboard" element={<DashboardPatient darkMode={darkMode} />} />
+                    <Route path="/annuaire" element={<Annuaire darkMode={darkMode} />} />
+                    <Route path="/dossiers" element={<DossierPatient darkMode={darkMode} />} />
+                    <Route path="/messages" element={<Messages darkMode={darkMode} />} />
+                    <Route path="/notifications" element={<Notifications  darkMode={darkMode}/>} />
+                    <Route path="/aide" element={<Aide darkMode={darkMode} />} />
+                    <Route path="/parametres" element={<Parametres  darkMode={darkMode}/>} />
+                    <Route path="/structures" element={<StructuresSante darkMode={darkMode} />} />
+
+                    {/* DOCTOR */}
+                    <Route
+                      path="/doctors"
+                      element={<DoctorDirectory darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/appointments"
+                      element={<Appointment darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/messages"
+                      element={<Messages darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/patients"
+                      element={<Patient darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/teleconsultation"
+                      element={<TeleConsultation darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/payments"
+                      element={<Payments darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/doctor-dashboard"
+                      element={<Dashboard darkMode={darkMode} />}
+                    />
+
+                    {/* OBSERVER */}
+                    <Route
+                      path="/observer-dashboard"
+                      element={<ObserverDashboard darkMode={darkMode} />}
+                    />
+
+                    {/* STRUCTURE */}
+                    <Route
+                      path="/structure"
+                      element={<DashboardStructure darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/structure/aide"
+                      element={<AideStructure darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/structure/parametres"
+                      element={<ParametresStructure darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/structure/profil"
+                      element={<ProfilStructure darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/structure/personnel"
+                      element={<PersonnelStructure darkMode={darkMode} />}
+                    />
+
+                    <Route
+                      path="/structure/demandes"
+                      element={<DemandesStructure darkMode={darkMode} />}
+                    />
+
+                  </Routes>
+                </main>
+
+              </div>
+            </div>
           }
         />
 
       </Routes>
-
     </BrowserRouter>
   );
 }
