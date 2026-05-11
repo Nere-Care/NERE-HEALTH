@@ -226,7 +226,7 @@ const redirectByRole = (role) => {
 
   const user = {
     email,
-    role: "observer",
+    role: "structure",
   };
 
   saveUser(user);

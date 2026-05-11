@@ -51,9 +51,9 @@ const menuByRole = {
   ],
 
   structure: [
-    { icon: Building2, label: "Structure", path: "/structure-dashboard" },
-    { icon: Users, label: "Personnel", path: "/staff" },
-    { icon: FolderOpen, label: "Dossiers", path: "/dossiers" },
+    { icon: LayoutDashboard, label: "Structure", path: "/structure-dashboard" },
+    { icon: Users, label: "Personnel", path: "/structure/personnel" },
+    { icon: FolderOpen, label: "Dossiers", path: "/structure/demandes" },
   ],
   observer: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard" },
@@ -167,6 +167,7 @@ export default function Sidebar({ darkMode }) {
 
             {items?.map((item) => {
               const Icon = item.icon;
+              const label = item.labelKey ? t[item.labelKey] : item.label;
               const isActive = location.pathname === item.path;
 
               return (

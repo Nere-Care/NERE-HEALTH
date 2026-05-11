@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./style.css";
 import { useTheme } from "./context/ThemeContext";
 
+
 /* =========================
    GLOBAL LAYOUT COMPONENTS
 ========================= */
@@ -17,13 +18,13 @@ import Auth from "./pages/Auth/Auth";
 /* =========================
    YOUR OLD PAGES
 ========================= */
-import DashboardPatient from "./pages/dashboard";
-import Annuaire from "./pages/Annuaire";
-import DossierPatient from "./pages/dossierpatient";
-import Notifications from "./pages/notifications";
-import Aide from "./pages/Aides";
-import Parametres from "./pages/parametre";
-import StructuresSante from "./pages/structuressante";
+import DashboardPatient from "./pages/patient/dashboard";
+import Annuaire from "./pages/patient/Annuaire";
+import DossierPatient from "./pages/patient/dossierpatient";
+import Notifications from "./pages/patient/notifications";
+import Aide from "./pages/patient/Aides";
+import Parametres from "./pages/patient/parametre";
+import StructuresSante from "./pages/patient/structuressante";
 
 /* =========================
    NEW DOCTOR PAGES
@@ -36,8 +37,6 @@ import TeleConsultation from "./pages/doctor/TeleConsultation";
 import Payments from "./pages/doctor/Payments";
 import ObserverDashboard from "./pages/observer/Dashboard";
 
-import AideStructure from "./pages/structure/AideStructure";
-import ParametresStructure from "./pages/structure/ParametresStructure";
 import ProfilStructure from "./pages/structure/profilStructure";
 import DemandesStructure from "./pages/structure/DemandesStructure";
 import PersonnelStructure from "./pages/structure/PersonnelStructure";
@@ -52,8 +51,10 @@ function App() {
   // SIDEBAR COLLAPSE
   const [collapsed, setCollapsed] = useState(true);
 
+
   return (
     <BrowserRouter>
+
       <Routes>
 
         {/* ================= LOGIN PAGE ================= */}
@@ -150,19 +151,13 @@ function App() {
 
                     {/* STRUCTURE */}
                     <Route
-                      path="/structure"
+                      path="/structure-dashboard"
                       element={<DashboardStructure darkMode={darkMode} />}
                     />
 
-                    <Route
-                      path="/structure/aide"
-                      element={<AideStructure darkMode={darkMode} />}
-                    />
+                    
 
-                    <Route
-                      path="/structure/parametres"
-                      element={<ParametresStructure darkMode={darkMode} />}
-                    />
+                    
 
                     <Route
                       path="/structure/profil"
@@ -188,6 +183,7 @@ function App() {
         />
 
       </Routes>
+
     </BrowserRouter>
   );
 }
