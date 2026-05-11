@@ -6,7 +6,7 @@ exclude =
     .venv,
     venv,
     .env,
-    alembic/versions,
+    **/alembic/versions,
     .tox,
     build,
     dist
