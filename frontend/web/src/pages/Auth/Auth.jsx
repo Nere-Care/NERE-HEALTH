@@ -20,6 +20,11 @@ import DateInput from "../../components/form/DateInput";
 import ExperienceInput from "../../components/form/ExperienceInput";
 import RoleCard from "../../components/form/RoleCard";
 
+import LoginStep from "./steps/LoginStep";
+import SignupStep1 from "./steps/SignupStep1";
+import SignupStep2 from "./steps/SignupStep2";
+import SignupStep3 from "./steps/SignupStep3";
+
 import {
   doctorSpecialities,
   nurseSpecialities,
@@ -192,288 +197,51 @@ const redirectByRole = (role) => {
           {/* ================= LOGIN ================= */}
           {isLogin ? (
             <>
-              {/* FORM CARD */}
-              <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-
-                <div className="space-y-5">
-                  <Input
-                    icon={<Mail className="w-5 h-5 text-gray-500" />}
-                    placeholder="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">
-                    {errors.email}
-                  </p>
-                  )}
-
-                  <PasswordInput
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  {errors.password && (
-                    <p className="text-red-500 text-sm mt-1">
-                    {errors.password}
-                  </p>
-                  )}
-                </div>
-
-                <button className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"   onClick={() => {
-  if (!validateForm()) return;
-
-  const user = {
-    email,
-    role: "structure",
-  };
-
-  saveUser(user);
-  navigate(redirectByRole(user.role));
-}} >
-                  Login
-                </button>
-
-                <div className="flex items-center my-8">
-                  <div className="flex-grow border-t border-gray-300"></div>
-
-                  <span className="mx-4 text-gray-500 text-sm">or</span>
-
-                  <div className="flex-grow border-t border-gray-300"></div>
-                </div>
-
-                <button className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 p-3 rounded-xl hover:bg-gray-50 transition border border-gray-200 shadow-sm">
-                  <FcGoogle className="w-5 h-5" />
-                  Continue with Google
-                </button>
-              </div>
-
-              <p className="text-sm mt-8 text-center text-gray-600">
-                Don’t have an account yet?{" "}
-                <span
-                  onClick={() => setIsLogin(false)}
-                  className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
-                >
-                  Sign up
-                </span>
-              </p>
+             <LoginStep
+              email={email}
+              password={password}
+              setEmail={setEmail}
+              setPassword={setPassword}
+              navigate={navigate}
+              saveUser={saveUser}
+              redirectByRole={redirectByRole}
+              setIsLogin={setIsLogin}
+              errors={errors}
+              validateForm={validateForm}
+            />
             </>
           ) : (
             <>
               {/* ================= STEP 1 ================= */}
               {!stepTwo && !stepThree && (
-                <>
-                  <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-
-                      <RoleCard
-                        active={selectedRole === "patient"}
-                        onClick={() => setSelectedRole("patient")}
-                        icon={<HeartPulse className="w-7 h-7" />}
-                        text="I am a Patient"
-                      />
-
-                      <RoleCard
-                        active={selectedRole === "doctor"}
-                        onClick={() => setSelectedRole("doctor")}
-                        icon={<Stethoscope className="w-7 h-7" />}
-                        text="I am a Doctor"
-                      />
-
-                      <RoleCard
-                        active={selectedRole === "nurse"}
-                        onClick={() => setSelectedRole("nurse")}
-                        icon={<BriefcaseMedical className="w-7 h-7" />}
-                        text="I am a Nurse"
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <Input
-                        icon={<User className="w-5 h-5 text-gray-500" />}
-                        placeholder="First Name"
-                      />
-
-                      <Input
-                        icon={<User className="w-5 h-5 text-gray-500" />}
-                        placeholder="Last Name"
-                      />
-
-                      <Input
-                        icon={<Mail className="w-5 h-5 text-gray-500" />}
-                        placeholder="Email"
-                        type="email"
-                      />
-
-                      <PasswordInput placeholder="Password" />
-
-                      <PasswordInput placeholder="Confirm Password" />
-                    </div>
-
-                    <button
-                      onClick={handleNext}
-                      className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"
-                    >
-                      Next
-                    </button>
-                  </div>
-
-                  <p className="text-sm mt-8 text-center text-gray-600">
-                    Already have an account?{" "}
-                    <span
-                      onClick={resetToLogin}
-                      className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
-                    >
-                      Login
-                    </span>
-                  </p>
-                </>
+              <SignupStep1
+              selectedRole={selectedRole}
+              setSelectedRole={setSelectedRole}
+              handleNext={handleNext}
+              resetToLogin={resetToLogin}
+              />
               )}
 
               {/* ================= STEP 2 ================= */}
               {stepTwo && !stepThree && (
-                <>
-                  <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-
-                    <div className="space-y-5">
-
-                      <SelectInput
-                        placeholder="Select City"
-                        options={cities}
-                      />
-
-                      <SelectInput
-                        placeholder="Select District"
-                        options={districts}
-                      />
-
-                      {selectedRole === "patient" && <DateInput />}
-
-                      {selectedRole === "doctor" && (
-                        <>
-                          <SelectInput
-                            placeholder="Select Speciality"
-                            options={doctorSpecialities}
-                          />
-
-                          <DateInput />
-                        </>
-                      )}
-
-                      {selectedRole === "nurse" && (
-                        <>
-                          <SelectInput
-                            placeholder="Select Speciality"
-                            options={nurseSpecialities}
-                          />
-
-                          <DateInput />
-                        </>
-                      )}
-                    </div>
-
-                    {selectedRole === "patient" ? (
-                      <button className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"  onClick={() => {
-  const user = {
-    role: selectedRole, // patient / doctor / nurse
-    email: "user@email.com",
-  };
-
-  saveUser(user);
-  navigate(redirectByRole(user.role));
-}}>
-                        Sign Up
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleSignUp}
-                        className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"
-                      >
-                        Continue
-                      </button>
-                    )}
-                  </div>
-
-                  <p className="text-sm mt-8 text-center text-gray-600">
-                    Already have an account?{" "}
-                    <span
-                      onClick={resetToLogin}
-                      className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
-                    >
-                      Login
-                    </span>
-                  </p>
-                </>
+              <SignupStep2
+              selectedRole={selectedRole}
+              saveUser={saveUser}
+              navigate={navigate}
+              redirectByRole={redirectByRole}
+              setStepThree={setStepThree}
+              />
               )}
 
               {/* ================= STEP 3 ================= */}
               {stepThree && (
-                <>
-                  <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-
-                    <div className="space-y-5">
-
-                      <SelectInput
-                        placeholder="Select Health Structure"
-                        options={hospitals}
-                      />
-
-                      <Input
-                        icon={<User className="w-5 h-5 text-gray-500" />}
-                        placeholder="Professional Registration Number"
-                      />
-
-                      <ExperienceInput
-                        value={experience}
-                        setValue={setExperience}
-                      />
-
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-3">
-                          Degree and certification (Pdf, Jpg, PNG)
-                        </p>
-
-                        <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-2xl p-8 text-center">
-
-                          <FileText className="w-20 h-20 mx-auto text-blue-300 mb-4" />
-
-                          <label className="inline-block bg-[#2F80ED] hover:bg-[#044EC8] transition text-white px-10 py-3 rounded-xl cursor-pointer font-medium shadow-md">
-                            Choose File
-                            <input type="file" hidden multiple />
-                          </label>
-
-                          <p className="text-sm text-gray-500 mt-4">
-                            Upload your certifications and professional
-                            documents
-                          </p>
-                        </div>
-
-                        <p className="text-sm text-[#B97A2B] mt-3">
-                          The file must be readable and authentic
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleSubmit}
-                      className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"
-                    >
-                      Submit
-                    </button>
-                  </div>
-
-                  <p className="text-sm mt-8 text-center text-gray-600">
-                    Already have an account?{" "}
-                    <span
-                      onClick={resetToLogin}
-                      className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
-                    >
-                      Login
-                    </span>
-                  </p>
-                </>
+              <SignupStep3
+              hospitals={hospitals}
+              experience={experience}
+              setExperience={setExperience}
+              handleSubmit={handleSubmit}
+              resetToLogin={resetToLogin}
+              />
               )}
             </>
           )}
