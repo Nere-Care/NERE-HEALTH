@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.schemas import DocumentMedicalCreate, DocumentMedicalRead
+
 from ..auth import get_current_active_user, require_role
 from ..db import get_db
-from ..models import Consultation, DocumentMedical, Patient, User
-from backend.schemas import DocumentMedicalCreate, DocumentMedicalRead
+from ..models import Consultation, DocumentMedical, Patient
 
 router = APIRouter(tags=["documents_medicaux"])
 
@@ -38,7 +39,11 @@ async def list_documents_medicaux(
     if consultation_id:
         stmt = stmt.where(DocumentMedical.consultation_id == consultation_id)
 
-    documents = db.execute(stmt.order_by(DocumentMedical.created_at.desc()).limit(limit)).scalars().all()
+    documents = (
+        db.execute(stmt.order_by(DocumentMedical.created_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
     return documents
 
 
@@ -59,12 +64,20 @@ async def create_document_medical(
         document_create.medecin_uploadeur_id = current_user.id
         document_create.uploaded_par = current_user.id
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante"
+        )
 
     if not db.get(Patient, document_create.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
-    if document_create.consultation_id and not db.get(Consultation, document_create.consultation_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consultation introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
+    if document_create.consultation_id and not db.get(
+        Consultation, document_create.consultation_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Consultation introuvable"
+        )
 
     document = DocumentMedical(**document_create.dict(exclude_unset=True))
     db.add(document)
@@ -88,11 +101,20 @@ async def read_document_medical(
 ):
     document = db.get(DocumentMedical, document_id)
     if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé"
+        )
     if current_user.role == "patient" and document.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
-    if current_user.role == "medecin" and document.medecin_uploadeur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
+    if (
+        current_user.role == "medecin"
+        and document.medecin_uploadeur_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return document
 
 
@@ -105,14 +127,25 @@ async def update_document_medical(
 ):
     document = db.get(DocumentMedical, document_id)
     if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé"
+        )
     if current_user.role == "patient" and document.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
-    if current_user.role == "medecin" and document.medecin_uploadeur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
+    if (
+        current_user.role == "medecin"
+        and document.medecin_uploadeur_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if document_update.patient_id and not db.get(Patient, document_update.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     for field, value in document_update.dict(exclude_unset=True).items():
         setattr(document, field, value)
@@ -130,7 +163,9 @@ async def update_document_medical(
     return document
 
 
-@router.delete("/documents_medicaux/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/documents_medicaux/{document_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_document_medical(
     document_id: UUID,
     db: Session = Depends(get_db),
@@ -138,9 +173,16 @@ async def delete_document_medical(
 ):
     document = db.get(DocumentMedical, document_id)
     if not document:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé")
-    if current_user.role == "medecin" and document.medecin_uploadeur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document médical non trouvé"
+        )
+    if (
+        current_user.role == "medecin"
+        and document.medecin_uploadeur_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(document)
     db.commit()

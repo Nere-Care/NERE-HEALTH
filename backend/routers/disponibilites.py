@@ -39,7 +39,11 @@ async def list_disponibilites(
     if actif is not None:
         stmt = stmt.where(Disponibilite.actif == actif)
 
-    disponibilites = db.execute(stmt.order_by(Disponibilite.date_debut_validite.desc()).limit(limit)).scalars().all()
+    disponibilites = (
+        db.execute(stmt.order_by(Disponibilite.date_debut_validite.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
     return disponibilites
 
 
@@ -64,7 +68,9 @@ async def create_disponibilite(
         not db.get(User, disponibilite_create.medecin_id)
         or db.get(User, disponibilite_create.medecin_id).role != "medecin"
     ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+        )
 
     disponibilite = Disponibilite(**disponibilite_create.dict(exclude_unset=True))
     db.add(disponibilite)
@@ -88,9 +94,13 @@ async def read_disponibilite(
 ):
     disponibilite = db.get(Disponibilite, disponibilite_id)
     if not disponibilite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée"
+        )
     if current_user.role == "medecin" and disponibilite.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return disponibilite
 
 
@@ -103,14 +113,20 @@ async def update_disponibilite(
 ):
     disponibilite = db.get(Disponibilite, disponibilite_id)
     if not disponibilite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée"
+        )
     if current_user.role == "medecin" and disponibilite.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if disponibilite_update.medecin_id and current_user.role == "admin":
         medecin = db.get(User, disponibilite_update.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in disponibilite_update.dict(exclude_unset=True).items():
         setattr(disponibilite, field, value)
@@ -128,7 +144,9 @@ async def update_disponibilite(
     return disponibilite
 
 
-@router.delete("/disponibilites/{disponibilite_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/disponibilites/{disponibilite_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_disponibilite(
     disponibilite_id: UUID,
     db: Session = Depends(get_db),
@@ -136,9 +154,13 @@ async def delete_disponibilite(
 ):
     disponibilite = db.get(Disponibilite, disponibilite_id)
     if not disponibilite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Disponibilité non trouvée"
+        )
     if current_user.role == "medecin" and disponibilite.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(disponibilite)
     db.commit()

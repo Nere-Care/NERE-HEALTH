@@ -1,52 +1,45 @@
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-import os
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
-import sentry_sdk
+from .audit_middleware import AuditMiddleware
+from .config import _get_settings_instance, log_startup_configuration
 from .cors_config import get_cors_config
+from .jwt_middleware import JWTAuthenticationMiddleware
 from .limiter import (
-    limiter,
-    auth_limiter,
-    payment_limiter,
-    api_limiter,
     custom_rate_limit_handler,
+    limiter,
     rate_limit_middleware,
 )
-from .config import _get_settings_instance, log_startup_configuration
-from .routers.root import router as root_router
+from .routers.audit import router as audit_router
 from .routers.auth import router as auth_router
-from .routers.users import router as users_router
-from .routers.patients import router as patients_router
-from .routers.consultations import router as consultations_router
-from .routers.ordonnances import router as ordonnances_router
-from .routers.paiements import router as paiements_router
-from .routers.ia import router as ia_router
-from .routers.teleconsultation import router as teleconsultation_router
-from .routers.notifications import router as notifications_router
-from .routers.rendez_vous import router as rendez_vous_router
-from .routers.dossiers_medicaux import router as dossiers_medicaux_router
 from .routers.avis import router as avis_router
 from .routers.chatbot_sessions import router as chatbot_sessions_router
+from .routers.consultations import router as consultations_router
 from .routers.conversations import router as conversations_router
 from .routers.disponibilites import router as disponibilites_router
 from .routers.documents_medicaux import router as documents_medicaux_router
-from .routers.medecins import router as medecins_router
+from .routers.dossiers_medicaux import router as dossiers_medicaux_router
+from .routers.ia import router as ia_router
 from .routers.medecin_specialites import router as medecin_specialites_router
+from .routers.medecins import router as medecins_router
 from .routers.messages import router as messages_router
+from .routers.notifications import router as notifications_router
+from .routers.ordonnances import router as ordonnances_router
+from .routers.paiements import router as paiements_router
+from .routers.patients import router as patients_router
+from .routers.rendez_vous import router as rendez_vous_router
+from .routers.root import router as root_router
 from .routers.sessions import router as sessions_router
 from .routers.specialites import router as specialites_router
 from .routers.structures import router as structures_router
-from .routers.audit import router as audit_router
 from .routers.tables import router as tables_router
-from .audit_middleware import AuditMiddleware
-from .jwt_middleware import JWTAuthenticationMiddleware
+from .routers.teleconsultation import router as teleconsultation_router
+from .routers.users import router as users_router
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -55,16 +48,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=()"
+        )
         return response
 
 
 class HostValidationMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, allowed_hosts, debug: bool = False):
         super().__init__(app)
-        self.allowed_hosts = [host.lower().strip() for host in allowed_hosts if host.strip()]
+        self.allowed_hosts = [
+            host.lower().strip() for host in allowed_hosts if host.strip()
+        ]
         self.debug = debug
 
     async def dispatch(self, request: Request, call_next):
@@ -116,6 +115,8 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+
+settings = _get_settings_instance()
 
 app = FastAPI(title="Nere_app API", version="1.0.0")
 log_startup_configuration()

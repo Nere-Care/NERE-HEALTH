@@ -3,14 +3,14 @@ Rate Limiting Sécurisé - FAILLE #4
 Configuration avancée avec niveaux multiples selon criticité
 """
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address, get_ipaddr
-from slowapi.middleware import SlowAPIMiddleware
-from slowapi.errors import RateLimitExceeded
-from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 import os
+
+from fastapi import Request, status
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_ipaddr, get_remote_address
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Stockage partagé pour les tests
 _shared_storage = None
@@ -45,12 +45,20 @@ else:
 
 # Limiter principal
 # En test, slowapi utilisera le stockage en mémoire par défaut
-limiter = Limiter(key_func=get_remote_address, default_limits=[BASE_LIMIT], strategy="fixed-window")
+limiter = Limiter(
+    key_func=get_remote_address, default_limits=[BASE_LIMIT], strategy="fixed-window"
+)
 
 # Limiteurs spécialisés pour routes critiques
-auth_limiter = Limiter(key_func=get_remote_address, default_limits=[AUTH_LIMIT], strategy="fixed-window")
-payment_limiter = Limiter(key_func=get_remote_address, default_limits=[PAYMENT_LIMIT], strategy="fixed-window")
-api_limiter = Limiter(key_func=get_remote_address, default_limits=[API_LIMIT], strategy="fixed-window")
+auth_limiter = Limiter(
+    key_func=get_remote_address, default_limits=[AUTH_LIMIT], strategy="fixed-window"
+)
+payment_limiter = Limiter(
+    key_func=get_remote_address, default_limits=[PAYMENT_LIMIT], strategy="fixed-window"
+)
+api_limiter = Limiter(
+    key_func=get_remote_address, default_limits=[API_LIMIT], strategy="fixed-window"
+)
 
 
 def get_user_limiter(request: Request) -> str:

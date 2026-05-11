@@ -3,15 +3,15 @@ Tests de sécurité pour la validation des hosts - FAILLE #3
 Tests unitaires isolés sans dépendance DB
 """
 
-import sys
-import asyncio
+from unittest.mock import Mock
+
 import pytest
 from fastapi import HTTPException, Request
-from unittest.mock import Mock, patch
+
+from backend.config import _validate_allowed_hosts, parse_comma_list
 
 # Imports directs pour éviter les dépendances DB
 from backend.main import HostValidationMiddleware
-from backend.config import _validate_allowed_hosts, parse_comma_list
 
 
 class TestHostValidation:
@@ -20,7 +20,9 @@ class TestHostValidation:
     @pytest.mark.asyncio
     async def test_host_validation_valid_host(self):
         """Test validation host valide"""
-        middleware = HostValidationMiddleware(None, ["nere-app.com", "api.nere-app.com"])
+        middleware = HostValidationMiddleware(
+            None, ["nere-app.com", "api.nere-app.com"]
+        )
 
         request = Mock(spec=Request)
         request.headers = {"host": "nere-app.com"}
@@ -34,7 +36,9 @@ class TestHostValidation:
     @pytest.mark.asyncio
     async def test_host_validation_invalid_host(self):
         """Test rejet host invalide"""
-        middleware = HostValidationMiddleware(None, ["nere-app.com", "api.nere-app.com"])
+        middleware = HostValidationMiddleware(
+            None, ["nere-app.com", "api.nere-app.com"]
+        )
 
         request = Mock(spec=Request)
         request.headers = {"host": "evil.com"}

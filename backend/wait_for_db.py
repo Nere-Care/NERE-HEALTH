@@ -1,5 +1,5 @@
-import time
 import sys
+import time
 
 import psycopg2
 from psycopg2 import OperationalError
@@ -14,7 +14,7 @@ def wait_for_db(timeout: int = 60, interval: int = 2) -> None:
             conn = psycopg2.connect(settings.DATABASE_URL_RAW, connect_timeout=5)
             conn.close()
             return
-        except OperationalError as exc:
+        except OperationalError:
             time.sleep(interval)
             elapsed += interval
     sys.exit(1)

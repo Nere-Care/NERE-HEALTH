@@ -28,7 +28,8 @@ def test_cors_invalid_origin_rejected():
     # L'origine malveillante ne doit pas être dans les headers CORS
     assert (
         "Access-Control-Allow-Origin" not in response.headers
-        or response.headers.get("Access-Control-Allow-Origin") != "https://malicious.com"
+        or response.headers.get("Access-Control-Allow-Origin")
+        != "https://malicious.com"
     )
 
 
@@ -78,7 +79,9 @@ def test_cors_credentials_handled_safely():
     allow_origin = response.headers.get("Access-Control-Allow-Origin")
 
     if allow_creds == "true":
-        assert allow_origin != "*", "allow_credentials=true avec allow_origins=* est dangereux"
+        assert (
+            allow_origin != "*"
+        ), "allow_credentials=true avec allow_origins=* est dangereux"
 
 
 def test_cors_security_headers_present():

@@ -4,11 +4,12 @@ Prevents sensitive information leakage through error messages.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .audit_logger import get_audit_logger
 from .db import SessionLocal
@@ -53,7 +54,9 @@ class SecureErrorResponse:
             Dictionary with safe error information
         """
         # Use provided user message or lookup from mapping
-        message = user_message or ERROR_MESSAGES.get(status_code, "Une erreur s'est produite. Veuillez réessayer.")
+        message = user_message or ERROR_MESSAGES.get(
+            status_code, "Une erreur s'est produite. Veuillez réessayer."
+        )
 
         # Log internal message for debugging
         if internal_message:
@@ -131,7 +134,9 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             # Generic exception handler
             return await self._handle_generic_exception(request, e)
 
-    async def _handle_http_exception(self, request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    async def _handle_http_exception(
+        self, request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
         """Handle HTTPException from FastAPI."""
         return JSONResponse(
             status_code=exc.status_code,
@@ -144,7 +149,9 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             ),
         )
 
-    async def _handle_validation_error(self, request: Request, exc: ValueError) -> JSONResponse:
+    async def _handle_validation_error(
+        self, request: Request, exc: ValueError
+    ) -> JSONResponse:
         """Handle validation errors."""
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -157,7 +164,9 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             ),
         )
 
-    async def _handle_generic_exception(self, request: Request, exc: Exception) -> JSONResponse:
+    async def _handle_generic_exception(
+        self, request: Request, exc: Exception
+    ) -> JSONResponse:
         """Handle generic exceptions."""
         error_id = self._generate_error_id()
 
@@ -187,7 +196,8 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             content=SecureErrorResponse.get_error_response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 error_id=error_id,
-                user_message="Erreur serveur. Veuillez contacter le support avec l'ID: " + error_id,
+                user_message="Erreur serveur. Veuillez contacter le support avec l'ID: "
+                + error_id,
                 request_id=getattr(request.state, "request_id", None),
             ),
         )
@@ -338,7 +348,9 @@ class ResourceNotFoundException(SecureException):
         )
 
 
-def create_error_response(exc: SecureException, request_id: str = None) -> Dict[str, Any]:
+def create_error_response(
+    exc: SecureException, request_id: str = None
+) -> Dict[str, Any]:
     """Create a standardized error response from SecureException."""
     return SecureErrorResponse.get_error_response(
         status_code=exc.status_code,

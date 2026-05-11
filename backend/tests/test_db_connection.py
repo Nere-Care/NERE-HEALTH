@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import text
+
 from backend.db import engine
 
 
@@ -11,11 +12,18 @@ def test_database_connection():
             dialect = conn.dialect.name
             if dialect == "sqlite":
                 table_exists = conn.execute(
-                    text("SELECT name FROM sqlite_master " "WHERE type='table' AND name='users'")
+                    text(
+                        "SELECT name FROM sqlite_master "
+                        "WHERE type='table' AND name='users'"
+                    )
                 ).scalar()
             else:
                 table_exists = conn.execute(
-                    text("SELECT tablename FROM pg_tables " "WHERE schemaname = 'public' " "AND tablename = 'users'")
+                    text(
+                        "SELECT tablename FROM pg_tables "
+                        "WHERE schemaname = 'public' "
+                        "AND tablename = 'users'"
+                    )
                 ).scalar()
             assert table_exists == "users"
     except Exception as exc:

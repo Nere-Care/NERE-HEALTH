@@ -9,15 +9,14 @@ Tests couvrant :
 - Audit logging de la révocation
 """
 
-import pytest
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.models import User
 from backend.token_blacklist import token_blacklist
-from backend.jwt_handler import JWTHandler
 
 client = TestClient(app)
 
@@ -167,14 +166,18 @@ class TestTokenRevocationAudit:
         from backend.audit_logger import AuditLog
 
         # Compter les logs avant logout
-        initial_count = db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
+        initial_count = (
+            db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
+        )
 
         # Logout
         response = client.post("/auth/logout", headers=medecin_auth_header)
         assert response.status_code == 200
 
         # Vérifier qu'un log a été créé
-        final_count = db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
+        final_count = (
+            db.query(AuditLog).filter(AuditLog.action == "deconnexion").count()
+        )
 
         assert final_count > initial_count
 
@@ -190,14 +193,22 @@ class TestTokenRevocationAudit:
         token_blacklist.revoke(token, exp_time)
 
         # Compter les logs d'erreur avant
-        initial_count = db.query(AuditLog).filter(AuditLog.action == "tentative_connexion_echec").count()
+        initial_count = (
+            db.query(AuditLog)
+            .filter(AuditLog.action == "tentative_connexion_echec")
+            .count()
+        )
 
         # Essayer d'utiliser le token révoqué
         response = client.get("/auth/me", headers=medecin_auth_header)
         assert response.status_code == 401
 
         # Vérifier qu'un log d'erreur a été créé
-        final_count = db.query(AuditLog).filter(AuditLog.action == "tentative_connexion_echec").count()
+        final_count = (
+            db.query(AuditLog)
+            .filter(AuditLog.action == "tentative_connexion_echec")
+            .count()
+        )
 
         assert final_count > initial_count
 
@@ -207,8 +218,9 @@ class TestTokenRevocationIntegration:
 
     def test_user_session_lifecycle(self, db):
         """Test le cycle complet session utilisateur : login -> revocation -> logout"""
-        from backend.auth import get_password_hash
         import uuid
+
+        from backend.auth import get_password_hash
 
         # Créer un email unique pour ce test
         test_email = f"lifecycle_test_{uuid.uuid4().hex[:8]}@example.com"

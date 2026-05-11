@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Quick test of PostgreSQL connection from Windows host."""
-import sys
-import os
 
 # Try different connection methods
 test_urls = [

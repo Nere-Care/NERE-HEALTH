@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from backend.schemas import DossierMedicalCreate, DossierMedicalRead
+
 from ..auth import get_current_active_user, require_role
 from ..db import get_db
 from ..models import DossierMedical, Patient, User
-from backend.schemas import DossierMedicalCreate, DossierMedicalRead
 
 router = APIRouter(tags=["dossiers_medicaux"])
 
@@ -52,14 +53,18 @@ async def create_dossier_medical(
     current_user=Depends(require_role("admin", "medecin")),
 ):
     if not db.get(Patient, dossier_create.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     if current_user.role == "medecin":
         dossier_create.medecin_traitant_id = current_user.id
     elif dossier_create.medecin_traitant_id:
         medecin = db.get(User, dossier_create.medecin_traitant_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     dossier = DossierMedical(**dossier_create.dict(exclude_unset=True))
     db.add(dossier)
@@ -73,7 +78,9 @@ async def create_dossier_medical(
             detail = "Ce numéro de dossier médical est déjà utilisé"
         elif "uq_dossiers_medicaux_patient_id" in str(exc.orig):
             detail = "Un dossier médical existe déjà pour ce patient"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from exc
     return dossier
 
 
@@ -85,9 +92,16 @@ async def read_dossier_medical(
 ):
     dossier = db.get(DossierMedical, dossier_id)
     if not dossier:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé")
-    if current_user.role == "medecin" and dossier.medecin_traitant_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé"
+        )
+    if (
+        current_user.role == "medecin"
+        and dossier.medecin_traitant_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role not in ("admin", "medecin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -105,16 +119,27 @@ async def update_dossier_medical(
 ):
     dossier = db.get(DossierMedical, dossier_id)
     if not dossier:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé")
-    if current_user.role == "medecin" and dossier.medecin_traitant_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé"
+        )
+    if (
+        current_user.role == "medecin"
+        and dossier.medecin_traitant_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if dossier_update.patient_id and not db.get(Patient, dossier_update.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
     if dossier_update.medecin_traitant_id and current_user.role == "admin":
         medecin = db.get(User, dossier_update.medecin_traitant_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in dossier_update.dict(exclude_unset=True).items():
         setattr(dossier, field, value)
@@ -132,7 +157,9 @@ async def update_dossier_medical(
     return dossier
 
 
-@router.delete("/dossiers_medicaux/{dossier_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/dossiers_medicaux/{dossier_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_dossier_medical(
     dossier_id: UUID,
     db: Session = Depends(get_db),
@@ -140,9 +167,16 @@ async def delete_dossier_medical(
 ):
     dossier = db.get(DossierMedical, dossier_id)
     if not dossier:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé")
-    if current_user.role == "medecin" and dossier.medecin_traitant_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dossier médical non trouvé"
+        )
+    if (
+        current_user.role == "medecin"
+        and dossier.medecin_traitant_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(dossier)
     db.commit()

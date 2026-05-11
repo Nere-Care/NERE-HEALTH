@@ -10,14 +10,12 @@ Tests du système de chiffrement :
 
 import pytest
 from cryptography.fernet import InvalidToken
-from base64 import b64encode
 
 from backend.encryption import (
     EncryptionManager,
     get_encryption_manager,
     get_security_headers,
 )
-from backend.config import _get_settings_instance
 
 
 class TestEncryptionManager:
@@ -223,6 +221,16 @@ class TestHTTPSHeaders:
         """La durée HSTS est correcte en production."""
         # Simuler la production
         monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("TESTING", "0")
+        monkeypatch.setenv(
+            "SECRET_KEY",
+            "a-very-long-secret-key-that-is-at-least-64-characters-long-for-testing-purposes-only",
+        )
+        monkeypatch.setenv("DATABASE_URL", "postgresql://user:securepass@localhost/db")
+        monkeypatch.setenv("CORS_ORIGINS", "https://example.com")
+        monkeypatch.setenv("ALLOWED_HOSTS", "example.com")
+        monkeypatch.setenv("STRIPE_API_KEY", "sk_live_XXXXX")
+        monkeypatch.setenv("STRIPE_WEBHOOK_SECRET", "whsec_XXXXX")
 
         # Reset settings pour prendre en compte la nouvelle valeur
         import backend.config

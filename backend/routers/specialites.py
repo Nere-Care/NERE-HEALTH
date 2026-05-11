@@ -25,7 +25,9 @@ async def list_specialites(
     return specialites
 
 
-@router.post("/specialites", response_model=SpecialiteRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/specialites", response_model=SpecialiteRead, status_code=status.HTTP_201_CREATED
+)
 async def create_specialite(
     specialite_create: SpecialiteCreate,
     db: Session = Depends(get_db),
@@ -53,7 +55,9 @@ async def read_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
     return specialite
 
 
@@ -66,7 +70,9 @@ async def update_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
 
     for field, value in specialite_update.dict(exclude_unset=True).items():
         setattr(specialite, field, value)
@@ -92,7 +98,9 @@ async def delete_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
     db.delete(specialite)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

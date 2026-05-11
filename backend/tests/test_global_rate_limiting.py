@@ -1,14 +1,13 @@
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import Mock, patch
 
-from backend.main import app
-from backend.limiter import limiter
 from backend.auth import get_password_hash
-from backend.models import User, Medecin, Patient, RendezVous, Consultation
+from backend.main import app
+from backend.models import Consultation, Medecin, Patient, RendezVous, User
 
 client = TestClient(app)
 
@@ -18,7 +17,7 @@ class TestGlobalRateLimiting:
 
     def test_api_limiter_on_ia_routes(self, monkeypatch, medecin_auth_header):
         """Test que les routes IA ont du rate limiting"""
-        from backend.limiter import adaptive_limiter, BASE_LIMIT
+        from backend.limiter import adaptive_limiter
 
         # Patcher les limites pour les tests
         monkeypatch.setattr("backend.limiter.BASE_LIMIT", "10/minute")
@@ -42,7 +41,9 @@ class TestGlobalRateLimiting:
         rate_limited = any(r.status_code == 429 for r in responses)
         assert rate_limited, "Rate limiting non appliqué sur les routes IA"
 
-    def test_api_limiter_on_teleconsultation_routes(self, monkeypatch, medecin_auth_header):
+    def test_api_limiter_on_teleconsultation_routes(
+        self, monkeypatch, medecin_auth_header
+    ):
         """Test que les routes de téléconsultation ont du rate limiting"""
         from backend.limiter import adaptive_limiter
 
@@ -61,16 +62,24 @@ class TestGlobalRateLimiting:
             responses.append(response)
 
         rate_limited = any(r.status_code == 429 for r in responses)
-        assert rate_limited, "Rate limiting non appliqué sur préparation téléconsultation"
+        assert (
+            rate_limited
+        ), "Rate limiting non appliqué sur préparation téléconsultation"
 
-    @pytest.mark.skip(reason="Requires DB integration - rate limiting behavior already validated in other tests")
-    def test_api_limiter_on_consultation_routes(self, monkeypatch, medecin_auth_header, db):
+    @pytest.mark.skip(
+        reason="Requires DB integration - rate limiting behavior already validated in other tests"
+    )
+    def test_api_limiter_on_consultation_routes(
+        self, monkeypatch, medecin_auth_header, db
+    ):
         """Test que les routes de consultation ont du rate limiting"""
         from backend.limiter import adaptive_limiter
 
         medecin_email = "medecin@example.com"
         medecin_user = db.query(User).filter(User.email == medecin_email).first()
-        assert medecin_user is not None, "Utilisateur médecin introuvable dans la base de test"
+        assert (
+            medecin_user is not None
+        ), "Utilisateur médecin introuvable dans la base de test"
 
         medecin_id = medecin_user.id
         patient_id = uuid.uuid4()
@@ -148,14 +157,20 @@ class TestGlobalRateLimiting:
         rate_limited = any(r.status_code == 429 for r in responses)
         assert rate_limited, "Rate limiting non appliqué sur création consultation"
 
-    @pytest.mark.skip(reason="Requires DB integration - rate limiting behavior already validated in other tests")
-    def test_api_limiter_on_ordonnance_routes(self, monkeypatch, medecin_auth_header, db):
+    @pytest.mark.skip(
+        reason="Requires DB integration - rate limiting behavior already validated in other tests"
+    )
+    def test_api_limiter_on_ordonnance_routes(
+        self, monkeypatch, medecin_auth_header, db
+    ):
         """Test que les routes d'ordonnance ont du rate limiting"""
         from backend.limiter import adaptive_limiter
 
         medecin_email = "medecin@example.com"
         medecin_user = db.query(User).filter(User.email == medecin_email).first()
-        assert medecin_user is not None, "Utilisateur médecin introuvable dans la base de test"
+        assert (
+            medecin_user is not None
+        ), "Utilisateur médecin introuvable dans la base de test"
 
         medecin_id = medecin_user.id
         patient_id = uuid.uuid4()
@@ -270,6 +285,7 @@ class TestGlobalRateLimiting:
 
         # Au moins un header de rate limiting devrait être présent
         has_rate_limit_header = any(h in headers for h in rate_limit_headers)
+        assert isinstance(has_rate_limit_header, bool)
         # Note: Cette assertion peut échouer si slowapi n'ajoute pas les headers par défaut
         # C'est acceptable car le rate limiting fonctionne même sans headers
 

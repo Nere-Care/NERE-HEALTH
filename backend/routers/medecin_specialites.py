@@ -23,7 +23,9 @@ async def list_medecin_specialites(
     current_user=Depends(get_current_active_user),
 ):
     if current_user.role == "medecin":
-        stmt = select(MedecinSpecialite).where(MedecinSpecialite.medecin_id == current_user.id)
+        stmt = select(MedecinSpecialite).where(
+            MedecinSpecialite.medecin_id == current_user.id
+        )
     elif current_user.role == "admin":
         stmt = select(MedecinSpecialite)
     else:
@@ -53,7 +55,9 @@ async def create_medecin_specialite(
 ):
     medecin = db.get(User, specialite_create.medecin_id)
     if not medecin or medecin.role != "medecin":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+        )
 
     medecin_specialite = MedecinSpecialite(**specialite_create.dict(exclude_unset=True))
     db.add(medecin_specialite)
@@ -89,8 +93,13 @@ async def read_medecin_specialite(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Spécialité médecin non trouvée",
         )
-    if current_user.role == "medecin" and medecin_specialite.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    if (
+        current_user.role == "medecin"
+        and medecin_specialite.medecin_id != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return medecin_specialite
 
 

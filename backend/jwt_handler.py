@@ -8,10 +8,10 @@ Gère le cycle de vie complet des tokens JWT :
 - Stockage sécurisé des tokens révoqués (blacklist)
 """
 
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
-import hashlib
 
 import jwt
 from sqlalchemy.orm import Session
@@ -83,7 +83,9 @@ class JWTHandler:
         return token
 
     @staticmethod
-    def create_refresh_token(user_data: dict = None, user_id: UUID = None, email: str = None) -> str:
+    def create_refresh_token(
+        user_data: dict = None, user_id: UUID = None, email: str = None
+    ) -> str:
         """
         Crée un token de rafraîchissement JWT long terme.
 
@@ -106,7 +108,9 @@ class JWTHandler:
             elif user_id is None:
                 user_id = user_data
 
-        expire = datetime.now(timezone.utc) + timedelta(days=JWTHandler.REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.now(timezone.utc) + timedelta(
+            days=JWTHandler.REFRESH_TOKEN_EXPIRE_DAYS
+        )
         payload = {
             "sub": str(user_id),
             "email": email,
@@ -160,7 +164,9 @@ class JWTHandler:
         Returns:
             True si le token est blacklisté, False sinon
         """
-        blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+        blacklisted = (
+            db.query(TokenBlacklist).filter(TokenBlacklist.token == token).first()
+        )
         return blacklisted is not None
 
     @staticmethod
@@ -309,7 +315,9 @@ class JWTHandler:
             Tuple (nouveau_access_token, nouveau_refresh_token)
         """
         # Créer les nouveaux tokens
-        new_access_token = JWTHandler.create_access_token(user.id, user.email, user.role)
+        new_access_token = JWTHandler.create_access_token(
+            user.id, user.email, user.role
+        )
         new_refresh_token = JWTHandler.create_refresh_token(user.id, user.email)
 
         # Blacklister l'ancien token
@@ -345,6 +353,8 @@ class JWTHandler:
             Nombre de tokens supprimés
         """
         now = datetime.now(timezone.utc)
-        deleted = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < now).delete()
+        deleted = (
+            db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < now).delete()
+        )
         db.commit()
         return deleted

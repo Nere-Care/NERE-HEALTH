@@ -3,13 +3,10 @@ Tests d'intégration pour FAILLEs #7, #8, #9
 JWT Authentication, Data Encryption, Input Validation
 """
 
-import pytest
-import json
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+
 import jwt as pyjwt
-from sqlalchemy.orm import Session
-from fastapi.testclient import TestClient
+import pytest
 
 # Ces imports supposent que main.py expose l'app FastAPI
 # À adapter selon votre structure réelle
@@ -29,8 +26,8 @@ class TestFAILLE7JWTAuthentication:
 
     def test_create_access_token(self):
         """Test création d'un token d'accès"""
-        from backend.jwt_handler import JWTHandler
         from backend.config import _get_settings_instance
+        from backend.jwt_handler import JWTHandler
 
         user_data = {"sub": "user123", "email": "test@example.com", "role": "doctor"}
 
@@ -41,14 +38,16 @@ class TestFAILLE7JWTAuthentication:
         assert len(token) > 0
 
         # Vérifier que le token peut être décodé
-        decoded = pyjwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
+        decoded = pyjwt.decode(
+            token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"]
+        )
         assert decoded["sub"] == "user123"
         assert decoded["type"] == "access"
 
     def test_create_refresh_token(self):
         """Test création d'un refresh token"""
-        from backend.jwt_handler import JWTHandler
         from backend.config import _get_settings_instance
+        from backend.jwt_handler import JWTHandler
 
         user_data = {"sub": "user123", "email": "test@example.com"}
 
@@ -58,7 +57,9 @@ class TestFAILLE7JWTAuthentication:
         assert isinstance(token, str)
 
         # Vérifier que le token peut être décodé
-        decoded = pyjwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
+        decoded = pyjwt.decode(
+            token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"]
+        )
         assert decoded["sub"] == "user123"
         assert decoded["type"] == "refresh"
 
@@ -77,9 +78,10 @@ class TestFAILLE7JWTAuthentication:
 
     def test_decode_expired_token(self):
         """Test que les tokens expirés sont rejetés"""
-        from backend.jwt_handler import JWTHandler
-        from backend.config import _get_settings_instance
         from datetime import timezone
+
+        from backend.config import _get_settings_instance
+        from backend.jwt_handler import JWTHandler
 
         # Créer un token expiré
         now = datetime.now(timezone.utc)
@@ -91,14 +93,13 @@ class TestFAILLE7JWTAuthentication:
             "iat": int((now - timedelta(hours=2)).timestamp()),
         }
 
-        expired_token = pyjwt.encode(payload, _get_settings_instance().SECRET_KEY, algorithm="HS256")
+        expired_token = pyjwt.encode(
+            payload, _get_settings_instance().SECRET_KEY, algorithm="HS256"
+        )
 
         # Tentative de décodage devrait échouer
-        try:
-            decoded = JWTHandler.decode_token(expired_token)
-            assert False, "Expected InvalidTokenError"
-        except pyjwt.InvalidTokenError:
-            pass  # Expected behavior
+        with pytest.raises(pyjwt.InvalidTokenError):
+            JWTHandler.decode_token(expired_token)
 
     def test_token_rotation(self):
         """Test rotation de token proactive"""
@@ -352,7 +353,9 @@ class TestFAILLE9InputValidation:
         ]
 
         for email in valid_emails:
-            assert validator.validate_email(email) is True, f"Valid email rejected: {email}"
+            assert (
+                validator.validate_email(email) is True
+            ), f"Valid email rejected: {email}"
 
         # Emails invalides
         invalid_emails = [
@@ -363,7 +366,9 @@ class TestFAILLE9InputValidation:
         ]
 
         for email in invalid_emails:
-            assert validator.validate_email(email) is False, f"Invalid email accepted: {email}"
+            assert (
+                validator.validate_email(email) is False
+            ), f"Invalid email accepted: {email}"
 
     def test_validate_phone(self):
         """Test validation numéro de téléphone"""
@@ -379,7 +384,9 @@ class TestFAILLE9InputValidation:
         ]
 
         for phone in valid_phones:
-            assert validator.validate_phone(phone) is True, f"Valid phone rejected: {phone}"
+            assert (
+                validator.validate_phone(phone) is True
+            ), f"Valid phone rejected: {phone}"
 
     def test_validate_url(self):
         """Test validation URL"""
@@ -409,8 +416,9 @@ class TestFAILLE9InputValidation:
 
     def test_validate_file_upload(self):
         """Test validation fichier upload"""
-        from backend.input_validator import InputValidator
         from unittest.mock import Mock
+
+        from backend.input_validator import InputValidator
 
         validator = InputValidator()
 
@@ -426,7 +434,7 @@ class TestFAILLE9InputValidation:
     def test_pydantic_validation_schemas(self):
         """Test que les schemas Pydantic valident correctement"""
         try:
-            from backend.schemas import UserCreate, ConsultationCreate
+            from backend.schemas import UserCreate
 
             # Test UserRegisterSchema
             valid_user = UserCreate(
@@ -455,9 +463,9 @@ class TestIntegrationFAILLES789:
     def test_all_modules_can_be_imported_together(self):
         """Test que tous les modules peuvent être importés ensemble"""
         try:
-            from backend.jwt_handler import JWTHandler
             from backend.encryption import EncryptionManager
             from backend.input_validator import InputValidator
+            from backend.jwt_handler import JWTHandler
 
             assert JWTHandler is not None
             assert EncryptionManager is not None
@@ -467,9 +475,9 @@ class TestIntegrationFAILLES789:
 
     def test_secure_workflow_simulation(self):
         """Simulation d'un workflow sécurisé complet"""
-        from backend.jwt_handler import JWTHandler
         from backend.encryption import EncryptionManager
         from backend.input_validator import InputValidator
+        from backend.jwt_handler import JWTHandler
 
         # 1. Validation de l'entrée utilisateur
         validator = InputValidator()
@@ -479,8 +487,12 @@ class TestIntegrationFAILLES789:
         # 2. Création de tokens JWT
         jwt_handler = JWTHandler()
         tokens = {
-            "access": jwt_handler.create_access_token({"sub": "user123", "email": user_email, "role": "doctor"}),
-            "refresh": jwt_handler.create_refresh_token({"sub": "user123", "email": user_email}),
+            "access": jwt_handler.create_access_token(
+                {"sub": "user123", "email": user_email, "role": "doctor"}
+            ),
+            "refresh": jwt_handler.create_refresh_token(
+                {"sub": "user123", "email": user_email}
+            ),
         }
         assert tokens["access"] is not None
         assert tokens["refresh"] is not None

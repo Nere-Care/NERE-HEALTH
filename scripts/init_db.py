@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+
 def init_database():
     """Initialize PostgreSQL database with extensions and schema."""
     try:
@@ -22,15 +23,18 @@ def init_database():
             'postgresql://nere_user:nere_pass@localhost:5433/nere_db'
         )
 
-        print(f"📊 Initializing database...")
-        print(f"   Database: {db_url.split('@')[1].split('/')[1] if '@' in db_url else 'unknown'}")
+        print("📊 Initializing database...")
+        print(
+            "   Database: "
+            + (db_url.split('@')[1].split('/')[1] if '@' in db_url else 'unknown')
+        )
 
         # Create engine
         engine = create_engine(db_url, echo=False)
 
         # Test connection
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
+            conn.execute(text("SELECT 1"))
             print("✅ Database connection successful")
             conn.commit()
 

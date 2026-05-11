@@ -41,7 +41,9 @@ async def list_avis(
     if rdv_id:
         stmt = stmt.where(Avis.rdv_id == rdv_id)
 
-    avis_list = db.execute(stmt.order_by(Avis.created_at.desc()).limit(limit)).scalars().all()
+    avis_list = (
+        db.execute(stmt.order_by(Avis.created_at.desc()).limit(limit)).scalars().all()
+    )
     return avis_list
 
 
@@ -54,17 +56,25 @@ async def create_avis(
     if current_user.role == "patient":
         avis_create.patient_id = current_user.id
     elif current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante"
+        )
 
     if not db.get(Patient, avis_create.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     medecin = db.get(User, avis_create.medecin_id)
     if not medecin or medecin.role != "medecin":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+        )
 
     if not db.get(RendezVous, avis_create.rdv_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable"
+        )
 
     if avis_create.note < 1 or avis_create.note > 5:
         raise HTTPException(
@@ -94,11 +104,17 @@ async def read_avis(
 ):
     avis = db.get(Avis, avis_id)
     if not avis:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé"
+        )
     if current_user.role == "patient" and avis.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "medecin" and avis.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return avis
 
 
@@ -111,9 +127,13 @@ async def update_avis(
 ):
     avis = db.get(Avis, avis_id)
     if not avis:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé"
+        )
     if current_user.role == "medecin" and avis.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if avis_update.note is not None and (avis_update.note < 1 or avis_update.note > 5):
         raise HTTPException(
@@ -145,9 +165,13 @@ async def delete_avis(
 ):
     avis = db.get(Avis, avis_id)
     if not avis:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Avis non trouvé"
+        )
     if current_user.role == "medecin" and avis.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(avis)
     db.commit()

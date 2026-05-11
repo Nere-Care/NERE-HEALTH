@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_active_user, require_role
+from ..auth import require_role
 from ..db import get_db
 from ..models import Patient
 from ..schemas import PatientCreate, PatientRead
@@ -23,7 +23,9 @@ async def read_patients(
     return patients
 
 
-@router.post("/patients", response_model=PatientRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/patients", response_model=PatientRead, status_code=status.HTTP_201_CREATED
+)
 async def create_patient(
     patient_create: PatientCreate,
     db: Session = Depends(get_db),
@@ -39,7 +41,9 @@ async def create_patient(
         detail = "Erreur de création du patient"
         if "uq_patients_numero_patient" in str(exc.orig):
             detail = "Ce numéro de patient est déjà utilisé"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from exc
     return patient
 
 
@@ -51,5 +55,7 @@ async def read_patient(
 ):
     patient = db.get(Patient, patient_id)
     if not patient:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Patient non trouvé"
+        )
     return patient

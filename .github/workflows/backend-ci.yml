@@ -59,12 +59,12 @@ jobs:
       - name: Format code with black
         run: |
           cd backend
-          python -m black . --exclude="alembic/versions" --line-length=120 --check
+          python -m black . --exclude="alembic/versions" --line-length=88 --check
 
       - name: Lint backend source
         run: |
           cd backend
-          python -m pycodestyle --max-line-length=120 . --exclude=alembic/versions --ignore=E402,W503
+          python -m pycodestyle --max-line-length=88 . --exclude=alembic/versions --ignore=E203,E266,W503,W504,E402
 
       - name: Run Alembic migrations
         run: |

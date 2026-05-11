@@ -1,15 +1,14 @@
 from decimal import Decimal
-from uuid import UUID
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_active_user, require_role
+from ..auth import get_current_active_user
 from ..config import settings
 from ..db import get_db
 from ..limiter import api_limiter
-from ..models import ChatbotSession, Patient, RendezVous, User
+from ..models import ChatbotSession, Patient, RendezVous
 from ..schemas import IADiagnosticRequest, IADiagnosticResponse
 
 router = APIRouter(tags=["ia"])
@@ -83,15 +82,20 @@ async def create_diagnostic(
     current_user=Depends(get_current_active_user),
 ):
     if current_user.role == "patient" and current_user.id != payload.patient_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if not db.get(Patient, payload.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     if payload.rdv_id and not db.get(RendezVous, payload.rdv_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable"
+        )
 
-    openai.api_key = settings.OPENAI_API_KEY
     analysis = None
 
     if settings.OPENAI_API_KEY:
@@ -106,8 +110,11 @@ async def create_diagnostic(
                 temperature=0.5,
             )
             analysis = completion.choices[0].message.content.strip()
-        except Exception as exc:
-            analysis = "Impossible d'interroger l'IA pour le moment. " "Veuillez réessayer ultérieurement."
+        except Exception:
+            analysis = (
+                "Impossible d'interroger l'IA pour le moment. "
+                "Veuillez réessayer ultérieurement."
+            )
     else:
         analysis = (
             "Aucune clé OpenAI configurée. Analyse basique effectuée en local : "

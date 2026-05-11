@@ -70,7 +70,9 @@ def get_cors_config(settings):
 
     # Headers selon l'environnement
     allowed_headers = (
-        CORSConfig.ALLOWED_HEADERS_PROD if settings.ENVIRONMENT == "production" else CORSConfig.ALLOWED_HEADERS_DEV
+        CORSConfig.ALLOWED_HEADERS_PROD
+        if settings.ENVIRONMENT == "production"
+        else CORSConfig.ALLOWED_HEADERS_DEV
     )
 
     return {
@@ -129,7 +131,9 @@ def _is_valid_origin(origin: str, settings) -> bool:
 
     # Pas d'origines localhost en production
     if settings.ENVIRONMENT == "production":
-        if origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1"):
+        if origin.startswith("http://localhost") or origin.startswith(
+            "http://127.0.0.1"
+        ):
             return False
 
     # Validation basique du format URL

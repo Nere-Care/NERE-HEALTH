@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,5 +44,7 @@ async def read_audit_log(
 ):
     audit = db.get(AuditLog, audit_id)
     if not audit:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entrée d'audit non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Entrée d'audit non trouvée"
+        )
     return audit

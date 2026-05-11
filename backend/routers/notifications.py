@@ -7,9 +7,9 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
-    status,
     WebSocket,
     WebSocketDisconnect,
+    status,
 )
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -88,7 +88,9 @@ async def create_notification(
     current_user=Depends(require_role("admin", "medecin")),
 ):
     if not db.get(User, notification_create.utilisateur_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Utilisateur introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Utilisateur introuvable"
+        )
 
     notification = Notification(**notification_create.dict(exclude_unset=True))
     db.add(notification)
@@ -124,7 +126,11 @@ async def read_notification(
 ):
     notification = db.get(Notification, notification_id)
     if not notification:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification non trouvée"
+        )
     if current_user.role != "admin" and notification.utilisateur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return notification

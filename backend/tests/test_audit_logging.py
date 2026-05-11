@@ -3,25 +3,24 @@ Tests for Audit Logging System (FAILLE #5)
 Validates that critical operations are properly logged for compliance and security.
 """
 
-import pytest
 import uuid
-import json
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
+
+import pytest
 from fastapi import Request
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.audit_logger import (
     AuditLogger,
     get_audit_logger,
-    log_auth_success,
     log_auth_failure,
-    log_payment_initiated,
-    log_medical_access,
+    log_auth_success,
     log_data_export,
+    log_medical_access,
+    log_payment_initiated,
 )
 from backend.audit_middleware import AuditMiddleware
-from backend.models import User, AuditLog
+from backend.models import User
 
 
 class TestAuditLogger:
@@ -196,7 +195,9 @@ class TestConvenienceFunctions:
         session_id = uuid.uuid4()
         payment_id = uuid.uuid4()
 
-        log_payment_initiated(db_mock, user_mock, session_id, payment_id, amount=150.00, request=request)
+        log_payment_initiated(
+            db_mock, user_mock, session_id, payment_id, amount=150.00, request=request
+        )
 
         assert db_mock.add.called
 

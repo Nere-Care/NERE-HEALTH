@@ -9,14 +9,13 @@ Validation et sanitization complets des entrées :
 - Sanitization des champs texte
 """
 
-import re
-from typing import Optional, List
-from html import escape
-import mimetypes
 import logging
+import re
+from html import escape
+from typing import List, Optional
 
-from pydantic import BaseModel, validator, Field
-from fastapi import HTTPException, Request, status
+from fastapi import Request, Response, status
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -301,7 +300,7 @@ class UserCreateSchema(BaseModel):
     prenom: str = Field(..., min_length=2, max_length=100)
     telephone: Optional[str] = Field(None, max_length=20)
 
-    @validator("email")
+    @field_validator("email")
     def validate_email(cls, v):
         """Valide l'email et nettoie."""
         v = v.strip().lower()
@@ -311,7 +310,7 @@ class UserCreateSchema(BaseModel):
             raise ValueError("Caractères non autorisés dans email")
         return v
 
-    @validator("password")
+    @field_validator("password")
     def validate_password(cls, v):
         """Valide le mot de passe."""
         if len(v) < 8:
@@ -323,12 +322,14 @@ class UserCreateSchema(BaseModel):
         has_digit = any(c.isdigit() for c in v)
         has_special = any(c in "!@#$%^&*()-_=+[]{}|;:,.<>?" for c in v)
 
-        if not (has_upper and has_lower and has_digit):
-            raise ValueError("Password must contain uppercase, lowercase, and digits")
+        if not (has_upper and has_lower and has_digit and has_special):
+            raise ValueError(
+                "Password must contain uppercase, lowercase, digits, and special characters"
+            )
 
         return v
 
-    @validator("nom", "prenom")
+    @field_validator("nom", "prenom")
     def validate_name_fields(cls, v):
         """Valide les champs nom/prénom."""
         if InputValidator.check_sql_injection(v):
@@ -336,7 +337,7 @@ class UserCreateSchema(BaseModel):
         v = InputValidator.sanitize_text(v, max_length=100)
         return v
 
-    @validator("telephone")
+    @field_validator("telephone")
     def validate_telephone(cls, v):
         """Valide le téléphone."""
         if v is None:
@@ -354,14 +355,14 @@ class ConsultationCreateSchema(BaseModel):
     type_consultation: str = Field(...)
     specialite: str = Field(...)
 
-    @validator("titre", "type_consultation", "specialite")
+    @field_validator("titre", "type_consultation", "specialite")
     def validate_text_fields(cls, v):
         """Valide les champs texte."""
         if InputValidator.check_sql_injection(v):
             raise ValueError("Caractères non autorisés")
         return InputValidator.sanitize_text(v)
 
-    @validator("description")
+    @field_validator("description")
     def validate_description(cls, v):
         """Valide la description."""
         if InputValidator.check_sql_injection(v):
@@ -373,11 +374,11 @@ class OrdonnanceCreateSchema(BaseModel):
     """Schema de création ordonnance."""
 
     numero_ordonnance: str = Field(..., max_length=50)
-    medicaments: List[str] = Field(..., min_items=1, max_items=50)
+    medicaments: List[str] = Field(..., min_length=1, max_length=50)
     dosage: Optional[str] = Field(None, max_length=500)
     duree_traitement: Optional[str] = Field(None, max_length=100)
 
-    @validator("numero_ordonnance", "dosage", "duree_traitement")
+    @field_validator("numero_ordonnance", "dosage", "duree_traitement")
     def validate_text(cls, v):
         """Valide les champs texte."""
         if v is None:
@@ -386,7 +387,7 @@ class OrdonnanceCreateSchema(BaseModel):
             raise ValueError("Caractères non autorisés")
         return InputValidator.sanitize_text(v)
 
-    @validator("medicaments")
+    @field_validator("medicaments")
     def validate_medicaments(cls, v):
         """Valide la liste de médicaments."""
         validated = []
@@ -406,7 +407,7 @@ class PaiementCreateSchema(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     reference: str = Field(..., max_length=100)
 
-    @validator("description", "reference")
+    @field_validator("description", "reference")
     def validate_text(cls, v):
         """Valide les champs texte."""
         if v is None:
@@ -415,7 +416,7 @@ class PaiementCreateSchema(BaseModel):
             raise ValueError("Caractères non autorisés")
         return InputValidator.sanitize_text(v)
 
-    @validator("devise")
+    @field_validator("devise")
     def validate_currency(cls, v):
         """Valide la devise."""
         allowed_currencies = ["EUR", "USD", "GBP", "CHF"]
@@ -431,7 +432,7 @@ class FileUploadSchema(BaseModel):
     mime_type: str = Field(...)
     file_size: int = Field(..., gt=0, le=MAX_FILE_SIZE)
 
-    @validator("filename")
+    @field_validator("filename")
     def validate_filename(cls, v):
         """Nettoie et valide le nom de fichier."""
         v = InputValidator.sanitize_filename(v)
@@ -439,7 +440,7 @@ class FileUploadSchema(BaseModel):
             raise ValueError("Invalid filename")
         return v
 
-    @validator("mime_type")
+    @field_validator("mime_type")
     def validate_mime_type(cls, v):
         """Valide le type MIME."""
         if v not in ALLOWED_MIME_TYPES:
@@ -484,7 +485,9 @@ class InputValidationMiddleware:
         for header_name in headers_to_check:
             header_value = request.headers.get(header_name)
             if header_value and InputValidator.check_sql_injection(header_value):
-                logger.warning(f"SQL injection attempt in header {header_name}: {header_value[:100]}")
+                logger.warning(
+                    f"SQL injection attempt in header {header_name}: {header_value[:100]}"
+                )
                 response = Response(
                     content="Invalid input",
                     status_code=status.HTTP_400_BAD_REQUEST,

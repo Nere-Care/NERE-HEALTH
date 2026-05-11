@@ -13,16 +13,16 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..audit_logger import get_audit_logger
 from ..auth import (
     authenticate_user,
     create_token_pair,
+    get_current_active_user_secure,
     get_password_hash,
     refresh_access_token,
     revoke_user_tokens,
     validate_password,
-    get_current_active_user_secure,
 )
-from ..audit_logger import get_audit_logger
 from ..db import get_db
 from ..jwt_handler import JWTHandler
 from ..limiter import auth_limiter
@@ -243,9 +243,14 @@ async def register_user(
 
     # Vérifier les doublons
     if db.query(User).filter(User.email == user_create.email).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cet email est déjà utilisé")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Cet email est déjà utilisé"
+        )
 
-    if user_create.telephone and db.query(User).filter(User.telephone == user_create.telephone).first():
+    if (
+        user_create.telephone
+        and db.query(User).filter(User.telephone == user_create.telephone).first()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ce numéro de téléphone est déjà utilisé",
@@ -361,7 +366,7 @@ async def revoke_all_user_tokens(
             "tokens_revoked": revoked_count,
         }
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Erreur lors de la révocation des tokens",

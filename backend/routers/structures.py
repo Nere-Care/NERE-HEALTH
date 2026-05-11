@@ -24,7 +24,9 @@ async def list_structures(
     return structures
 
 
-@router.post("/structures", response_model=StructureRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/structures", response_model=StructureRead, status_code=status.HTTP_201_CREATED
+)
 async def create_structure(
     structure_create: StructureCreate,
     db: Session = Depends(get_db),
@@ -55,7 +57,9 @@ async def read_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
     return structure
 
 
@@ -68,7 +72,9 @@ async def update_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
 
     for field, value in structure_update.dict(exclude_unset=True).items():
         setattr(structure, field, value)
@@ -94,7 +100,9 @@ async def delete_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
     db.delete(structure)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

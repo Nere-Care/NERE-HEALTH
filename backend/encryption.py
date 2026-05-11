@@ -8,17 +8,17 @@ Chiffrement des données sensibles en transit et au repos :
 - HTTPS enforcement avec HSTS headers
 """
 
-from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-import os
 import base64
 import binascii
 import logging
-from typing import Optional
 from functools import wraps
-from fastapi import HTTPException, status, Request
+from typing import Optional
+
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from fastapi import HTTPException, Request, status
 
 from .config import settings
 
@@ -285,7 +285,9 @@ def require_https(func):
             )
 
             if not is_https:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="HTTPS required")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="HTTPS required"
+                )
 
         return await func(*args, request=request, **kwargs)
 

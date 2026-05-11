@@ -11,7 +11,7 @@ Fonctionnalités :
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, Set
 from uuid import UUID
@@ -50,7 +50,7 @@ class TokenBlacklist:
 
             # Vérifier si déjà révoqué
             if token in self._blacklist:
-                logger.debug(f"Token déjà révoqué")
+                logger.debug("Token déjà révoqué")
                 return False
 
             # Ajouter à la blacklist
@@ -86,7 +86,9 @@ class TokenBlacklist:
         Cette méthode doit être appelée à l'intérieur du verrou.
         """
         now = datetime.now(timezone.utc)
-        expired_tokens = [token for token, exp_time in self._expiry.items() if exp_time < now]
+        expired_tokens = [
+            token for token, exp_time in self._expiry.items() if exp_time < now
+        ]
 
         for token in expired_tokens:
             self._blacklist.discard(token)

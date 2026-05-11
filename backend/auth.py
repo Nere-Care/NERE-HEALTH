@@ -25,7 +25,9 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a stored bcrypt hash."""
     try:
-        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
     except (ValueError, TypeError):
         return False
 
@@ -45,7 +47,9 @@ def validate_password(password: str) -> None:
     if password.lower() == password or password.upper() == password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=("Le mot de passe doit contenir des lettres majuscules " "et minuscules."),
+            detail=(
+                "Le mot de passe doit contenir des lettres majuscules " "et minuscules."
+            ),
         )
 
 
@@ -60,7 +64,9 @@ def create_access_token(subject: str, expires_delta: timedelta | None = None) ->
 def decode_access_token(token: str) -> dict:
     """Decode the JWT token and return the payload."""
     try:
-        return jwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
+        return jwt.decode(
+            token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"]
+        )
     except JoseError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -115,7 +121,9 @@ def refresh_access_token(
         HTTPException: Si le refresh token est invalide
     """
     # Valider le refresh token
-    payload, error = JWTHandler.validate_token_and_get_user(db, refresh_token, "refresh")
+    payload, error = JWTHandler.validate_token_and_get_user(
+        db, refresh_token, "refresh"
+    )
 
     if error:
         raise HTTPException(
@@ -181,7 +189,11 @@ def revoke_user_tokens(
     user = db.query(User).filter(User.id == user_id).first()
     if user:
         audit_logger.log_admin_action(
-            admin_user_id=(request.state.user.id if request and hasattr(request.state, "user") else None),
+            admin_user_id=(
+                request.state.user.id
+                if request and hasattr(request.state, "user")
+                else None
+            ),
             action="revoke_user_tokens",
             target_user_id=user_id,
             ip_address=request.client.host if request and request.client else None,
@@ -198,8 +210,12 @@ def revoke_user_tokens(
 
             # Décoder le token pour obtenir son expiration
             try:
-                payload = jwt.decode(token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"])
-                exp_time = datetime.fromtimestamp(payload.get("exp", 0), tz=timezone.utc)
+                payload = jwt.decode(
+                    token, _get_settings_instance().SECRET_KEY, algorithms=["HS256"]
+                )
+                exp_time = datetime.fromtimestamp(
+                    payload.get("exp", 0), tz=timezone.utc
+                )
 
                 # Ajouter le token à la blacklist
                 if token_blacklist.revoke(token, exp_time):

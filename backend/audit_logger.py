@@ -3,13 +3,13 @@ Audit Logging System for NERE Medical Application
 Logs all critical operations for compliance and security monitoring.
 """
 
+import json
 import logging
 import uuid
-import json
-from typing import Optional, Dict, Any
-from datetime import datetime
-from sqlalchemy.orm import Session
+from typing import Any, Dict, Optional
+
 from fastapi import Request
+from sqlalchemy.orm import Session
 
 from .models import AuditLog, User
 
@@ -331,7 +331,9 @@ def get_audit_logger(db: Session) -> AuditLogger:
 
 
 # Convenience functions for common audit events
-def log_auth_success(db: Session, user: User, session_id: uuid.UUID, request: Request) -> None:
+def log_auth_success(
+    db: Session, user: User, session_id: uuid.UUID, request: Request
+) -> None:
     """Log successful authentication"""
     logger = get_audit_logger(db)
     logger.log_action(

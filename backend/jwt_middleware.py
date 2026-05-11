@@ -9,13 +9,13 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.audit_logger import get_audit_logger
-from backend.db import get_db, SessionLocal
+from backend.db import SessionLocal
 from backend.jwt_handler import JWTHandler
 from backend.models import User
 from backend.token_blacklist import token_blacklist
@@ -62,7 +62,9 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
                 token = authorization.split(" ", 1)[1]
                 db: Session = SessionLocal()
                 try:
-                    payload, error = JWTHandler.validate_token_and_get_user(db, token, "access")
+                    payload, error = JWTHandler.validate_token_and_get_user(
+                        db, token, "access"
+                    )
                     if payload and not error:
                         user_id = UUID(payload["sub"])
                         user = db.query(User).filter(User.id == user_id).first()
@@ -70,15 +72,19 @@ class JWTAuthenticationMiddleware(BaseHTTPMiddleware):
                             request.state.user = user
                             request.state.user_id = str(user.id)
                             request.state.user_role = user.role
-                except Exception as e:
+                except Exception:
                     pass  # Ignore debug auth errors
                 finally:
                     db.close()
             return await call_next(request)
 
-        if path in public_paths or any(path.startswith(prefix) for prefix in public_prefixes):
+        if path in public_paths or any(
+            path.startswith(prefix) for prefix in public_prefixes
+        ):
             return await call_next(request)
-        logger.debug(f"Path: {path}, Authorization header present: {bool(authorization)}")
+        logger.debug(
+            f"Path: {path}, Authorization header present: {bool(authorization)}"
+        )
 
         if not authorization or not authorization.startswith("Bearer "):
             logger.warning(f"Missing or invalid authorization header for {path}")

@@ -1,12 +1,20 @@
 import re
 import uuid
+
 from sqlalchemy import (
     ARRAY,
+)
+from sqlalchemy import JSON as SQLJSON
+from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     Date,
     DateTime,
+)
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
@@ -18,16 +26,13 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
-    BigInteger,
     func,
     text,
-    JSON as SQLJSON,
-    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import BYTEA, ENUM, INET, JSONB, UUID
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import relationship
-from sqlalchemy.types import TypeDecorator, CHAR
+from sqlalchemy.types import CHAR, TypeDecorator
 
 from backend.config import _get_settings_instance
 from backend.db import Base
@@ -160,7 +165,9 @@ class User(Base):
         nullable=False,
     )
     statut = Column(
-        _enum_type(("actif", "inactif", "suspendu", "en_attente", "supprime"), "statut_compte"),
+        _enum_type(
+            ("actif", "inactif", "suspendu", "en_attente", "supprime"), "statut_compte"
+        ),
         nullable=False,
         server_default=_server_default("'en_attente'::public.statut_compte"),
     )
@@ -174,18 +181,30 @@ class User(Base):
         server_default=_server_default("'clair'::public.theme_interface"),
     )
     totp_secret = Column(String(100))
-    totp_actif = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    email_verifie = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    totp_actif = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    email_verifie = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     email_otp = Column(String(6))
     email_otp_expires = Column(DateTime(timezone=True))
-    telephone_verifie = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    telephone_verifie = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     reset_password_token = Column(String(255))
     reset_password_token_expires = Column(DateTime(timezone=True))
     last_login = Column(DateTime(timezone=True))
-    nb_tentatives_connexion = Column(Integer, nullable=False, server_default=_server_default("0"))
+    nb_tentatives_connexion = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
     bloque_jusqu_a = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     deleted_at = Column(DateTime(timezone=True))
 
     @property
@@ -205,7 +224,9 @@ class User(Base):
 
 class Patient(Base):
     __tablename__ = "patients"
-    __table_args__ = (UniqueConstraint("numero_patient", name="uq_patients_numero_patient"),)
+    __table_args__ = (
+        UniqueConstraint("numero_patient", name="uq_patients_numero_patient"),
+    )
 
     id = Column(
         GUID(),
@@ -247,17 +268,27 @@ class Patient(Base):
     contact_urgence_nom = Column(String(150))
     contact_urgence_tel = Column(String(20))
     contact_urgence_lien = Column(String(50))
-    consentement_donnees = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    consentement_donnees = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     date_consentement = Column(DateTime(timezone=True))
-    consentement_marketing = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    consentement_marketing = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Consultation(Base):
     __tablename__ = "consultations"
     __table_args__ = (
-        UniqueConstraint("numero_consultation", name="uq_consultations_numero_consultation"),
+        UniqueConstraint(
+            "numero_consultation", name="uq_consultations_numero_consultation"
+        ),
         UniqueConstraint("rdv_id", name="uq_consultations_rdv_id"),
         Index("ix_consultations_patient_id", "patient_id"),
         Index("ix_consultations_medecin_id", "medecin_id"),
@@ -275,7 +306,9 @@ class Consultation(Base):
     dossier_id = Column(GUID(), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
-    date_heure_debut = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    date_heure_debut = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     date_heure_fin = Column(DateTime(timezone=True))
     duree_minutes = Column(Integer)
     motif = Column(Text, nullable=False)
@@ -286,14 +319,22 @@ class Consultation(Base):
     diagnostics_secondaires = Column(_array_type(Text))
     plan_traitement = Column(Text)
     observations = Column(Text)
-    suivi_necessaire = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    suivi_necessaire = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     date_prochain_rdv = Column(Date)
     instructions_patient = Column(Text)
     transcription_ia = Column(Text)
     resume_ia = Column(Text)
-    statut = Column(String(20), nullable=False, server_default=_server_default("'en_cours'"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    statut = Column(
+        String(20), nullable=False, server_default=_server_default("'en_cours'")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Ordonnance(Base):
@@ -335,11 +376,21 @@ class Ordonnance(Base):
     hash_integritet = Column(String(64))
     pdf_url = Column(String(1000))
     notes_medecin = Column(Text)
-    renouvelable = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    nb_renouvellements_max = Column(Integer, nullable=False, server_default=_server_default("0"))
-    nb_renouvellements = Column(Integer, nullable=False, server_default=_server_default("0"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    renouvelable = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    nb_renouvellements_max = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
+    nb_renouvellements = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     lignes = relationship(
         "OrdonnanceLigne",
@@ -384,14 +435,18 @@ class OrdonnanceLigne(Base):
         nullable=False,
     )
     posologie = Column(String(500), nullable=False)
-    frequence_par_jour = Column(SmallInteger, nullable=False, server_default=_server_default("1"))
+    frequence_par_jour = Column(
+        SmallInteger, nullable=False, server_default=_server_default("1")
+    )
     duree_jours = Column(Integer, nullable=False)
     quantite = Column(Integer, nullable=False)
     avant_repas = Column(Boolean)
     heure_prise = Column(_array_type(Time))
     instructions_speciales = Column(Text)
     interactions_a_eviter = Column(Text)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     ordonnance = relationship("Ordonnance", back_populates="lignes")
 
@@ -421,8 +476,12 @@ class Paiement(Base):
         nullable=False,
         server_default=_server_default("'XAF'::public.devise_enum"),
     )
-    frais_plateforme = Column(Numeric(10, 2), nullable=False, server_default=_server_default("0"))
-    taux_commission = Column(Numeric(5, 4), nullable=False, server_default=_server_default("0.1000"))
+    frais_plateforme = Column(
+        Numeric(10, 2), nullable=False, server_default=_server_default("0")
+    )
+    taux_commission = Column(
+        Numeric(5, 4), nullable=False, server_default=_server_default("0.1000")
+    )
     montant_medecin = Column(Numeric(10, 2))
     methode = Column(
         _enum_type(
@@ -441,7 +500,9 @@ class Paiement(Base):
         nullable=False,
     )
     fournisseur = Column(
-        _enum_type(("cinetpay", "stripe", "notchpay", "interne"), "fournisseur_paiement"),
+        _enum_type(
+            ("cinetpay", "stripe", "notchpay", "interne"), "fournisseur_paiement"
+        ),
         nullable=False,
     )
     statut = Column(
@@ -468,16 +529,24 @@ class Paiement(Base):
     motif_remboursement = Column(Text)
     montant_rembourse = Column(Numeric(10, 2))
     reference_remboursement = Column(String(200))
-    webhook_data = Column(_json_type(), nullable=False, server_default=_server_default("'{}'::jsonb"))
+    webhook_data = Column(
+        _json_type(), nullable=False, server_default=_server_default("'{}'::jsonb")
+    )
     webhook_signature = Column(String(500))
-    reversi_effectue = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    reversi_effectue = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     date_reversement = Column(DateTime(timezone=True))
     reference_reversement = Column(String(200))
     ip_paiement = Column(_inet_type())
     user_agent_paiement = Column(Text)
     date_expiration = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class DossierMedical(Base):
@@ -503,18 +572,28 @@ class DossierMedical(Base):
     antecedents_chirurgicaux = Column(Text)
     antecedents_allergiques = Column(Text)
     antecedents_gyneco = Column(Text)
-    habitudes_vie = Column(_json_type(), nullable=False, server_default=_server_default("'{}'::jsonb"))
+    habitudes_vie = Column(
+        _json_type(), nullable=False, server_default=_server_default("'{}'::jsonb")
+    )
     taille_cm = Column(Numeric(5, 2))
     poids_kg = Column(Numeric(5, 2))
     imc = Column(Numeric(4, 2))
     tension_arterielle = Column(String(20))
     glycemie_a_jeun = Column(Numeric(6, 2))
-    vaccinations = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
-    traitements_chroniques = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
+    vaccinations = Column(
+        _json_type(), nullable=False, server_default=_server_default("'[]'::jsonb")
+    )
+    traitements_chroniques = Column(
+        _json_type(), nullable=False, server_default=_server_default("'[]'::jsonb")
+    )
     code_partage = Column(String(20))
     code_partage_expires = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class RendezVous(Base):
@@ -570,7 +649,9 @@ class RendezVous(Base):
     webrtc_room_id = Column(String(100))
     token_patient = Column(String(500))
     token_medecin = Column(String(500))
-    montant = Column(Numeric(10, 2), nullable=False, server_default=_server_default("0"))
+    montant = Column(
+        Numeric(10, 2), nullable=False, server_default=_server_default("0")
+    )
     devise = Column(
         _enum_type(("XAF", "EUR", "USD", "GBP", "XOF"), "devise_enum"),
         nullable=False,
@@ -579,12 +660,20 @@ class RendezVous(Base):
     annule_par = Column(GUID(), ForeignKey("users.id"))
     motif_annulation = Column(Text)
     date_annulation = Column(DateTime(timezone=True))
-    rappel_j1_envoye = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    rappel_h1_envoye = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    rappel_j1_envoye = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    rappel_h1_envoye = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     note_patient = Column(SmallInteger)
     commentaire_patient = Column(Text)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Notification(Base):
@@ -622,26 +711,36 @@ class Notification(Base):
         nullable=False,
     )
     canal = Column(
-        _enum_type(("push", "sms", "email", "in_app", "whatsapp"), "canal_notification"),
+        _enum_type(
+            ("push", "sms", "email", "in_app", "whatsapp"), "canal_notification"
+        ),
         nullable=False,
         server_default=_server_default("'in_app'::public.canal_notification"),
     )
     statut = Column(
-        _enum_type(("en_attente", "envoye", "lu", "echoue", "expire"), "statut_notification"),
+        _enum_type(
+            ("en_attente", "envoye", "lu", "echoue", "expire"), "statut_notification"
+        ),
         nullable=False,
         server_default=_server_default("'en_attente'::public.statut_notification"),
     )
     titre = Column(String(300), nullable=False)
     contenu = Column(Text, nullable=False)
-    donnees_supplementaires = Column(_json_type(), nullable=False, server_default=_server_default("'{}'::jsonb"))
+    donnees_supplementaires = Column(
+        _json_type(), nullable=False, server_default=_server_default("'{}'::jsonb")
+    )
     date_envoi_planifie = Column(DateTime(timezone=True), server_default=func.now())
     date_envoi_reel = Column(DateTime(timezone=True))
     date_lecture = Column(DateTime(timezone=True))
-    nb_tentatives = Column(SmallInteger, nullable=False, server_default=_server_default("0"))
+    nb_tentatives = Column(
+        SmallInteger, nullable=False, server_default=_server_default("0")
+    )
     derniere_erreur = Column(Text)
     prochaine_tentative = Column(DateTime(timezone=True))
     reference_externe = Column(String(500))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Avis(Base):
@@ -669,8 +768,12 @@ class Avis(Base):
     motif_masquage = Column(Text)
     reponse_medecin = Column(Text)
     date_reponse = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class ChatbotSession(Base):
@@ -689,7 +792,9 @@ class ChatbotSession(Base):
     )
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=True)
-    messages = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
+    messages = Column(
+        _json_type(), nullable=False, server_default=_server_default("'[]'::jsonb")
+    )
     symptomes_detectes = Column(
         _array_type(String),
         nullable=False,
@@ -701,14 +806,28 @@ class ChatbotSession(Base):
         nullable=False,
         server_default=_server_default("'faible'::public.niveau_urgence"),
     )
-    redirection_rdv = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    redirection_rdv = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     rdv_cree_id = Column(GUID(), ForeignKey("rendez_vous.id"))
-    modele_ia = Column(String(50), nullable=False, server_default=_server_default("'gpt-4o-mini'"))
-    tokens_utilises = Column(Integer, nullable=False, server_default=_server_default("0"))
-    cout_estime_usd = Column(Numeric(10, 6), nullable=False, server_default=_server_default("0"))
-    statut = Column(String(20), nullable=False, server_default=_server_default("'active'"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    modele_ia = Column(
+        String(50), nullable=False, server_default=_server_default("'gpt-4o-mini'")
+    )
+    tokens_utilises = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
+    cout_estime_usd = Column(
+        Numeric(10, 6), nullable=False, server_default=_server_default("0")
+    )
+    statut = Column(
+        String(20), nullable=False, server_default=_server_default("'active'")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Conversation(Base):
@@ -728,13 +847,23 @@ class Conversation(Base):
     patient_id = Column(GUID(), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     rdv_id = Column(GUID(), ForeignKey("rendez_vous.id"))
-    statut = Column(String(20), nullable=False, server_default=_server_default("'active'"))
-    nb_messages_non_lus_patient = Column(Integer, nullable=False, server_default=_server_default("0"))
-    nb_messages_non_lus_medecin = Column(Integer, nullable=False, server_default=_server_default("0"))
+    statut = Column(
+        String(20), nullable=False, server_default=_server_default("'active'")
+    )
+    nb_messages_non_lus_patient = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
+    nb_messages_non_lus_medecin = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
     dernier_message_at = Column(DateTime(timezone=True))
     dernier_message_preview = Column(String(200))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Disponibilite(Base):
@@ -756,7 +885,9 @@ class Disponibilite(Base):
     )
     heure_debut = Column(Time, nullable=False)
     heure_fin = Column(Time, nullable=False)
-    duree_creneau_minutes = Column(Integer, nullable=False, server_default=_server_default("30"))
+    duree_creneau_minutes = Column(
+        Integer, nullable=False, server_default=_server_default("30")
+    )
     type = Column(
         _enum_type(("presentiel", "video", "audio", "chat"), "type_consultation"),
         nullable=False,
@@ -770,7 +901,9 @@ class Disponibilite(Base):
         nullable=False,
         server_default=_server_default("'hebdomadaire'::public.recurrence_enum"),
     )
-    date_debut_validite = Column(Date, nullable=False, server_default=func.current_date())
+    date_debut_validite = Column(
+        Date, nullable=False, server_default=func.current_date()
+    )
     date_fin_validite = Column(Date)
     exceptions = Column(
         _array_type(Date),
@@ -778,8 +911,12 @@ class Disponibilite(Base):
         server_default=_server_default("ARRAY[]::date[]"),
     )
     actif = Column(Boolean, nullable=False, server_default=_server_default("true"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class DocumentMedical(Base):
@@ -818,35 +955,53 @@ class DocumentMedical(Base):
     checksum_sha256 = Column(String(64), nullable=False)
     taille_octets = Column(BigInteger, nullable=False)
     mime_type = Column(String(100), nullable=False)
-    est_chiffre = Column(Boolean, nullable=False, server_default=_server_default("true"))
+    est_chiffre = Column(
+        Boolean, nullable=False, server_default=_server_default("true")
+    )
     cle_chiffrement_ref = Column(String(100))
     partage_avec_medecins = Column(
         _array_type(GUID()),
         nullable=False,
         server_default=_server_default("ARRAY[]::uuid[]"),
     )
-    visible_patient = Column(Boolean, nullable=False, server_default=_server_default("true"))
+    visible_patient = Column(
+        Boolean, nullable=False, server_default=_server_default("true")
+    )
     description = Column(Text)
     date_document = Column(Date)
     laboratoire_nom = Column(String(200))
     prescripteur_nom = Column(String(200))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class MedecinSpecialite(Base):
     __tablename__ = "medecin_specialites"
     __table_args__ = (
-        PrimaryKeyConstraint("medecin_id", "specialite_id", name="pk_medecin_specialites"),
-        CheckConstraint("annees_pratique >= 0", name="medecin_specialites_annees_pratique_check"),
+        PrimaryKeyConstraint(
+            "medecin_id", "specialite_id", name="pk_medecin_specialites"
+        ),
+        CheckConstraint(
+            "annees_pratique >= 0", name="medecin_specialites_annees_pratique_check"
+        ),
     )
 
     medecin_id = Column(GUID(), ForeignKey("medecins.id"), nullable=False)
     specialite_id = Column(GUID(), ForeignKey("specialites.id"), nullable=False)
-    principale = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    annees_pratique = Column(Integer, nullable=False, server_default=_server_default("0"))
+    principale = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    annees_pratique = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
     certifie = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Medecin(Base):
@@ -864,29 +1019,49 @@ class Medecin(Base):
     )
     date_verification = Column(DateTime(timezone=True))
     verifie_par_admin_id = Column(GUID(), ForeignKey("users.id"))
-    annees_experience = Column(Integer, nullable=False, server_default=_server_default("0"))
+    annees_experience = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
     biographie = Column(Text)
-    diplomes = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
-    certifications = Column(_json_type(), nullable=False, server_default=_server_default("'[]'::jsonb"))
+    diplomes = Column(
+        _json_type(), nullable=False, server_default=_server_default("'[]'::jsonb")
+    )
+    certifications = Column(
+        _json_type(), nullable=False, server_default=_server_default("'[]'::jsonb")
+    )
     langues_parlees = Column(
         _array_type(String(10)),
         nullable=False,
         server_default=_server_default("ARRAY['fr'::text]"),
     )
-    tarif_consultation = Column(Numeric(10, 2), nullable=False, server_default=_server_default("5000.00"))
+    tarif_consultation = Column(
+        Numeric(10, 2), nullable=False, server_default=_server_default("5000.00")
+    )
     devise = Column(
         _enum_type(("XAF", "EUR", "USD", "GBP", "XOF"), "devise_enum"),
         nullable=False,
         server_default=_server_default("'XAF'::public.devise_enum"),
     )
-    teleconsultation_active = Column(Boolean, nullable=False, server_default=_server_default("true"))
-    note_moyenne = Column(Numeric(3, 2), nullable=False, server_default=_server_default("0.00"))
+    teleconsultation_active = Column(
+        Boolean, nullable=False, server_default=_server_default("true")
+    )
+    note_moyenne = Column(
+        Numeric(3, 2), nullable=False, server_default=_server_default("0.00")
+    )
     nombre_avis = Column(Integer, nullable=False, server_default=_server_default("0"))
-    nombre_consultations = Column(Integer, nullable=False, server_default=_server_default("0"))
+    nombre_consultations = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
     structure_id = Column(GUID(), ForeignKey("structures.id"))
-    disponible_maintenant = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    disponible_maintenant = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Message(Base):
@@ -902,7 +1077,9 @@ class Message(Base):
     expediteur_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
     contenu_chiffre = Column(_bytea_type(), nullable=False)
     type = Column(
-        _enum_type(("texte", "image", "document", "audio", "video", "systeme"), "type_message"),
+        _enum_type(
+            ("texte", "image", "document", "audio", "video", "systeme"), "type_message"
+        ),
         nullable=False,
         server_default=_server_default("'texte'::public.type_message"),
     )
@@ -910,11 +1087,17 @@ class Message(Base):
     fichier_nom = Column(String(500))
     fichier_taille = Column(BigInteger)
     fichier_mime = Column(String(100))
-    lu_par_destinataire = Column(Boolean, nullable=False, server_default=_server_default("false"))
+    lu_par_destinataire = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
     date_lecture = Column(DateTime(timezone=True))
     signale = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    supprime_par_expediteur = Column(Boolean, nullable=False, server_default=_server_default("false"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    supprime_par_expediteur = Column(
+        Boolean, nullable=False, server_default=_server_default("false")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Session(Base):
@@ -938,7 +1121,9 @@ class Session(Base):
     revoque = Column(Boolean, nullable=False, server_default=_server_default("false"))
     date_revocation = Column(DateTime(timezone=True))
     motif_revocation = Column(String(50))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     last_used_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -957,8 +1142,12 @@ class Specialite(Base):
     description = Column(Text)
     icone_url = Column(String(1000))
     actif = Column(Boolean, nullable=False, server_default=_server_default("true"))
-    ordre_affichage = Column(Integer, nullable=False, server_default=_server_default("0"))
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    ordre_affichage = Column(
+        Integer, nullable=False, server_default=_server_default("0")
+    )
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Structure(Base):
@@ -989,15 +1178,21 @@ class Structure(Base):
     site_web = Column(String(1000))
     description = Column(Text)
     logo_url = Column(String(1000))
-    horaires_ouverture = Column(_json_type(), nullable=False, server_default=_server_default("'{}'::jsonb"))
+    horaires_ouverture = Column(
+        _json_type(), nullable=False, server_default=_server_default("'{}'::jsonb")
+    )
     services_offerts = Column(
         _array_type(String),
         nullable=False,
         server_default=_server_default("ARRAY[]::text[]"),
     )
     capacite_lits = Column(Integer)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class AuditLog(Base):
@@ -1056,7 +1251,9 @@ class AuditLog(Base):
     message_erreur = Column(Text)
     duree_ms = Column(Integer)
     additional_data = Column(_json_type())
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class TokenBlacklist(Base):
@@ -1076,7 +1273,9 @@ class TokenBlacklist(Base):
         server_default=_server_default("'logout'::public.token_revoke_reason"),
     )
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     # Index pour optimiser les nettoyages
     __table_args__ = (
@@ -1095,12 +1294,16 @@ class TokenRotationLog(Base):
     old_token_hash = Column(String(64), nullable=False)  # Hash SHA-256 du token
     new_token_hash = Column(String(64), nullable=False)  # Hash SHA-256 du nouveau token
     rotation_reason = Column(
-        _enum_type(("proactive", "expiration", "suspicion", "manual"), "token_rotation_reason"),
+        _enum_type(
+            ("proactive", "expiration", "suspicion", "manual"), "token_rotation_reason"
+        ),
         nullable=False,
     )
     ip_address = Column(_inet_type())
     user_agent = Column(Text)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     # Index pour les recherches par utilisateur
     __table_args__ = (

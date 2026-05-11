@@ -27,10 +27,10 @@ from sqlalchemy import inspect  # noqa: E402
 # Imports directs via package root
 try:
     from backend.auth import get_password_hash
-    from backend.db import SessionLocal, engine, Base
+    from backend.config import _get_settings_instance
+    from backend.db import Base, SessionLocal, engine
     from backend.main import app
     from backend.models import User
-    from backend.config import _get_settings_instance
 except ImportError as e:
     print(f"Import error: {e}")
     get_password_hash = None
@@ -50,12 +50,13 @@ ADMIN_PASSWORD = "Admin1234!"
 @pytest.fixture(scope="session", autouse=True)
 def ensure_database_schema() -> None:
     if not ALEMBIC_INI_PATH.exists() or not ALEMBIC_SCRIPT_LOCATION.exists():
-        pytest.skip(f"Alembic configuration missing for tests: {ALEMBIC_INI_PATH} or {ALEMBIC_SCRIPT_LOCATION}")
+        pytest.skip(
+            f"Alembic configuration missing for tests: {ALEMBIC_INI_PATH} or {ALEMBIC_SCRIPT_LOCATION}"
+        )
 
-    required_tables = []
     try:
         with engine.connect() as conn:
-            inspector = inspect(conn)
+            inspect(conn)
             # Always try to create schema for tests
     except Exception as exc:
         pytest.skip(f"Database unavailable for tests: {exc}")

@@ -24,7 +24,9 @@ async def list_tables(current_user=Depends(require_role("admin"))):
     try:
         metadata = prepare_models().metadata
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Database schema reflection failed: {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"Database schema reflection failed: {exc}"
+        )
     return {"tables": sorted(metadata.tables.keys())}
 
 
@@ -110,7 +112,9 @@ async def create_table_row(
     table = model.__table__
     sanitized = {k: v for k, v in values.items() if k in table.columns}
     if not sanitized:
-        raise HTTPException(status_code=400, detail="No valid columns provided for insertion")
+        raise HTTPException(
+            status_code=400, detail="No valid columns provided for insertion"
+        )
 
     stmt = insert(table).values(**sanitized).returning(*table.columns)
     try:

@@ -1,6 +1,6 @@
+import secrets
 from datetime import datetime
 from uuid import UUID, uuid4
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -32,10 +32,14 @@ async def prepare_teleconsultation(
 ):
     rendez_vous = db.get(RendezVous, payload.rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
 
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if rendez_vous.type not in ("video", "audio"):
         raise HTTPException(
@@ -64,7 +68,9 @@ async def prepare_teleconsultation(
     )
 
 
-@router.get("/teleconsultation/{rendez_vous_id}", response_model=TeleconsultationPrepareResponse)
+@router.get(
+    "/teleconsultation/{rendez_vous_id}", response_model=TeleconsultationPrepareResponse
+)
 @api_limiter.limit("20/minute")  # Lecture téléconsultation: 20/minute
 async def get_teleconsultation(
     request: Request,
@@ -74,12 +80,18 @@ async def get_teleconsultation(
 ):
     rendez_vous = db.get(RendezVous, rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
 
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "patient" and rendez_vous.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if not rendez_vous.webrtc_room_id:
         raise HTTPException(
@@ -108,7 +120,9 @@ async def send_teleconsultation_signal(
 ):
     rendez_vous = db.get(RendezVous, rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
 
     if not rendez_vous.webrtc_room_id:
         raise HTTPException(
@@ -117,9 +131,13 @@ async def send_teleconsultation_signal(
         )
 
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "patient" and rendez_vous.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     return {
         "detail": "Signaling accepted",

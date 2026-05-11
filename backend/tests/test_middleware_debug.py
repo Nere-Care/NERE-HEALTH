@@ -1,7 +1,7 @@
 """Debug test to verify JWT middleware is setting request.state.user"""
 
-import pytest
 from fastapi.testclient import TestClient
+
 from backend.main import app
 
 

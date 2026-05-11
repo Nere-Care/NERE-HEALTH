@@ -78,8 +78,9 @@ def test_medecin(db):
 def test_rdv(db, test_patient, test_medecin):
     """Crée un RDV de test pour les tests de paiement"""
     import uuid
+    from datetime import datetime, timedelta, timezone
+
     from backend.models import RendezVous
-    from datetime import datetime, timezone, timedelta
 
     now = datetime.now(timezone.utc)
     rdv = RendezVous(
@@ -103,7 +104,9 @@ def test_rdv(db, test_patient, test_medecin):
 class TestPaiementRateLimiting:
     """Tests pour vérifier le rate limiting sur les routes de paiement"""
 
-    def test_create_paiement_rate_limit(self, medecin_auth_header, test_patient, test_medecin, test_rdv):
+    def test_create_paiement_rate_limit(
+        self, medecin_auth_header, test_patient, test_medecin, test_rdv
+    ):
         """Test que la création de paiement est limitée à 10/minute"""
         import uuid
 
@@ -115,8 +118,12 @@ class TestPaiementRateLimiting:
                 json={
                     "reference": f"TEST_REF_{i}_{uuid.uuid4().hex[:8]}",  # Référence unique
                     "rdv_id": str(test_rdv.id),  # Utiliser le RDV de test créé
-                    "patient_id": str(test_patient.id),  # Utiliser l'ID réel du patient de test
-                    "medecin_id": str(test_medecin.id),  # Utiliser l'ID réel du médecin de test
+                    "patient_id": str(
+                        test_patient.id
+                    ),  # Utiliser l'ID réel du patient de test
+                    "medecin_id": str(
+                        test_medecin.id
+                    ),  # Utiliser l'ID réel du médecin de test
                     "montant_total": 100.0,
                     "devise": "EUR",
                     "methode": "carte_visa",
@@ -128,13 +135,19 @@ class TestPaiementRateLimiting:
 
         # Les 10 premières devraient réussir ou échouer pour d'autres raisons (400, 404, 403, 500)
         # La 11ème devrait être bloquée par rate limiting (429)
-        success_count = sum(1 for r in responses[:10] if r.status_code in [201, 400, 404, 403, 500])
+        success_count = sum(
+            1 for r in responses[:10] if r.status_code in [201, 400, 404, 403, 500]
+        )
         rate_limited_count = sum(1 for r in responses[10:] if r.status_code == 429)
 
         assert success_count >= 8, f"Trop d'échecs inattendus: {success_count}/10"
-        assert rate_limited_count >= 1, f"Rate limiting non appliqué: {rate_limited_count}/1"
+        assert (
+            rate_limited_count >= 1
+        ), f"Rate limiting non appliqué: {rate_limited_count}/1"
 
-    def test_checkout_session_rate_limit(self, medecin_auth_header, test_patient, test_medecin, test_rdv):
+    def test_checkout_session_rate_limit(
+        self, medecin_auth_header, test_patient, test_medecin, test_rdv
+    ):
         """Test que le checkout est limité à 3/minute"""
         # Faire 4 requêtes rapidement
         responses = []
@@ -161,10 +174,18 @@ class TestPaiementRateLimiting:
         rate_limited_count = sum(1 for r in responses[3:] if r.status_code == 429)
 
         assert success_count >= 2, f"Trop d'échecs inattendus: {success_count}/3"
-        assert rate_limited_count >= 1, f"Rate limiting non appliqué: {rate_limited_count}/1"
+        assert (
+            rate_limited_count >= 1
+        ), f"Rate limiting non appliqué: {rate_limited_count}/1"
 
-    def test_webhook_rate_limit(self):
+    def test_webhook_rate_limit(self, monkeypatch):
         """Test que les webhooks sont limités à 100/minute"""
+        from backend.limiter import get_shared_storage
+
+        # Utiliser un stockage partagé pour les tests
+        shared_storage = get_shared_storage()
+        monkeypatch.setattr("backend.limiter.payment_limiter._storage", shared_storage)
+
         # Faire 101 requêtes rapidement
         responses = []
         for i in range(101):
@@ -177,11 +198,15 @@ class TestPaiementRateLimiting:
 
         # Les 100 premières devraient réussir ou échouer pour d'autres raisons
         # La 101ème devrait être bloquée
-        success_count = sum(1 for r in responses[:100] if r.status_code in [200, 400, 503])
+        success_count = sum(
+            1 for r in responses[:100] if r.status_code in [200, 400, 503]
+        )
         rate_limited_count = sum(1 for r in responses[100:] if r.status_code == 429)
 
         assert success_count >= 95, f"Trop d'échecs inattendus: {success_count}/100"
-        assert rate_limited_count >= 1, f"Rate limiting non appliqué: {rate_limited_count}/1"
+        assert (
+            rate_limited_count >= 1
+        ), f"Rate limiting non appliqué: {rate_limited_count}/1"
 
     def test_read_paiement_rate_limit(self, medecin_auth_header):
         """Test que la lecture de paiement est limitée à 30/minute"""
@@ -196,11 +221,15 @@ class TestPaiementRateLimiting:
 
         # Les 30 premières devraient réussir ou échouer pour d'autres raisons
         # La 31ème devrait être bloquée
-        success_count = sum(1 for r in responses[:30] if r.status_code in [200, 404, 403])
+        success_count = sum(
+            1 for r in responses[:30] if r.status_code in [200, 404, 403]
+        )
         rate_limited_count = sum(1 for r in responses[30:] if r.status_code == 429)
 
         assert success_count >= 25, f"Trop d'échecs inattendus: {success_count}/30"
-        assert rate_limited_count >= 1, f"Rate limiting non appliqué: {rate_limited_count}/1"
+        assert (
+            rate_limited_count >= 1
+        ), f"Rate limiting non appliqué: {rate_limited_count}/1"
 
     def test_rate_limit_reset_after_time(self, medecin_auth_header):
         """Test que les limites se réinitialisent après la période"""

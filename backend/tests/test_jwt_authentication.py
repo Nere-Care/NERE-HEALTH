@@ -9,11 +9,11 @@ Tests complets du système JWT avec:
 - Audit logging
 """
 
-import pytest
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
+
 import jwt
+import pytest
 
 # Note: Ces tests supposent PyJWT 2.10.1 installé
 
@@ -63,13 +63,15 @@ class TestJWTTokenCreation:
 
     def test_token_expiration_access_vs_refresh(self):
         """Vérifie que refresh token a une durée plus longue."""
+
         from backend.jwt_handler import JWTHandler
-        from datetime import timedelta
 
         user_id = uuid4()
 
         # Créer les deux tokens
-        access_token = JWTHandler.create_access_token(user_id, "test@example.com", "patient")
+        access_token = JWTHandler.create_access_token(
+            user_id, "test@example.com", "patient"
+        )
         refresh_token = JWTHandler.create_refresh_token(user_id, "test@example.com")
 
         # Décoder
@@ -112,9 +114,10 @@ class TestJWTTokenValidation:
 
     def test_decode_expired_token(self):
         """Rejette un token expiré."""
-        from backend.jwt_handler import JWTHandler
-        from backend.config import _get_settings_instance
         from datetime import datetime, timedelta, timezone
+
+        from backend.config import _get_settings_instance
+        from backend.jwt_handler import JWTHandler
 
         user_id = uuid4()
         # Créer un token expiré (il y a 1 heure)
@@ -155,9 +158,10 @@ class TestJWTTokenRotation:
 
     def test_should_rotate_token_true(self):
         """Retourne True pour un token approchant l'expiration."""
-        from backend.jwt_handler import JWTHandler
+        from datetime import datetime, timezone
+
         from backend.config import _get_settings_instance
-        from datetime import datetime, timedelta, timezone
+        from backend.jwt_handler import JWTHandler
 
         user_id = uuid4()
         # Créer un token avec expiration dans 2 minutes (presque expiré)
@@ -298,17 +302,14 @@ class TestJWTAuthRoutes:
         """L'endpoint /auth/token crée une paire de tokens."""
         # Ce test nécessiterait un client FastAPI et une DB en mémoire
         # À implémenter avec une vraie BD de test
-        pass
 
     def test_refresh_endpoint_rotates_tokens(self):
         """L'endpoint /auth/refresh rafraîchit les tokens."""
         # Ce test nécessiterait un client FastAPI et une DB en mémoire
-        pass
 
     def test_logout_endpoint_revokes_tokens(self):
         """L'endpoint /auth/logout révoque les tokens."""
         # Ce test nécessiterait un client FastAPI et une DB en mémoire
-        pass
 
 
 # ============================================================================

@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 os.environ['DATABASE_URL'] = 'sqlite:///./tmp.db'
 print('env var before import:', os.environ['DATABASE_URL'])
 
+
 class S(BaseSettings):
     DATABASE_URL_RAW: str = Field('', env='DATABASE_URL')
     model_config = {'env_file': '.env', 'extra': 'ignore'}

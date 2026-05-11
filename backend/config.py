@@ -4,11 +4,12 @@ Toute la logique de sécurité de la configuration est centralisée ici.
 Version: 2.0 (Production-Ready)
 """
 
-from pathlib import Path
-from dotenv import load_dotenv
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator, model_validator, ConfigDict
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT.parent / ".env", override=False)
@@ -44,7 +45,10 @@ def _validate_secret_key(key: str, env: str) -> str:
         return key
 
     if env == "production" and len(key) < 64:
-        raise ValueError(f"🔴 CRITIQUE: SECRET_KEY doit faire minimum 64 caractères " f"(reçu: {len(key)})")
+        raise ValueError(
+            f"🔴 CRITIQUE: SECRET_KEY doit faire minimum 64 caractères "
+            f"(reçu: {len(key)})"
+        )
 
     return key
 
@@ -158,14 +162,18 @@ def _validate_environment(env: str) -> str:
     """Valider l'environnement"""
     env = env.lower().strip()
     if env not in ("development", "staging", "production", "testing"):
-        raise ValueError(f"🔴 ERREUR: ENVIRONMENT doit être development|staging|production|testing (reçu: {env})")
+        raise ValueError(
+            f"🔴 ERREUR: ENVIRONMENT doit être development|staging|production|testing (reçu: {env})"
+        )
     return env
 
 
 class Settings(BaseSettings):
     """Configuration centralisée sécurisée - AUDIT v2.0"""
 
-    model_config = ConfigDict(env_file=ROOT.parent / ".env", extra="ignore", env_prefix="")
+    model_config = ConfigDict(
+        env_file=ROOT.parent / ".env", extra="ignore", env_prefix=""
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -185,10 +193,14 @@ class Settings(BaseSettings):
             values["SECRET_KEY"] = os.getenv("SECRET_KEY", "")
 
         if not values.get("CORS_ORIGINS"):
-            values["CORS_ORIGINS"] = os.getenv("CORS_ORIGINS", values.get("CORS_ORIGINS", "*"))
+            values["CORS_ORIGINS"] = os.getenv(
+                "CORS_ORIGINS", values.get("CORS_ORIGINS", "*")
+            )
 
         if not values.get("ALLOWED_HOSTS"):
-            values["ALLOWED_HOSTS"] = os.getenv("ALLOWED_HOSTS", values.get("ALLOWED_HOSTS", "localhost"))
+            values["ALLOWED_HOSTS"] = os.getenv(
+                "ALLOWED_HOSTS", values.get("ALLOWED_HOSTS", "localhost")
+            )
 
         if not values.get("STRIPE_API_KEY"):
             values["STRIPE_API_KEY"] = os.getenv("STRIPE_API_KEY", "")
@@ -228,7 +240,9 @@ class Settings(BaseSettings):
     def validate_environment(cls, v):
         v = v.lower().strip()
         if v not in ("development", "staging", "production", "testing"):
-            raise ValueError(f"🔴 ERREUR: ENVIRONMENT doit être development|staging|production|testing (reçu: {v})")
+            raise ValueError(
+                f"🔴 ERREUR: ENVIRONMENT doit être development|staging|production|testing (reçu: {v})"
+            )
         return v
 
     @field_validator("SECRET_KEY")
@@ -256,7 +270,10 @@ class Settings(BaseSettings):
             return v
 
         if env == "production" and len(v) < 64:
-            raise ValueError(f"🔴 CRITIQUE: SECRET_KEY doit faire minimum 64 caractères " f"(reçu: {len(v)})")
+            raise ValueError(
+                f"🔴 CRITIQUE: SECRET_KEY doit faire minimum 64 caractères "
+                f"(reçu: {len(v)})"
+            )
 
         return v
 
@@ -272,7 +289,9 @@ class Settings(BaseSettings):
 
         if not v or not str(v).strip():
             if env == "production":
-                raise ValueError("🔴 CRITIQUE: DATABASE_URL est obligatoire en production")
+                raise ValueError(
+                    "🔴 CRITIQUE: DATABASE_URL est obligatoire en production"
+                )
             if testing:
                 return "sqlite:///./test.db"
             return "postgresql://dev:dev@localhost:5432/dev_nere_db"
@@ -312,10 +331,10 @@ class Settings(BaseSettings):
         normalized = database_url_raw.replace("postgres://", "postgresql://", 1)
 
         try:
-            import pg8000
-
             if normalized.startswith("postgresql://"):
-                normalized = normalized.replace("postgresql://", "postgresql+pg8000://", 1)
+                normalized = normalized.replace(
+                    "postgresql://", "postgresql+pg8000://", 1
+                )
         except ImportError:
             pass
 
@@ -396,15 +415,22 @@ class Settings(BaseSettings):
                 )
             if self.CORS_ORIGINS == ["*"]:
                 raise ValueError(
-                    "🔴 CRITIQUE: CORS_ORIGINS=* est interdite en production\n" "Spécifiez les domaines autorisés"
+                    "🔴 CRITIQUE: CORS_ORIGINS=* est interdite en production\n"
+                    "Spécifiez les domaines autorisés"
                 )
             if not self.ALLOWED_HOSTS or self.ALLOWED_HOSTS == [
                 "localhost",
                 "127.0.0.1",
             ]:
-                raise ValueError("🔴 CRITIQUE: ALLOWED_HOSTS doit être configuré pour des domaines réels en production")
-            if not self.DATABASE_URL_RAW or self.DATABASE_URL_RAW.startswith("sqlite://"):
-                raise ValueError("🔴 CRITIQUE: DATABASE_URL doit pointer vers une base PostgreSQL en production")
+                raise ValueError(
+                    "🔴 CRITIQUE: ALLOWED_HOSTS doit être configuré pour des domaines réels en production"
+                )
+            if not self.DATABASE_URL_RAW or self.DATABASE_URL_RAW.startswith(
+                "sqlite://"
+            ):
+                raise ValueError(
+                    "🔴 CRITIQUE: DATABASE_URL doit pointer vers une base PostgreSQL en production"
+                )
         return self
 
 
@@ -444,10 +470,13 @@ def log_startup_configuration():
         return
 
     stripe_key = (
-        _mask_secret(settings_instance.STRIPE_API_KEY) if settings_instance.STRIPE_API_KEY else "⚠️  NON CONFIGURÉ"
+        _mask_secret(settings_instance.STRIPE_API_KEY)
+        if settings_instance.STRIPE_API_KEY
+        else "⚠️  NON CONFIGURÉ"
     )
 
-    print(f"""
+    print(
+        f"""
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║              🚀 NERE APP - DÉMARRAGE SÉCURISÉ                      ║
 ╠════════════════════════════════════════════════════════════════════════════╣
@@ -459,4 +488,5 @@ def log_startup_configuration():
 ║ 🔐 STRIPE_KEY       : {stripe_key}
 ║ 🔐 DATABASE         : {settings_instance.DATABASE_URL_RAW[:30]}...
 ╚════════════════════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )

@@ -30,11 +30,17 @@ async def list_messages(
             detail="Accès réservé aux utilisateurs authentifiés",
         )
 
-    messages = db.execute(stmt.order_by(Message.created_at.desc()).limit(limit)).scalars().all()
+    messages = (
+        db.execute(stmt.order_by(Message.created_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
     return messages
 
 
-@router.post("/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED
+)
 async def create_message(
     message_create: MessageCreate,
     db: Session = Depends(get_db),
@@ -42,11 +48,17 @@ async def create_message(
 ):
     conversation = db.get(Conversation, message_create.conversation_id)
     if not conversation:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conversation introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Conversation introuvable"
+        )
     if current_user.role == "patient" and conversation.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "medecin" and conversation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     message = Message(
         **message_create.dict(exclude_unset=True),
@@ -73,7 +85,9 @@ async def read_message(
 ):
     message = db.get(Message, message_id)
     if not message:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message non trouvé"
+        )
     return message
 
 
@@ -85,9 +99,13 @@ async def delete_message(
 ):
     message = db.get(Message, message_id)
     if not message:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message non trouvé"
+        )
     if current_user.role != "admin" and message.expediteur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     db.delete(message)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -51,7 +51,9 @@ async def create_consultation(
 ):
     patient = db.get(Patient, consultation_create.patient_id)
     if not patient:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     payload = consultation_create.dict()
     if current_user.role == "medecin":
@@ -69,7 +71,9 @@ async def create_consultation(
             detail = "Ce numéro de consultation est déjà utilisé"
         elif "uq_consultations_rdv_id" in str(exc.orig):
             detail = "Ce rendez-vous est déjà lié à une consultation"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from exc
     return consultation
 
 
@@ -81,10 +85,14 @@ async def read_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role not in ("admin", "medecin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -104,20 +112,28 @@ async def update_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if consultation_update.patient_id:
         patient = db.get(Patient, consultation_update.patient_id)
         if not patient:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+            )
 
     if consultation_update.medecin_id and current_user.role == "admin":
         medecin = db.get(User, consultation_update.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in consultation_update.dict(exclude_unset=True).items():
         if current_user.role == "medecin" and field == "medecin_id":
@@ -138,7 +154,9 @@ async def update_consultation(
     return consultation
 
 
-@router.delete("/consultations/{consultation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/consultations/{consultation_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_consultation(
     consultation_id: UUID,
     db: Session = Depends(get_db),
@@ -146,10 +164,14 @@ async def delete_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(consultation)
     db.commit()
