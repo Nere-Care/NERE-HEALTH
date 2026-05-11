@@ -78,7 +78,7 @@ jobs:
 
       - name: Security scan Python dependencies
         run: |
-          python -m pip_audit
+          python -m pip_audit -r backend/requirements.txt
 
       - name: Run Alembic migrations
         run: |
