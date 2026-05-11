@@ -1,37 +1,24 @@
-import { useState } from "react";
-import {
-  Search,
-  Filter,
-  Star,
-  MapPin,
-  Clock,
-  Heart,
-  Video,
-  User,
-} from "lucide-react";
-
-import { medecins, specialites } from "../../constants/medecins";
-import { useNavigate } from "react-router-dom";
+import { useState } from 'react';
+import { Search, Filter, Star, MapPin, Clock, Heart, Video, User } from 'lucide-react';
+import { medecins, specialites } from '../../constants/medecins';
+import { useNavigate } from 'react-router-dom';
 
 export default function Annuaire({ darkMode }) {
   const navigate = useNavigate();
-
   const [recherche, setRecherche] = useState("");
   const [filtreSpec, setFiltreSpec] = useState("Toutes");
-
   const [favoris, setFavoris] = useState(
     medecins.reduce((acc, m) => ({ ...acc, [m.id]: m.favoris }), {})
   );
 
   const medecinsFiltres = medecins.filter((m) => {
-    const matchSearch =
+    const matchRecherche =
       m.nom.toLowerCase().includes(recherche.toLowerCase()) ||
       m.specialite.toLowerCase().includes(recherche.toLowerCase());
 
-    const matchSpec =
-      filtreSpec === "Toutes" || m.specialite === filtreSpec;
+    const matchSpec = filtreSpec === "Toutes" || m.specialite === filtreSpec;
 
-    return matchSearch && matchSpec;
+    return matchRecherche && matchSpec;
   });
 
   const toggleFavori = (id, e) => {
@@ -40,158 +27,184 @@ export default function Annuaire({ darkMode }) {
   };
 
   return (
-    <div className={`p-4 space-y-5 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
-      {/* ================= HEADER ================= */}
-      <div className="space-y-1">
-        <h1 className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>
-          Trouver un médecin
+      {/* Titre */}
+      <div className="mb-6">
+        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+          Trouver un Médecin
         </h1>
-
-        <p className="text-sm text-gray-500">
-          Réseau de professionnels de santé disponibles
+        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+          Parcourez notre réseau de professionnels de santé
         </p>
       </div>
 
-      {/* ================= SEARCH BAR ================= */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl
-        ${darkMode ? "bg-gray-800" : "bg-white shadow-sm"}`}>
+      {/* Recherche + filtres */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 flex-1
+          ${darkMode ? "bg-gray-800 border-gray-600" : "bg-white border-gray-200"}`}>
+          <Search size={16} className="text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Rechercher par nom ou spécialité..."
+            className={`outline-none text-sm w-full ${
+              darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""
+            }`}
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+          />
+        </div>
 
-        <Search size={16} className="text-gray-400" />
-
-        <input
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher un médecin ou une spécialité..."
-          className="w-full bg-transparent outline-none text-sm"
-        />
-
-        <Filter size={16} className="text-gray-400 cursor-pointer" />
+        <button className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 text-sm flex-shrink-0
+          ${darkMode ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200 text-gray-600"}`}>
+          <Filter size={16} />
+          Filtres
+        </button>
       </div>
 
-      {/* ================= SPECIALITES ================= */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* Spécialités */}
+      <div className="flex gap-2 flex-wrap mb-6">
         {specialites.map((spec) => (
           <button
             key={spec.label}
             onClick={() => setFiltreSpec(spec.label)}
-            className={`
-              whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all
               ${
                 filtreSpec === spec.label
                   ? "bg-blue-600 text-white"
                   : darkMode
-                  ? "bg-gray-800 text-gray-300"
-                  : "bg-white text-gray-600 shadow-sm"
-              }
-            `}
+                    ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600"
+                    : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+              }`}
           >
             {spec.label}
           </button>
         ))}
       </div>
 
-      {/* ================= GRID ================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Résultats */}
+      <p className={`text-xs mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+        {medecinsFiltres.length} médecin(s) trouvé(s)
+      </p>
 
-        {medecinsFiltres.map((m) => (
+      {/* Liste */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {medecinsFiltres.map((medecin) => (
           <div
-            key={m.id}
-            onClick={() => navigate(`/medecin/${m.id}`)}
-            className={`
-              group cursor-pointer rounded-xl p-4 transition
-              ${darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:shadow-md"}
-            `}
+            key={medecin.id}
+            onClick={() => navigate(`/medecin/${medecin.id}`)}
+            className={`rounded-2xl shadow p-4 flex flex-col gap-3 cursor-pointer transition-all hover:shadow-md
+              ${darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"}`}
           >
 
-            {/* TOP */}
-            <div className="flex justify-between items-start">
-
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium">{m.nom}</h3>
-
-                <p className="text-xs text-blue-500 font-medium">
-                  {m.specialite}
-                </p>
+            {/* Image */}
+            <div className="relative">
+              <div className={`w-full h-40 rounded-xl flex items-center justify-center
+                ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
+                <User size={48} className="text-blue-300" />
               </div>
 
-              {/* FAVORI */}
               <button
-                onClick={(e) => toggleFavori(m.id, e)}
-                className="p-1.5 rounded-lg hover:bg-gray-100"
+                onClick={(e) => toggleFavori(medecin.id, e)}
+                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center"
               >
                 <Heart
                   size={16}
-                  className={
-                    favoris[m.id]
-                      ? "text-red-500 fill-red-500"
-                      : "text-gray-400"
-                  }
+                  className={favoris[medecin.id] ? "text-red-500 fill-red-500" : "text-gray-400"}
                 />
               </button>
+
+              <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-semibold
+                ${medecin.disponible ? "bg-green-500 text-white" : "bg-gray-400 text-white"}`}>
+                {medecin.disponible ? "Disponible" : "Indisponible"}
+              </div>
             </div>
 
-            {/* INFO */}
-            <div className="mt-3 space-y-1 text-xs text-gray-500">
+            {/* Infos */}
+            <div>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
+                    {medecin.nom}
+                  </p>
+                  <p className="text-xs text-blue-500 font-medium">
+                    {medecin.specialite}
+                  </p>
+                </div>
 
-              <div className="flex items-center gap-2">
-                <Star size={12} className="text-yellow-400" />
-                {m.note}
+                <div className="flex items-center gap-1">
+                  <Star size={12} fill="#FBBF24" className="text-yellow-400" />
+                  <span className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    {medecin.note}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <MapPin size={12} />
-                {m.clinique}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Clock size={12} />
-                {m.experience} ans
-              </div>
-
+              <p className={`text-xs mt-1 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                {medecin.description}
+              </p>
             </div>
 
-            {/* BADGE */}
-            <div className="mt-3">
-              <span className={`
-                text-[10px] px-2 py-1 rounded-full
-                ${m.disponible
-                  ? "bg-green-500/10 text-green-500"
-                  : "bg-gray-500/10 text-gray-400"}
-              `}>
-                {m.disponible ? "Disponible" : "Indisponible"}
-              </span>
+            {/* Détails */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <Clock size={12} className="text-gray-400" />
+                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  {medecin.experience} d'expérience
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <MapPin size={12} className="text-gray-400" />
+                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  {medecin.clinique}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Clock size={12} className="text-blue-400" />
+                <span className="text-xs text-blue-400 font-medium">
+                  Prochain : {medecin.prochainRdv}
+                </span>
+              </div>
             </div>
 
-            {/* ACTIONS */}
-            <div className="mt-4 flex gap-2">
+            {/* Modes */}
+            <div className="flex gap-2">
+              {medecin.modes.map((mode) => (
+                <span
+                  key={mode}
+                  className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg
+                    ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"}`}
+                >
+                  {mode === "Video" ? <Video size={11} /> : <User size={11} />}
+                  {mode}
+                </span>
+              ))}
+            </div>
 
+            {/* Actions */}
+            <div className="flex gap-2 mt-1">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate("/messages");
-                }}
-                className="flex-1 text-xs py-2 rounded-lg border border-gray-200 hover:bg-gray-50"
+                onClick={(e) => { e.stopPropagation(); navigate('/messages'); }}
+                className={`flex-1 border rounded-xl py-2 text-xs font-medium
+                  ${darkMode ? "border-gray-600 text-gray-300" : "border-gray-200 text-gray-600"}`}
               >
                 Message
               </button>
 
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/medecin/${m.id}`);
-                }}
-                className="flex-1 text-xs py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                onClick={(e) => { e.stopPropagation(); navigate(`/medecin/${medecin.id}`); }}
+                className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-xs font-medium hover:bg-blue-700"
               >
                 Réserver
               </button>
-
             </div>
 
           </div>
         ))}
-
       </div>
+
     </div>
   );
 }

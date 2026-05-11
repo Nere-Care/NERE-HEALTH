@@ -17,24 +17,58 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  CircleHelp,
+  FileText,
+  Receipt,
 } from "lucide-react";
 
 
 
 const menuByRole = {
-  patient: [
-    { icon: LayoutDashboard, label: "Tableau de Bord", path: "/patient-dashboard" },
-    { icon: Users, label: "Annuaire Medecins", path: "/annuaire" },
-    { icon: Building2, label: "Structures de Sante", path: "/structures" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
-    { icon: FolderOpen, label: "Dossiers patient", path: "/dossiers" },
-    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
-    { icon: CreditCard, label: "Paiements", path: "/payments" },
-  ],
+ patient: [
+  {
+    icon: LayoutDashboard,
+    label: "Tableau de Bord",
+    path: "/Patient-dashboard",
+  },
+  {
+    icon: Users,
+    label: "Annuaire Médecins",
+    path: "/annuaire",
+  },
+  {
+    icon: Building2,
+    label: "Structures de Santé",
+    path: "/structures",
+  },
+  {
+    icon: FolderOpen,
+    label: "Dossiers Patient",
+    path: "/dossiers",
+  },
+  {
+    icon: FileText,
+    label: "Prescriptions",
+    path: "/prescriptions",
+  },
+  {
+    icon: Receipt,
+    label: "Factures",
+    path: "/factures",
+  },
+  {
+    icon: MessageSquare,
+    label: "Messages",
+    path: "/messages",
+  },
+  
+],
 
   doctor: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
     { icon: Users, label: "avis", path: "/doctors" },
+    { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },
     { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
     { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
@@ -44,6 +78,7 @@ const menuByRole = {
   nurse: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
     { icon: Users, label: "avis", path: "/doctors" },
+    { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },
     { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
     { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
