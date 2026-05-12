@@ -475,8 +475,7 @@ def log_startup_configuration():
         else "⚠️  NON CONFIGURÉ"
     )
 
-    print(
-        f"""
+    print(f"""
 ╔════════════════════════════════════════════════════════════════════════════╗
 ║              🚀 NERE APP - DÉMARRAGE SÉCURISÉ                      ║
 ╠════════════════════════════════════════════════════════════════════════════╣
@@ -488,5 +487,4 @@ def log_startup_configuration():
 ║ 🔐 STRIPE_KEY       : {stripe_key}
 ║ 🔐 DATABASE         : {settings_instance.DATABASE_URL_RAW[:30]}...
 ╚════════════════════════════════════════════════════════════════════════════╝
-    """
-    )
+    """)
