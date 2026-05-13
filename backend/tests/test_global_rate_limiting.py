@@ -1,13 +1,7 @@
-import uuid
-from datetime import datetime, timedelta
 from unittest.mock import patch
-
-import pytest
 from fastapi.testclient import TestClient
 
-from backend.auth import get_password_hash
-from backend.main import app
-from backend.models import Consultation, Medecin, Patient, RendezVous, User
+from ..main import app
 
 client = TestClient(app)
 
@@ -17,11 +11,15 @@ class TestGlobalRateLimiting:
 
     def test_api_limiter_on_ia_routes(self, monkeypatch, medecin_auth_header):
         """Test que les routes IA ont du rate limiting"""
-        from backend.limiter import adaptive_limiter
+        from backend.limiter import get_shared_storage
 
-        # Patcher les limites pour les tests
-        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "10/minute")
-        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: False)
+        # Utiliser un stockage partagé pour les tests
+        shared_storage = get_shared_storage()
+        monkeypatch.setattr("backend.limiter.api_limiter._storage", shared_storage)
+        # Patcher la clé pour retourner une clé fixe (TestClient peut avoir des IPs variables)
+        monkeypatch.setattr(
+            "backend.limiter.get_remote_address", lambda req: "test-client"
+        )
 
         # Test route IA diagnostic
         responses = []
@@ -65,201 +63,6 @@ class TestGlobalRateLimiting:
         assert (
             rate_limited
         ), "Rate limiting non appliqué sur préparation téléconsultation"
-
-    @pytest.mark.skip(
-        reason="Requires DB integration - rate limiting behavior already validated in other tests"
-    )
-    def test_api_limiter_on_consultation_routes(
-        self, monkeypatch, medecin_auth_header, db
-    ):
-        """Test que les routes de consultation ont du rate limiting"""
-        from backend.limiter import adaptive_limiter
-
-        medecin_email = "medecin@example.com"
-        medecin_user = db.query(User).filter(User.email == medecin_email).first()
-        assert (
-            medecin_user is not None
-        ), "Utilisateur médecin introuvable dans la base de test"
-
-        medecin_id = medecin_user.id
-        patient_id = uuid.uuid4()
-        dossier_id = uuid.uuid4()
-
-        if not db.get(User, patient_id):
-            db.add(
-                User(
-                    id=patient_id,
-                    email=f"patient{patient_id}@test.com",
-                    mot_de_passe_hash=get_password_hash("dummy"),
-                    role="patient",
-                    statut="actif",
-                    nom="Test",
-                    prenom="Patient",
-                )
-            )
-            db.commit()
-
-        if not db.get(Medecin, medecin_id):
-            db.add(Medecin(id=medecin_id, numero_ordre="MED-TEST-001"))
-            db.commit()
-
-        if not db.get(Patient, patient_id):
-            db.add(
-                Patient(
-                    id=patient_id,
-                    numero_patient="PAT-TEST-001",
-                    sexe="Non_precise",
-                    groupe_sanguin="Inconnu",
-                    pays="CM",
-                    consentement_donnees=False,
-                )
-            )
-            db.commit()
-
-        now = datetime.utcnow()
-
-        # Patcher les limites pour les tests
-        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "10/minute")
-        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: True)
-
-        responses = []
-        for i in range(12):  # Au-delà de la limite de 10/minute
-            rdv_id = uuid.uuid4()
-            db.add(
-                RendezVous(
-                    id=rdv_id,
-                    numero_rdv=f"RDV-{i:03d}",
-                    patient_id=patient_id,
-                    medecin_id=medecin_id,
-                    date_heure_debut=now,
-                    date_heure_fin=now + timedelta(hours=1),
-                    type="presentiel",
-                    statut="en_attente",
-                )
-            )
-            db.commit()
-
-            response = client.post(
-                "/api/consultations",
-                json={
-                    "patient_id": str(patient_id),
-                    "medecin_id": str(medecin_id),
-                    "rdv_id": str(rdv_id),
-                    "dossier_id": str(dossier_id),
-                    "numero_consultation": f"CONS-{i:03d}",
-                    "date_heure_debut": "2027-01-01T10:00:00Z",
-                    "motif": "Consultation de test",
-                },
-                headers=medecin_auth_header,
-            )
-            responses.append(response)
-
-        rate_limited = any(r.status_code == 429 for r in responses)
-        assert rate_limited, "Rate limiting non appliqué sur création consultation"
-
-    @pytest.mark.skip(
-        reason="Requires DB integration - rate limiting behavior already validated in other tests"
-    )
-    def test_api_limiter_on_ordonnance_routes(
-        self, monkeypatch, medecin_auth_header, db
-    ):
-        """Test que les routes d'ordonnance ont du rate limiting"""
-        from backend.limiter import adaptive_limiter
-
-        medecin_email = "medecin@example.com"
-        medecin_user = db.query(User).filter(User.email == medecin_email).first()
-        assert (
-            medecin_user is not None
-        ), "Utilisateur médecin introuvable dans la base de test"
-
-        medecin_id = medecin_user.id
-        patient_id = uuid.uuid4()
-        dossier_id = uuid.uuid4()
-        rendezvous_id = uuid.uuid4()
-        consultation_id = uuid.uuid4()
-
-        if not db.get(User, patient_id):
-            db.add(
-                User(
-                    id=patient_id,
-                    email=f"patient{patient_id}@test.com",
-                    mot_de_passe_hash=get_password_hash("dummy"),
-                    role="patient",
-                    statut="actif",
-                    nom="Test",
-                    prenom="Patient",
-                )
-            )
-            db.commit()
-
-        if not db.get(Medecin, medecin_id):
-            db.add(Medecin(id=medecin_id, numero_ordre="MED-TEST-001"))
-            db.commit()
-
-        if not db.get(Patient, patient_id):
-            db.add(
-                Patient(
-                    id=patient_id,
-                    numero_patient="PAT-TEST-ORDO-001",
-                    sexe="Non_precise",
-                    groupe_sanguin="Inconnu",
-                    pays="CM",
-                    consentement_donnees=False,
-                )
-            )
-            db.commit()
-
-        db.add(
-            RendezVous(
-                id=rendezvous_id,
-                numero_rdv="RDV-ORDO-001",
-                patient_id=patient_id,
-                medecin_id=medecin_id,
-                date_heure_debut=datetime.utcnow(),
-                date_heure_fin=datetime.utcnow() + timedelta(hours=1),
-                type="presentiel",
-                statut="en_attente",
-            )
-        )
-        db.add(
-            Consultation(
-                id=consultation_id,
-                numero_consultation="CONS-ORDO-001",
-                rdv_id=rendezvous_id,
-                dossier_id=dossier_id,
-                medecin_id=medecin_id,
-                patient_id=patient_id,
-                date_heure_debut=datetime.utcnow(),
-                motif="Consultation liée à l'ordonnance",
-                statut="termine",
-            )
-        )
-        db.commit()
-
-        # Patcher les limites pour les tests
-        monkeypatch.setattr("backend.limiter.BASE_LIMIT", "5/minute")
-        monkeypatch.setattr(adaptive_limiter, "should_block", lambda request: True)
-
-        responses = []
-        for i in range(7):  # Au-delà de la limite de 5/minute
-            response = client.post(
-                "/api/ordonnances",
-                json={
-                    "patient_id": str(patient_id),
-                    "medecin_id": str(medecin_id),
-                    "consultation_id": str(consultation_id),
-                    "numero": f"ORD-{i:03d}",
-                    "date_emission": "2024-01-01",
-                    "date_expiration": "2024-02-01",
-                    "qr_code_data": "FAKE-QRCODE-DATA",
-                    "statut": "active",
-                },
-                headers=medecin_auth_header,
-            )
-            responses.append(response)
-
-        rate_limited = any(r.status_code == 429 for r in responses)
-        assert rate_limited, "Rate limiting non appliqué sur création ordonnance"
 
     @patch("backend.limiter.adaptive_limiter.should_block")
     def test_adaptive_rate_limiting(self, mock_should_block, medecin_auth_header):
