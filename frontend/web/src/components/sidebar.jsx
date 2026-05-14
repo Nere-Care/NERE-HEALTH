@@ -83,9 +83,8 @@ export default function Sidebar({ darkMode, role, nomStructure, typeStructure })
           {/* Logo unique */}
         
 
-          <div className={`rounded-xl p-3 text-center text-sm font-semibold mb-6
-              ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}>
-              LOGO
+          <div className={`rounded-xl p-3 text-center text-sm font-semibold mb-6`}>
+              
             </div>
 
           {/* Menu */}
