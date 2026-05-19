@@ -8,7 +8,6 @@ services:
       POSTGRES_DB: nere_db
     volumes:
       - db_data:/var/lib/postgresql/data
-      - "../Documentations NERE/nere_schema.sql:/docker-entrypoint-initdb.d/nere_schema.sql:ro"
     ports:
       - "5433:5432"
     healthcheck:
@@ -42,7 +41,7 @@ services:
       context: ../frontend/web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://backend:8000
+        VITE_API_URL: http://localhost:8000
     restart: unless-stopped
     depends_on:
       - backend

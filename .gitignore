@@ -12,4 +12,5 @@ frontend/mobile/.dart_tool/
 frontend/mobile/build/
 frontend/mobile/.packages
 frontend/mobile/.flutter-plugins
+backend/pytest_local_output*.txt
 Documentations NERE/

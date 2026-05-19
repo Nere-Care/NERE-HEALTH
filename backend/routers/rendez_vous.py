@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Patient, RendezVous, User
-from schemas import RendezVousCreate, RendezVousRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Patient, RendezVous, User
+from ..schemas import RendezVousCreate, RendezVousRead
 
 router = APIRouter(tags=["rendez_vous"])
 
@@ -27,7 +27,10 @@ async def list_rendez_vous(
     if current_user.role == "medecin":
         stmt = stmt.where(RendezVous.medecin_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(RendezVous.patient_id == patient_id)
@@ -41,21 +44,27 @@ async def list_rendez_vous(
     return rendez_vous
 
 
-@router.post("/rendez_vous", response_model=RendezVousRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/rendez_vous", response_model=RendezVousRead, status_code=status.HTTP_201_CREATED
+)
 async def create_rendez_vous(
     rendez_vous_create: RendezVousCreate,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),
 ):
     if not db.get(Patient, rendez_vous_create.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     if current_user.role == "medecin":
         rendez_vous_create.medecin_id = current_user.id
     else:
         medecin = db.get(User, rendez_vous_create.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     rendez_vous = RendezVous(**rendez_vous_create.dict(exclude_unset=True))
     db.add(rendez_vous)
@@ -67,7 +76,9 @@ async def create_rendez_vous(
         detail = "Erreur de création de rendez-vous"
         if "uq_rendez_vous_numero_rdv" in str(exc.orig):
             detail = "Ce numéro de rendez-vous est déjà utilisé"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from exc
 
     return rendez_vous
 
@@ -80,11 +91,18 @@ async def read_rendez_vous(
 ):
     rendez_vous = db.get(RendezVous, rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return rendez_vous
 
 
@@ -97,16 +115,26 @@ async def update_rendez_vous(
 ):
     rendez_vous = db.get(RendezVous, rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
-    if rendez_vous_update.patient_id and not db.get(Patient, rendez_vous_update.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+    if rendez_vous_update.patient_id and not db.get(
+        Patient, rendez_vous_update.patient_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
     if rendez_vous_update.medecin_id and current_user.role == "admin":
         medecin = db.get(User, rendez_vous_update.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in rendez_vous_update.dict(exclude_unset=True).items():
         setattr(rendez_vous, field, value)
@@ -117,7 +145,10 @@ async def update_rendez_vous(
         db.refresh(rendez_vous)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de rendez-vous: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de rendez-vous: {exc.orig}",
+        ) from exc
 
     return rendez_vous
 
@@ -130,9 +161,13 @@ async def delete_rendez_vous(
 ):
     rendez_vous = db.get(RendezVous, rendez_vous_id)
     if not rendez_vous:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé"
+        )
     if current_user.role == "medecin" and rendez_vous.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(rendez_vous)
     db.commit()

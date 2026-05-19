@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Structure
-from schemas import StructureCreate, StructureRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Structure
+from ..schemas import StructureCreate, StructureRead
 
 router = APIRouter(tags=["structures"])
 
@@ -24,7 +24,9 @@ async def list_structures(
     return structures
 
 
-@router.post("/structures", response_model=StructureRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/structures", response_model=StructureRead, status_code=status.HTTP_201_CREATED
+)
 async def create_structure(
     structure_create: StructureCreate,
     db: Session = Depends(get_db),
@@ -40,7 +42,10 @@ async def create_structure(
         db.refresh(structure)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la structure") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la structure",
+        ) from exc
     return structure
 
 
@@ -52,7 +57,9 @@ async def read_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
     return structure
 
 
@@ -65,7 +72,9 @@ async def update_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
 
     for field, value in structure_update.dict(exclude_unset=True).items():
         setattr(structure, field, value)
@@ -76,7 +85,10 @@ async def update_structure(
         db.refresh(structure)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la structure: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la structure: {exc.orig}",
+        ) from exc
     return structure
 
 
@@ -88,7 +100,9 @@ async def delete_structure(
 ):
     structure = db.get(Structure, structure_id)
     if not structure:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée"
+        )
     db.delete(structure)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

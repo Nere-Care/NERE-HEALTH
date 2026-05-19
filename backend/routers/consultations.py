@@ -2,15 +2,16 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Consultation, Patient, User
-from schemas import ConsultationCreate, ConsultationRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..limiter import api_limiter
+from ..models import Consultation, Patient, User
+from ..schemas import ConsultationCreate, ConsultationRead
 
 router = APIRouter(tags=["consultations"])
 
@@ -36,15 +37,23 @@ async def list_consultations(
     return consultations
 
 
-@router.post("/consultations", response_model=ConsultationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/consultations",
+    response_model=ConsultationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+@api_limiter.limit("10/minute")  # Création consultations: 10/minute
 async def create_consultation(
+    request: Request,
     consultation_create: ConsultationCreate,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),
 ):
     patient = db.get(Patient, consultation_create.patient_id)
     if not patient:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
 
     payload = consultation_create.dict()
     if current_user.role == "medecin":
@@ -62,7 +71,9 @@ async def create_consultation(
             detail = "Ce numéro de consultation est déjà utilisé"
         elif "uq_consultations_rdv_id" in str(exc.orig):
             detail = "Ce rendez-vous est déjà lié à une consultation"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=detail
+        ) from exc
     return consultation
 
 
@@ -74,17 +85,26 @@ async def read_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role not in ("admin", "medecin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
     return consultation
 
 
 @router.put("/consultations/{consultation_id}", response_model=ConsultationRead)
+@api_limiter.limit("15/minute")  # Mise à jour consultations: 15/minute
 async def update_consultation(
+    request: Request,
     consultation_id: UUID,
     consultation_update: ConsultationCreate,
     db: Session = Depends(get_db),
@@ -92,20 +112,28 @@ async def update_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     if consultation_update.patient_id:
         patient = db.get(Patient, consultation_update.patient_id)
         if not patient:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+            )
 
     if consultation_update.medecin_id and current_user.role == "admin":
         medecin = db.get(User, consultation_update.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in consultation_update.dict(exclude_unset=True).items():
         if current_user.role == "medecin" and field == "medecin_id":
@@ -119,11 +147,16 @@ async def update_consultation(
         db.refresh(consultation)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de consultation: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de consultation: {exc.orig}",
+        ) from exc
     return consultation
 
 
-@router.delete("/consultations/{consultation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/consultations/{consultation_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_consultation(
     consultation_id: UUID,
     db: Session = Depends(get_db),
@@ -131,10 +164,14 @@ async def delete_consultation(
 ):
     consultation = db.get(Consultation, consultation_id)
     if not consultation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée"
+        )
 
     if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
     db.delete(consultation)
     db.commit()

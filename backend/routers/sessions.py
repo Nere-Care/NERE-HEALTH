@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Session as UserSession
-from schemas import SessionRead
+from backend.schemas import SessionRead
+
+from ..auth import get_current_active_user
+from ..db import get_db
+from ..models import Session as UserSession
 
 router = APIRouter(tags=["sessions"])
 
@@ -22,7 +23,11 @@ async def list_sessions(
     if current_user.role == "admin":
         stmt = select(UserSession).limit(limit)
     else:
-        stmt = select(UserSession).where(UserSession.utilisateur_id == current_user.id).limit(limit)
+        stmt = (
+            select(UserSession)
+            .where(UserSession.utilisateur_id == current_user.id)
+            .limit(limit)
+        )
 
     sessions = db.execute(stmt).scalars().all()
     return sessions
@@ -36,9 +41,13 @@ async def read_session(
 ):
     session = db.get(UserSession, session_id)
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session non trouvée"
+        )
     if current_user.role != "admin" and session.utilisateur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return session
 
 
@@ -50,9 +59,13 @@ async def delete_session(
 ):
     session = db.get(UserSession, session_id)
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Session non trouvée"
+        )
     if current_user.role != "admin" and session.utilisateur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     db.delete(session)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

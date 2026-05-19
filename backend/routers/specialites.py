@@ -6,10 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Specialite
-from schemas import SpecialiteCreate, SpecialiteRead
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Specialite
+from ..schemas import SpecialiteCreate, SpecialiteRead
 
 router = APIRouter(tags=["specialites"])
 
@@ -25,7 +25,9 @@ async def list_specialites(
     return specialites
 
 
-@router.post("/specialites", response_model=SpecialiteRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/specialites", response_model=SpecialiteRead, status_code=status.HTTP_201_CREATED
+)
 async def create_specialite(
     specialite_create: SpecialiteCreate,
     db: Session = Depends(get_db),
@@ -38,7 +40,10 @@ async def create_specialite(
         db.refresh(specialite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la spécialité") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la spécialité",
+        ) from exc
     return specialite
 
 
@@ -50,7 +55,9 @@ async def read_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
     return specialite
 
 
@@ -63,7 +70,9 @@ async def update_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
 
     for field, value in specialite_update.dict(exclude_unset=True).items():
         setattr(specialite, field, value)
@@ -74,7 +83,10 @@ async def update_specialite(
         db.refresh(specialite)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la spécialité: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la spécialité: {exc.orig}",
+        ) from exc
     return specialite
 
 
@@ -86,7 +98,9 @@ async def delete_specialite(
 ):
     specialite = db.get(Specialite, specialite_id)
     if not specialite:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Spécialité non trouvée"
+        )
     db.delete(specialite)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

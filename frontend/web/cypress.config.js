@@ -1,0 +1,19 @@
+const { defineConfig } = require('cypress');
+
+module.exports = defineConfig({
+  baseUrl: 'http://localhost:4173',
+  viewportWidth: 1280,
+  viewportHeight: 720,
+  video: false,
+  screenshotOnRunFailure: true,
+  defaultCommandTimeout: 10000,
+  requestTimeout: 15000,
+  responseTimeout: 15000,
+  e2e: {
+    setupNodeEvents: (on, config) => {
+      // implement node event listeners here
+    },
+    specPattern: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
+    supportFile: 'cypress/support/e2e.js'
+  }
+});

@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
-from db import get_db
-from models import Conversation, Patient, RendezVous, User
-from schemas import ConversationCreate, ConversationRead
+from backend.schemas import ConversationCreate, ConversationRead
+
+from ..auth import get_current_active_user, require_role
+from ..db import get_db
+from ..models import Conversation, Patient, RendezVous, User
 
 router = APIRouter(tags=["conversations"])
 
@@ -30,7 +31,10 @@ async def list_conversations(
     elif current_user.role == "medecin":
         stmt = stmt.where(Conversation.medecin_id == current_user.id)
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux professionnels",
+        )
 
     if patient_id:
         stmt = stmt.where(Conversation.patient_id == patient_id)
@@ -41,11 +45,19 @@ async def list_conversations(
     if statut:
         stmt = stmt.where(Conversation.statut == statut)
 
-    conversations = db.execute(stmt.order_by(Conversation.updated_at.desc()).limit(limit)).scalars().all()
+    conversations = (
+        db.execute(stmt.order_by(Conversation.updated_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
     return conversations
 
 
-@router.post("/conversations", response_model=ConversationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/conversations",
+    response_model=ConversationRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_conversation(
     conversation_create: ConversationCreate,
     db: Session = Depends(get_db),
@@ -56,17 +68,31 @@ async def create_conversation(
     elif current_user.role == "medecin":
         conversation_create.medecin_id = current_user.id
     elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Permission insuffisante"
+        )
 
-    if not conversation_create.patient_id or not db.get(Patient, conversation_create.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+    if not conversation_create.patient_id or not db.get(
+        Patient, conversation_create.patient_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
     if not conversation_create.medecin_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin requis")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin requis"
+        )
     medecin = db.get(User, conversation_create.medecin_id)
     if not medecin or medecin.role != "medecin":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
-    if conversation_create.rdv_id and not db.get(RendezVous, conversation_create.rdv_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+        )
+    if conversation_create.rdv_id and not db.get(
+        RendezVous, conversation_create.rdv_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Rendez-vous introuvable"
+        )
 
     conversation = Conversation(**conversation_create.dict(exclude_unset=True))
     db.add(conversation)
@@ -75,7 +101,10 @@ async def create_conversation(
         db.refresh(conversation)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création de la conversation") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Erreur de création de la conversation",
+        ) from exc
     return conversation
 
 
@@ -87,11 +116,17 @@ async def read_conversation(
 ):
     conversation = db.get(Conversation, conversation_id)
     if not conversation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée"
+        )
     if current_user.role == "patient" and conversation.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "medecin" and conversation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     return conversation
 
 
@@ -104,18 +139,30 @@ async def update_conversation(
 ):
     conversation = db.get(Conversation, conversation_id)
     if not conversation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée"
+        )
     if current_user.role == "patient" and conversation.patient_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
     if current_user.role == "medecin" and conversation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé"
+        )
 
-    if conversation_update.patient_id and not db.get(Patient, conversation_update.patient_id):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
+    if conversation_update.patient_id and not db.get(
+        Patient, conversation_update.patient_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable"
+        )
     if conversation_update.medecin_id:
         medecin = db.get(User, conversation_update.medecin_id)
         if not medecin or medecin.role != "medecin":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable"
+            )
 
     for field, value in conversation_update.dict(exclude_unset=True).items():
         setattr(conversation, field, value)
@@ -126,11 +173,16 @@ async def update_conversation(
         db.refresh(conversation)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de mise à jour de la conversation: {exc.orig}") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Erreur de mise à jour de la conversation: {exc.orig}",
+        ) from exc
     return conversation
 
 
-@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_conversation(
     conversation_id: UUID,
     db: Session = Depends(get_db),
@@ -138,7 +190,9 @@ async def delete_conversation(
 ):
     conversation = db.get(Conversation, conversation_id)
     if not conversation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée"
+        )
     db.delete(conversation)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

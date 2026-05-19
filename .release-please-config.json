@@ -1,0 +1,5 @@
+{
+  "release-type": "simple",
+  "package-name": "nere-app",
+  "bump-minor-pre-major": true
+}
