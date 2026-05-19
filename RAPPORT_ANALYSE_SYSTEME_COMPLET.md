@@ -270,7 +270,7 @@ Security:        Pas d'accès externe (réseau nere_network uniquement)
 ### Service Backend (FastAPI)
 ```dockerfile
 # Dockerfile backend:
-FROM python:3.13-slim
+FROM python:3.11.11-slim
 
 # Installé:
 - Python 3.13

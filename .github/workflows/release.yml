@@ -5,21 +5,32 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
-    name: Generate release
+    name: Generate Release
     runs-on: ubuntu-latest
+
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create GitHub release with release-please
+      - name: Run Release Please
         uses: google-github-actions/release-please-action@v3
         with:
-          package-name: nere-app
-          release-type: simple
-          create-release: true
-          bump-minor-pre-major: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          release-type: simple
+          package-name: nere-app
+          bump-minor-pre-major: true
+          default-branch: main
+          include-v-in-tag: true
