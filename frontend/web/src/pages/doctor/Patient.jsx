@@ -27,6 +27,7 @@ export default function Patients({ darkMode }) {
   const [patientTab, setPatientTab] = useState("Consultation");
 
   const [search, setSearch] = useState("");
+  const [patientIdSearch, setPatientIdSearch] = useState("");
   const [consultationSearch, setConsultationSearch] = useState("");
 
   const [selectedConsultation, setSelectedConsultation] = useState(null);
@@ -35,19 +36,28 @@ export default function Patients({ darkMode }) {
   /* ===============================
      FILTER PATIENTS
   =============================== */
-  const filteredPatients = patients.filter((patient) => {
-    const keyword = search?.toLowerCase() || "";
+ const filteredPatients = patients.filter((patient) => {
+  const keyword = search.toLowerCase();
+  const idKeyword = patientIdSearch.toLowerCase();
 
-    const name = patient?.name?.toLowerCase() || "";
-    const id = patient?.patientId?.toLowerCase() || "";
+  const name = patient?.name?.toLowerCase() || "";
+  const id = patient?.patientId?.toLowerCase() || "";
 
-    const matches = name.includes(keyword) || id.includes(keyword);
+  const matchName = name.includes(keyword);
+  const matchId = id.includes(idKeyword);
 
-    if (activeTab === "Male") return matches && patient?.gender === "Male";
-    if (activeTab === "Female") return matches && patient?.gender === "Female";
+  const matchesGlobal = matchName || id.includes(keyword);
 
-    return matches;
-  });
+  if (activeTab === "Male") {
+    return matchesGlobal && patient?.gender === "Male" && matchId;
+  }
+
+  if (activeTab === "Female") {
+    return matchesGlobal && patient?.gender === "Female" && matchId;
+  }
+
+  return matchesGlobal && matchId;
+});
 
   /* ===============================
      FILTER CONSULTATIONS
@@ -93,13 +103,13 @@ export default function Patients({ darkMode }) {
   const consultations = selectedPatient?.consultations || [];
 
   return (
-    <div className="min-h-screen">
-      <div className="p-3 sm:p-4 md:p-6">
+    <div className="min-h-screen mt-6 sm:mt-4">
+      <div >
 
         {/* MAIN CARD */}
         <div
-          className={`rounded-2xl shadow-sm p-3 sm:p-4 md:p-6
-          ${darkMode ? "bg-gray-900" : "bg-white"}`}
+          className={` shadow-sm p-3 sm:p-4 md:p-6
+          ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}
         >
 
           {/* HEADER */}
@@ -107,14 +117,15 @@ export default function Patients({ darkMode }) {
             <>
               <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
                 <div>
-                  <h1 className="text-lg sm:text-xl font-semibold text-[#3b82f6]">
+                  <h1 className="text-xl sm:text-2xl font-bold mb-1 text-[#3b82f6]">
                     Patients
                   </h1>
 
                   <p
-                    className={`text-xs sm:text-sm mt-1
-                    ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
+        className={`text-sm sm:text-base mt-1 ${
+          darkMode ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
                     Manage your patients and consultation history.
                   </p>
                 </div>
@@ -157,14 +168,24 @@ export default function Patients({ darkMode }) {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <SearchBar
-                    placeholder="Search patient..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  <FilterButton />
-                </div>
+                <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+
+  {/* SEARCH GLOBAL */}
+  <SearchBar
+    placeholder="Search patient..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+  />
+
+  {/* SEARCH PATIENT ID */}
+  <SearchBar
+    placeholder="Search by Patient ID..."
+    value={patientIdSearch}
+    onChange={(e) => setPatientIdSearch(e.target.value)}
+  />
+
+  <FilterButton />
+</div>
               </div>
 
               {/* LIST */}

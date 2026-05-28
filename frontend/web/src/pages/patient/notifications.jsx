@@ -20,10 +20,14 @@ export default function Notifications({ darkMode }) {
 
         {/* Titre */}
       <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
          Notifications
         </h1>
-        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+        <p
+        className={`text-sm sm:text-base mt-1 ${
+          darkMode ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
          Historique de vos notifications
         </p>
       </div>

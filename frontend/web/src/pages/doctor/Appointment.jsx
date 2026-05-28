@@ -16,9 +16,50 @@ import AppointmentCalendarDayCard from "../../components/doctors/appointment/App
 import NewAppointmentForm from "../../components/doctors/appointment/NewAppointmentForm";
 import RescheduleForm from "../../components/doctors/appointment/ResheduleForm";
 
+import AvailabilityForm from "../../components/doctors/appointment/AvailabilityForm";
+
 import { appointments } from "../../constants/doctors/appointmentsData";
 
+import PatientProfileModal from "../../components/doctors/appointment/PatientProfileModal";
+
+
+
 export default function Appointment({ darkMode }) {
+const [openPatientModal, setOpenPatientModal] = useState(false);
+
+const [selectedPatient, setSelectedPatient] =
+  useState(null);
+
+const handleOpenPatient = (patient) => {
+  setSelectedPatient(patient);
+  setOpenPatientModal(true);
+};
+
+
+const [availabilities, setAvailabilities] = useState([
+  {
+    id: 1,
+    day: 12,
+    month: 4,
+    year: 2026,
+    startTime: "08:00",
+    endTime: "12:00",
+    status: "available",
+  },
+
+  {
+    id: 2,
+    day: 15,
+    month: 4,
+    year: 2026,
+    startTime: "14:00",
+    endTime: "18:00",
+    status: "available",
+  },
+]);
+
+
+
   const [openForm, setOpenForm] = useState(false);
   const [activeTab, setActiveTab] = useState("Upcoming  ");
   const [view, setView] = useState("list");
@@ -31,6 +72,18 @@ export default function Appointment({ darkMode }) {
 const handleReschedule = (item) => {
   setSelectedAppointment(item);
   setOpenReschedule(true);
+};
+
+const getAvailabilityForDay = (day) => {
+  const current = new Date(year, month, day);
+
+  const weekDay = current.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+
+  return availabilities.filter(
+    (a) => a.day === weekDay
+  );
 };
 
 const handleSaveReschedule = (id, newDate, newTime) => {
@@ -67,6 +120,13 @@ const getStatusStyle = (status, darkMode) => {
     return true;
   });
 
+
+ const handleSaveAvailability = (newAvailabilities) => {
+  setAvailabilities((prev) => [
+    ...prev,
+    ...newAvailabilities,
+  ]);
+};
 
   const tabClass = (tab) =>
     `px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
@@ -121,23 +181,32 @@ const getStatusStyle = (status, darkMode) => {
 
   const today = new Date();
 
+const [openAvailability, setOpenAvailability] = useState(false);
+
+const [selectedAvailability, setSelectedAvailability] =
+  useState(null);
+
   return (
-    <div className="min-h-screen ">
-      <div className="p-3 sm:p-4 md:p-6">
+    <div className={`space-y-4 mt-6 sm:mt-4 sm:space-y-6 p-3 sm:p-5 lg:p-6 transition-colors
+      ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-black"}
+    `}>
+      <div >
         <div
-          className={`rounded-2xl shadow-sm p-3 sm:p-4 md:p-6 ${
-            darkMode ? "bg-gray-900 text-white" : "bg-white text-gray-900"
-          }`}
+          
         >
 
           {/* HEADER */}
           <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-xl font-semibold text-[#3b82f6]">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
                 Appointments
               </h1>
 
-              <p className={`text-xs sm:text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              <p
+        className={`text-sm sm:text-base mt-1 ${
+          darkMode ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
                 Latest updates from the last 7 days.
               </p>
             </div>
@@ -168,19 +237,38 @@ const getStatusStyle = (status, darkMode) => {
           {/* TOOLBAR */}
           <div className="flex flex-col xl:flex-row xl:justify-between gap-4">
 
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 ${
-                darkMode ? "bg-green-900/30 border-green-700" : "bg-green-100 border-[#56B943]"
-              }`}>
-                <CalendarDays className={`w-4 h-4 ${darkMode ? "text-green-400" : "text-[#27772B]"}`} />
-              </div>
+           <div className="flex items-center gap-3">
 
-              <span className={`font-medium text-sm sm:text-base ${
-                darkMode ? "text-gray-200" : "text-gray-700"
-              }`}>
-                {activeTab} Appointments
-              </span>
-            </div>
+  <div
+    className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 ${
+      darkMode
+        ? "bg-green-900/30 border-green-700"
+        : "bg-green-100 border-[#56B943]"
+    }`}
+  >
+    <CalendarDays
+      className={`w-4 h-4 ${
+        darkMode ? "text-green-400" : "text-[#27772B]"
+      }`}
+    />
+  </div>
+
+  <span
+    className={`font-medium text-sm sm:text-base ${
+      darkMode ? "text-gray-200" : "text-gray-700"
+    }`}
+  >
+    {activeTab} Appointments
+  </span>
+
+</div>
+
+<button
+  onClick={() => setOpenAvailability(true)}
+  className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition text-sm"
+>
+  Manage Availability
+</button>
 
             <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
               <SearchBar
@@ -218,6 +306,7 @@ const getStatusStyle = (status, darkMode) => {
                     getStatusStyle={getStatusStyle}
                     darkMode={darkMode}
                     onReschedule={handleReschedule}
+                    onOpenPatient={handleOpenPatient}
                   />
                 ))}
               </div>
@@ -289,17 +378,18 @@ const getStatusStyle = (status, darkMode) => {
 
       {/* REAL DAYS */}
       {days.map((day) => (
-        <AppointmentCalendarDayCard
-          key={day}
-          day={day}
-          dayAppointments={getAppointmentsByDay(day)}
-          isToday={
-            day === today.getDate() &&
-            month === today.getMonth() &&
-            year === today.getFullYear()
-          }
-          darkMode={darkMode}
-        />
+<AppointmentCalendarDayCard
+  key={day}
+  day={day}
+  dayAppointments={getAppointmentsByDay(day)}
+  availability={getAvailabilityForDay(day)}
+  isToday={
+    day === today.getDate() &&
+    month === today.getMonth() &&
+    year === today.getFullYear()
+  }
+  darkMode={darkMode}
+/>
       ))}
     </div>
 
@@ -322,6 +412,21 @@ const getStatusStyle = (status, darkMode) => {
           darkMode={darkMode}
           onSave={handleSaveReschedule}
       />
+
+      <AvailabilityForm
+  open={openAvailability}
+  onClose={() => setOpenAvailability(false)}
+  darkMode={darkMode}
+  onSave={handleSaveAvailability}
+  selectedAvailability={selectedAvailability}
+/>
+
+<PatientProfileModal
+  open={openPatientModal}
+  onClose={() => setOpenPatientModal(false)}
+  patient={selectedPatient}
+  darkMode={darkMode}
+/>
     </div>
   );
 }

@@ -23,12 +23,11 @@ export default function ChatSidebar({
     <div
       className={`w-full md:w-[360px] flex flex-col border-r
       ${selectedChat !== null ? "hidden md:flex" : "flex"}
-      ${darkMode ? "bg-gray-900 border-gray-800" : "bg-gray-100 border-gray-200"}`}
+      ${darkMode ? "bg-gray-950 border-gray-800" : "bg-gray-100 border-gray-200"}`}
     >
       <div className="p-3 space-y-3">
         <h1 className="text-lg text-blue-500 font-semibold">Messages</h1>
 
-        <ChatHorizontalList conversations={conversations} darkMode={darkMode} />
 
         <ChatFilters
           active={activeFilter}

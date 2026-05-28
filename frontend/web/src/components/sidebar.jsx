@@ -92,17 +92,25 @@ const menuByRole = {
   ],
   observer: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard" },
+    { icon: Users, label: "Patient", path: "/observer/patient" },
+    { icon: Users, label: "Professional", path: "/observer/doctor" },
+    {
+    icon: Building2,
+    label: "Structures de Santé",
+    path: "/observer/structure",
+  },
+
   ]
 };
   
 
 
-export default function Sidebar({ darkMode }) {
+export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState(null);
 
   // NOUVEAU STATE
-  const [collapsed, setCollapsed] = useState(true);
+ // const [collapsed, setCollapsed] = useState(true);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,6 +160,7 @@ export default function Sidebar({ darkMode }) {
           transform transition-all duration-300
 
           ${collapsed ? "w-20" : "w-56"}
+          
 
           ${darkMode ? "bg-gray-800" : "bg-white"}
 
@@ -189,13 +198,7 @@ export default function Sidebar({ darkMode }) {
             </button>
           </div>
 
-          {/* LOGO */}
-          <div
-            className={`rounded-xl p-3 text-center text-sm font-semibold mb-4
-            ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}
-          >
-            {collapsed ? "N" : "LOGO"}
-          </div>
+          
 
           {/* MENU */}
           <nav className="flex flex-col gap-1">
@@ -232,17 +235,24 @@ export default function Sidebar({ darkMode }) {
         </div>
 
         {/* Nere IA */}
-        <button
-          className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
-          ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}
+        
+{role === "patient" && (
+  <button
+    className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
+    ${
+      darkMode
+        ? "text-blue-400 hover:bg-gray-700"
+        : "text-blue-500 hover:bg-blue-50"
+    }
 
-          ${collapsed ? "justify-center" : ""}
-          `}
-        >
-          <Sparkles size={18} />
+    ${collapsed ? "justify-center" : ""}
+    `}
+  >
+    <Sparkles size={18} />
 
-          {!collapsed && "nereIA"}
-        </button>
+    {!collapsed && "NERE IA"}
+  </button>
+)}
       </div>
     </>
   );

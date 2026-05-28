@@ -55,7 +55,7 @@ export default function LoginStep({
 
             const user = {
               email,
-              role: "structure",
+              role: "observer", // For demo purposes, we assign the "observer" role directly. In a real app, this would come from the backend after authentication. 
             };
 
             saveUser(user);

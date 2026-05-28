@@ -5,24 +5,29 @@ export default function Header({
   titre,
   darkMode,
   setDarkMode,
+  collapsed,
 }) {
   const navigate = useNavigate();
 
   return (
     <div
       className={`
-        sticky top-14 md:top-0 left-0 md:left-56 right-0 z-40
+        sticky sm:fixed top-14 md:top-0 left-0  right-0 z-40
         flex items-center justify-between
         px-3 sm:px-4 md:px-6 py-3 md:py-4
         shadow-sm transition-colors
+        ${collapsed ? "md:left-20" : "md:left-56"}
         ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}
       `}
     >
 
-      {/* ================= TITLE ================= */}
-      <h1 className="text-base sm:text-lg md:text-xl font-bold truncate">
-        {titre}
-      </h1>
+      {/* LOGO */}
+          <div
+            className={`rounded-xl p-3 text-center text-sm font-semibold mb-4
+            ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}
+          >
+            {collapsed ? "LOGO" : "LOGO"}
+          </div>
 
       {/* ================= RIGHT SECTION ================= */}
       <div className="flex items-center gap-3 sm:gap-4">

@@ -15,17 +15,21 @@ export default function CallScreen({ darkMode, endCall }) {
   const [camOn, setCamOn] = useState(true);
 
   return (
-    <div className={`min-h-screen ${darkMode ? "bg-gray-950" : "bg-gray-50"}`}>
+    <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <div className="p-3 sm:p-4 md:p-6">
 
         {/* ================= HEADER ================= */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 md:mb-6">
 
           <div>
-            <h1 className="text-lg md:text-xl font-semibold text-[#3b82f6]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
               Teleconsultation Room
             </h1>
-            <p className={`text-xs sm:text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            <p
+        className={`text-sm sm:text-base mt-1 ${
+          darkMode ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
               Real-time medical consultation session
             </p>
           </div>

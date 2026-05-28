@@ -6,6 +6,7 @@ export default function AppointmentCalendarDayCard({
   day,
   dayAppointments,
   isToday,
+  availability,
   darkMode,
 }) {
   const visibleAppointments = dayAppointments.slice(0, 2);
@@ -54,6 +55,34 @@ export default function AppointmentCalendarDayCard({
           </span>
         )}
       </div>
+
+
+      {availability?.length > 0 && (
+  <div
+    className={`mb-2 text-[10px] sm:text-xs px-2 py-1 rounded-lg font-medium
+    ${
+      darkMode
+        ? "bg-green-900/30 text-green-300"
+        : "bg-green-100 text-green-700"
+    }`}
+  >
+   <div className="space-y-1 mb-2">
+  {availability.map((slot) => (
+    <div
+      key={slot.id}
+      className={`text-[10px] sm:text-xs px-2 py-1 rounded-lg font-medium
+      ${
+        darkMode
+          ? "bg-green-900/30 text-green-300"
+          : "bg-green-100 text-green-700"
+      }`}
+    >
+      Available {slot.startTime} - {slot.endTime}
+    </div>
+  ))}
+</div>
+  </div>
+)}
 
       {/* EVENTS */}
       <div className="mt-2 space-y-1.5">

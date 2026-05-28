@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   User, Lock, Eye, EyeOff, Shield, 
   Smartphone, LogOut, Users, FileText, ChevronRight, 
-  Activity, Heart, AlertCircle, History, CheckCircle2
+  Activity, Heart, AlertCircle, History, CheckCircle2,
+  Route
 } from 'lucide-react';
 
 // Menu : Uniquement l'essentiel
 const sections = ["Profil", "Sécurité", "Informations légales"];
 
 export default function Parametres({ darkMode }) {
+    const navigate = useNavigate();
+
   const [section, setSection] = useState("Profil");
   const [showPassword, setShowPassword] = useState(false);
   
@@ -17,7 +21,7 @@ export default function Parametres({ darkMode }) {
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <h1 className="text-lg font-bold text-blue-600 mb-6">Paramètres du compte</h1>
+      <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6] mb-6">Paramètres du compte</h1>
 
       <div className="flex flex-col md:flex-row gap-6">
         
@@ -47,7 +51,7 @@ export default function Parametres({ darkMode }) {
 
           </div>
 
-          <button className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all border
+          <button onClick={() => navigate('/') } className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all border
             ${darkMode 
               ? "bg-gray-800 border-red-900/30 text-red-400 hover:bg-red-950/20" 
               : "bg-white border-red-100 text-red-500 hover:bg-red-50"}`}>

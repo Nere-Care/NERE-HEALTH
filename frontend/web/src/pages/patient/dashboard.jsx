@@ -75,7 +75,8 @@ export default function Dashboard({ darkMode }) {
   ];
 
   return (
-    <div className="p-3 md:p-6">
+    <div className="min-h-screen  p-3 md:p-6">
+
 
       {/* Bienvenue & Carousel Actualités */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6">

@@ -1,5 +1,4 @@
 import { patients } from "../../../constants/doctors/DasboardData";
-import { User } from "lucide-react";
 
 export default function RecentPatients({ darkMode }) {
   return (
@@ -23,7 +22,20 @@ export default function RecentPatients({ darkMode }) {
       </div>
 
       {/* LIST */}
-      <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+      <div
+        className="
+          space-y-3
+          max-h-[260px]
+          overflow-y-auto
+          pr-1
+          scroll-smooth
+
+          scrollbar-thin
+          scrollbar-thumb-gray-400
+          dark:scrollbar-thumb-gray-600
+          scrollbar-track-transparent
+        "
+      >
         {patients.map((p, i) => (
           <div
             key={i}
@@ -39,7 +51,7 @@ export default function RecentPatients({ darkMode }) {
 
               {/* AVATAR */}
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0
                 ${
                   darkMode
                     ? "bg-blue-900/30 text-blue-400"
@@ -54,6 +66,7 @@ export default function RecentPatients({ darkMode }) {
                 <p className="text-sm font-medium truncate">
                   {p.name}
                 </p>
+
                 <p className="text-xs text-gray-400">
                   Patient
                 </p>

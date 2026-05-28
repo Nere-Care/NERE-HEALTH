@@ -3,7 +3,7 @@ import { Video, Calendar, Clock } from "lucide-react";
 export default function IdleScreen({ darkMode, startCall }) {
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center px-4 text-center
-      ${darkMode ? "bg-gray-950 text-white" : "bg-gray-50 text-gray-900"}
+      ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}
     `}>
 
       {/* ICON */}
@@ -14,13 +14,15 @@ export default function IdleScreen({ darkMode, startCall }) {
       </div>
 
       {/* TITLE */}
-      <h1 className="text-xl sm:text-2xl font-semibold mb-2">
+      <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
         No Active Consultation
       </h1>
 
-      <p className={`text-sm mb-6 max-w-md
-        ${darkMode ? "text-gray-400" : "text-gray-500"}
-      `}>
+      <p
+        className={`text-sm sm:text-base mt-1 ${
+          darkMode ? "text-gray-400" : "text-gray-500"
+        }`}
+      >
         You currently have no ongoing teleconsultation session.
         Start a session or wait for a patient to connect.
       </p>

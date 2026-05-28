@@ -13,6 +13,7 @@ export default function AppointmentListCard({
   getStatusStyle,
   darkMode,
   onReschedule,
+  onOpenPatient,
 }) {
   const navigate = useNavigate();
   return (
@@ -29,10 +30,14 @@ export default function AppointmentListCard({
 
         <div className="flex items-center gap-3">
           <img
-            src={item.patientImage}
-            alt={item.patientName}
-            className="w-12 h-12 rounded-full object-cover"
-          />
+  src={item.patientImage}
+  alt={item.patientName}
+  onClick={() => onOpenPatient(item)}
+  className="
+    w-12 h-12 rounded-full object-cover
+    cursor-pointer hover:scale-105 transition
+  "
+/>
 
           <div>
             <p
@@ -130,10 +135,14 @@ export default function AppointmentListCard({
 
         <div className="col-span-1 flex items-center gap-3 min-w-0">
           <img
-            src={item.patientImage}
-            alt={item.patientName}
-            className="w-12 h-12 rounded-full object-cover"
-          />
+  src={item.patientImage}
+  alt={item.patientName}
+  onClick={() => onOpenPatient(item)}
+  className="
+    w-12 h-12 rounded-full object-cover
+    cursor-pointer hover:scale-105 transition
+  "
+/>
 
           <span
             className={`font-semibold truncate ${

@@ -23,7 +23,20 @@ export default function TodayAppointments({ darkMode }) {
       </div>
 
       {/* LIST */}
-      <div className="space-y-3">
+      <div
+        className="
+          space-y-3
+          max-h-[260px]
+          overflow-y-auto
+          pr-1
+          scroll-smooth
+
+          scrollbar-thin
+          scrollbar-thumb-gray-400
+          dark:scrollbar-thumb-gray-600
+          scrollbar-track-transparent
+        "
+      >
         {appointments.map((a, i) => (
           <div
             key={i}
@@ -35,14 +48,14 @@ export default function TodayAppointments({ darkMode }) {
             }`}
           >
             {/* TOP ROW */}
-            <div className="flex justify-between items-center">
-              <p className="font-medium text-sm sm:text-base">
+            <div className="flex justify-between items-center gap-2">
+              <p className="font-medium text-sm sm:text-base truncate">
                 {a.patient}
               </p>
 
               {/* TYPE BADGE */}
               <span
-                className={`text-[10px] px-2 py-1 rounded-full font-medium
+                className={`text-[10px] px-2 py-1 rounded-full font-medium shrink-0
                 ${
                   a.type === "Consultation"
                     ? "bg-blue-100 text-blue-600"
@@ -56,21 +69,25 @@ export default function TodayAppointments({ darkMode }) {
             </div>
 
             {/* TIME */}
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              <Clock className="w-3 h-3" />
-              {a.time}
+            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>{a.time}</span>
             </div>
 
             {/* CLINIC */}
             <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              <Building2 className="w-3 h-3" />
-              {a.clinic}
+              <Building2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">
+                {a.clinic}
+              </span>
             </div>
 
             {/* REASON */}
             <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              <FileText className="w-3 h-3" />
-              {a.reason}
+              <FileText className="w-3 h-3 shrink-0" />
+              <span className="line-clamp-1">
+                {a.reason}
+              </span>
             </div>
           </div>
         ))}

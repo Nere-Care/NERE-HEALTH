@@ -49,7 +49,7 @@ export default function ProfilMedecin({ darkMode }) {
 
       {/* Retour */}
       <button
-        onClick={() => navigate('/annuaire')}
+        onClick={() => navigate(-1)}
         className={`flex items-center gap-2 mb-6 text-sm font-medium
           ${darkMode ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
       >

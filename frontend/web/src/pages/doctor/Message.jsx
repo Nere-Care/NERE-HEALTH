@@ -7,7 +7,11 @@ import {
   Image,
   FileText,
   X,
+  Video,
+  Ban,
 } from "lucide-react";
+
+import { useNavigate } from "react-router-dom";
 
 import { conversations } from "../../constants/doctors/conversationsData";
 import ChatSidebar from "../../components/doctors/messages/ChatSidebar";
@@ -17,6 +21,12 @@ export default function Messages({ darkMode }) {
   const [showFiles, setShowFiles] = useState(false);
   const [previewFile, setPreviewFile] = useState(null);
   const [selectedChat, setSelectedChat] = useState(null);
+  const [blockedChats, setBlockedChats] = useState([]);
+  const isBlocked = blockedChats.includes(selectedChat);
+
+  const navigate = useNavigate();
+
+  
 
   const current =
     conversations.find((c) => c.id === selectedChat) || {
@@ -27,10 +37,22 @@ export default function Messages({ darkMode }) {
       files: [],
     };
 
+    const toggleBlockConversation = () => {
+  if (!selectedChat) return;
+
+  setBlockedChats((prev) => {
+    if (prev.includes(selectedChat)) {
+      return prev.filter((id) => id !== selectedChat);
+    }
+
+    return [...prev, selectedChat];
+  });
+};
+
   return (
     <div
       className={`h-screen flex overflow-hidden transition
-      ${darkMode ? "bg-gray-950 text-white" : "bg-gray-50 text-black"}`}
+      ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-black"}`}
     >
       <div className="w-full flex p-2 md:p-4 gap-3">
 
@@ -76,7 +98,55 @@ export default function Messages({ darkMode }) {
               </div>
             </div>
 
-            <MoreVertical className="w-5 h-5" />
+            <div className="flex items-center gap-3">
+
+  {/* VIDEO BUTTON */}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      navigate("/teleconsultation");
+    }}
+    className={`
+      p-2 rounded-xl transition
+      ${
+        darkMode
+          ? "bg-green-500 hover:bg-green-600"
+          : "bg-green-600 hover:bg-green-700"
+      }
+      text-white
+    `}
+  >
+    <Video className="w-4 h-4" />
+  </button>
+
+  {/* BLOCK BUTTON */}
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+    toggleBlockConversation();
+  }}
+  className={`
+    p-2 rounded-xl transition text-white
+    ${
+      isBlocked
+        ? "bg-red-700 hover:bg-red-800"
+        : darkMode
+        ? "bg-gray-700 hover:bg-gray-600"
+        : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+    }
+  `}
+>
+  <Ban className="w-4 h-4" />
+</button>
+
+  {/* MORE */}
+  <button
+    onClick={(e) => e.stopPropagation()}
+  >
+    <MoreVertical className="w-5 h-5" />
+  </button>
+
+</div>
           </div>
 
           {/* MESSAGES */}
@@ -134,12 +204,27 @@ export default function Messages({ darkMode }) {
             <input
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              disabled={isBlocked}
               className={`flex-1 px-3 py-2 rounded-lg outline-none text-sm
               ${darkMode ? "bg-gray-700 text-white" : "bg-gray-100"}`}
-              placeholder="Write a message..."
+              placeholder={
+                isBlocked
+                ? "Conversation blocked"
+                : "Write a message..."
+      }
             />
 
-            <button className="bg-blue-600 text-white p-2 rounded-lg">
+            <button
+  disabled={isBlocked}
+  className={`
+    p-2 rounded-lg text-white transition
+    ${
+      isBlocked
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-blue-600 hover:bg-blue-700"
+    }
+  `}
+>
               <Send className="w-4 h-4" />
             </button>
           </div>

@@ -3,7 +3,7 @@
 // ================================
 import { Star, MapPin, Send } from "lucide-react";
 
-export default function DoctorCard({ doctor, darkMode }) {
+export default function DoctorCard({ doctor, darkMode , onAskOpinion }) {
   return (
     <div
       className={`
@@ -96,18 +96,21 @@ export default function DoctorCard({ doctor, darkMode }) {
 
         {/* BUTTON */}
         <button
-          className="
-            mt-5 w-full flex items-center justify-center gap-2
-            py-2.5 rounded-xl text-sm font-medium
-            bg-blue-600 text-white
-            hover:bg-blue-700 active:scale-[0.98]
-            transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-blue-400
-          "
-        >
-          <Send className="w-4 h-4" />
-          Ask for opinion
-        </button>
+  onClick={(e) => {
+    e.stopPropagation();
+    onAskOpinion?.(doctor);
+  }}
+  className="
+    mt-5 w-full flex items-center justify-center gap-2
+    py-2.5 rounded-xl text-sm font-medium
+    bg-blue-600 text-white
+    hover:bg-blue-700 active:scale-[0.98]
+    transition-all duration-200
+  "
+>
+  <Send className="w-4 h-4" />
+  Ask for opinion
+</button>
 
       </div>
     </div>
