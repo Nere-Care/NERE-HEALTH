@@ -1,6 +1,6 @@
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
 import { useState } from 'react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
   { question: "Comment ajouter un nouveau patient ?", reponse: "Allez dans la section Patients, cliquez sur + Nouveau Patient et remplissez le formulaire d'inscription." },
@@ -12,7 +12,8 @@ const faqs = [
 ];
 
 export default function AideStructure({ darkMode }) {
-  const { langue } = useLanguage();
+  // const { langue } = useLanguage();
+  const langue = "fr";
   const [ouvert, setOuvert] = useState(null);
   const [recherche, setRecherche] = useState("");
 

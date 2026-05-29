@@ -7,6 +7,7 @@ import DemandesStructure from './pages/structure/DemandesStructure';
 import PersonnelStructure from './pages/structure/PersonnelStructure';
 
 
+
 // Components Patient
 import Sidebar from './components/sidebar';
 import Header from './components/header';
@@ -26,6 +27,10 @@ import Aide from './pages/patient/Aides';
 import Parametres from './pages/patient/parametre';
 import StructuresSante from './pages/patient/structuressante';
 import DashboardStructure from './pages/structure/DashboardStructure';
+import Paiement from './pages/patient/Paiement';
+import MiseAJour from './pages/patient/MiseAJour';
+import DetailNotification from './pages/patient/DetailNotification';
+import PrescriptionDetail from './pages/patient/PrescriptionDetail';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -42,13 +47,17 @@ function App() {
             <main className="flex-1 p-4 mt-14 overflow-x-hidden">
               <Routes>
                 <Route path="/dashboard" element={<Dashboard darkMode={darkMode} />} />
+                <Route path="/miseajour/:id" element={<MiseAJour darkMode={darkMode} />} />
                 <Route path="/annuaire" element={<Annuaire darkMode={darkMode} />} />
                 <Route path="/medecin/:id" element={<ProfilMedecin darkMode={darkMode} />} />
                 <Route path="/dossiers" element={<DossierPatient darkMode={darkMode} />} />
                 <Route path="/prescriptions" element={<Prescriptions darkMode={darkMode} />} />
+                <Route path="/prescription/:id" element={<PrescriptionDetail darkMode={darkMode} />}/>
                 <Route path="/factures" element={<Factures darkMode={darkMode} />} />
+                <Route path="/paiement" element={<Paiement darkMode={darkMode} />} />
                 <Route path="/messages" element={<Messages darkMode={darkMode} />} />
                 <Route path="/notifications" element={<Notifications darkMode={darkMode} />} />
+                <Route path="/notification/:id" element={<DetailNotification darkMode={darkMode} />} />
                 <Route path="/aide" element={<Aide darkMode={darkMode} />} />
                 <Route path="/parametres" element={<Parametres darkMode={darkMode} />} />
                 <Route path="/structures" element={<StructuresSante darkMode={darkMode} />} />

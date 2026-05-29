@@ -1,4 +1,4 @@
-import { useLanguage } from '../../LanguageContext';
+//import { useLanguage } from '../../LanguageContext';
 import { Users, Calendar, Clock, TrendingUp, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react';
 
 const patientsRecents = [
@@ -17,8 +17,8 @@ const medecins = [
 ];
 
 export default function DashboardStructure({ darkMode }) {
-  const { langue } = useLanguage();
-
+  // const { langue } = useLanguage();
+    const langue = "fr";
   const stats = [
     {
       label: langue === 'fr' ? "Patients aujourd'hui" : "Today's Patients",

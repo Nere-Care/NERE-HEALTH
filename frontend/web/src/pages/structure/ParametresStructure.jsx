@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Building2, Lock, Bell, Shield, Users, Eye, EyeOff, Smartphone } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 
 export default function ParametresStructure({ darkMode }) {
-  const { langue } = useLanguage();
+  const langue = "fr";
   const [section, setSection] = useState("Informations");
   const [showPassword, setShowPassword] = useState(false);
   const [notifs, setNotifs] = useState({

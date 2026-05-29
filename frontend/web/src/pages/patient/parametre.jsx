@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 // Menu : Uniquement l'essentiel
-const sections = ["Profil", "Sécurité", "Informations légales"];
+const sections = ["Profil", "Sécurité", "Confidentialités"];
 
 export default function Parametres({ darkMode }) {
   const [section, setSection] = useState("Profil");
@@ -153,7 +153,7 @@ export default function Parametres({ darkMode }) {
           )}
 
           {/* INFORMATIONS LÉGALES & ACCÈS MÉDICAUX */}
-          {section === "Informations légales" && (
+          {section === "Confidentialités" && (
             <div className="flex flex-col gap-6">
               
               {/* GESTION DES ACCÈS AU DOSSIER MÉDICAL */}

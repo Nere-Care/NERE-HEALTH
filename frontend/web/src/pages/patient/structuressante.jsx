@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MapPin, Phone, Clock, Search, Star } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 import { useNavigate } from 'react-router-dom';
 
 const data = {
@@ -22,17 +22,24 @@ const data = {
     { id: 11, nom: "Pharmacie de la Paix", ville: "Bafoussam", bp: "B.P: 3003", tel: "+237 677 123 458", horaire: "08h - 20h", statut: "Fermé", note: 3.9 },
     { id: 12, nom: "Pharmacie Ndokoti", ville: "Douala", bp: "B.P: 4004", tel: "+237 677 123 459", horaire: "24h/24", statut: "Ouvert", note: 4.1 },
   ],
+    Laboratoires: [
+    { id: 9, nom: "Laboratiore du Marché Central", ville: "Yaoundé", bp: "B.P: 1001", tel: "+237 677 123 456", horaire: "08h - 22h", statut: "Ouvert", note: 4.8 },
+    { id: 10, nom: "Laboratoire Française", ville: "Douala", bp: "B.P: 2002", tel: "+237 677 123 457", horaire: "07h - 23h", statut: "Ouvert", note: 4.5 },
+    { id: 11, nom: "Laboratoire de la Paix", ville: "Bafoussam", bp: "B.P: 3003", tel: "+237 677 123 458", horaire: "08h - 20h", statut: "Fermé", note: 3.9 },
+    { id: 12, nom: "Laboratoire Ndokoti", ville: "Douala", bp: "B.P: 4004", tel: "+237 677 123 459", horaire: "24h/24", statut: "Ouvert", note: 4.1 },
+  ],
 };
 
-const icones = { Hopitaux: "H", Cliniques: "C", Pharmacies: "P" };
+const icones = { Hopitaux: "H", Cliniques: "C", Pharmacies: "P", Laboratoires: "L" };
 const couleurs = {
   Hopitaux: { bg: "bg-blue-100", text: "text-blue-600", active: "bg-blue-500" },
   Cliniques: { bg: "bg-green-100", text: "text-green-600", active: "bg-green-500" },
   Pharmacies: { bg: "bg-purple-100", text: "text-purple-600", active: "bg-purple-500" },
+  Laboratoires: { bg: "bg-yellow-100", text: "text-yellow-600", active: "bg-yellow-500" },
 };
 
 export default function StructuresSante({ darkMode }) {
-  const { t } = useLanguage();
+  // const { t } = useLanguage();
   const navigate = useNavigate();
   const [onglet, setOnglet] = useState("Hopitaux");
   const [recherche, setRecherche] = useState("");
@@ -43,10 +50,10 @@ export default function StructuresSante({ darkMode }) {
   );
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       
-      <div className="mb-6 mt-2">
-        <h1 className={`text-2xl font-extrabold ${darkMode ? "text-white" : "text-gray-800"}`}>
+      <div className="mb-6 -mt-2">
+          <h1 className="text-2xl font-bold text-blue-500">
           Structures de Santé
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>

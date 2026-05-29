@@ -1,6 +1,6 @@
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
 import { useState } from 'react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
   { question: "Comment prendre un rendez-vous ?", reponse: "Allez dans Annuaire Médecins, choisissez un médecin et cliquez sur Consulter pour prendre rendez-vous." },
@@ -11,7 +11,7 @@ const faqs = [
 ];
 
 export default function Aide({ darkMode }) {
-  const { t } = useLanguage();
+  // const { t } = useLanguage();
   const [ouvert, setOuvert] = useState(null);
   const [recherche, setRecherche] = useState("");
 
@@ -20,19 +20,25 @@ export default function Aide({ darkMode }) {
   );
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
-      <h1 className="text-lg font-bold text-blue-600 mb-6">{t.aideTitre}</h1>
+      <h1 className="text-lg font-bold text-blue-600 mb-6">
+        {/* {t.aideTitre} */}
+        Centre d'aide
+      </h1>
 
       {/* Bannière */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-2xl p-6 mb-6 text-white">
-        <h2 className="text-xl font-bold mb-1">{t.commentAider}</h2>
+        <h2 className="text-xl font-bold mb-1">
+          {/* {t.commentAider} */}
+          Comment pouvons-nous vous aider ?
+        </h2>
         <p className="text-sm text-blue-100 mb-4">Trouvez rapidement une réponse à vos questions</p>
         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2">
           <Search size={16} className="text-gray-400" />
           <input
             type="text"
-            placeholder={t.rechercherQuestion}
+            placeholder={/* t.rechercherQuestion */ "Rechercher une question..."}
             className="outline-none text-sm text-gray-700 w-full"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
@@ -43,9 +49,9 @@ export default function Aide({ darkMode }) {
       {/* Raccourcis */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
-          { icon: BookOpen, label: t.guideUtilisateur, color: "bg-blue-100 text-blue-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
-          { icon: Video, label: t.tutoriels, color: "bg-green-100 text-green-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-green-50" },
-          { icon: FileQuestion, label: t.faq, color: "bg-purple-100 text-purple-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-purple-50" },
+          { icon: BookOpen,     label: /* t.guideUtilisateur */ "Guide utilisateur", color: "bg-blue-100 text-blue-500",   hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
+          { icon: Video,        label: /* t.tutoriels */        "Tutoriels vidéo",   color: "bg-green-100 text-green-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-green-50" },
+          { icon: FileQuestion, label: /* t.faq */              "FAQ",               color: "bg-purple-100 text-purple-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-purple-50" },
         ].map((item, index) => {
           const Icon = item.icon;
           return (
@@ -54,7 +60,9 @@ export default function Aide({ darkMode }) {
               <div className={`p-3 rounded-xl ${item.color.split(' ')[0]}`}>
                 <Icon size={20} className={item.color.split(' ')[1]} />
               </div>
-              <p className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{item.label}</p>
+              <p className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                {item.label}
+              </p>
             </div>
           );
         })}
@@ -64,7 +72,8 @@ export default function Aide({ darkMode }) {
       <div className={`rounded-2xl shadow overflow-hidden mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
           <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-            {t.questionsFrequentes}
+            {/* {t.questionsFrequentes} */}
+            Questions fréquentes
           </h2>
         </div>
         {faqsFiltrees.map((faq, index) => (
@@ -96,13 +105,14 @@ export default function Aide({ darkMode }) {
       {/* Support */}
       <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <h2 className={`text-sm font-bold mb-4 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-          {t.contacterSupport}
+          {/* {t.contacterSupport} */}
+          Contacter le support
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { icon: MessageCircle, label: t.chatDirect, sub: t.disponible, color: "bg-blue-50", iconColor: "text-blue-500" },
-            { icon: Phone, label: "Téléphone", sub: "+237 xxx xxx xxx", color: "bg-green-50", iconColor: "text-green-500" },
-            { icon: Mail, label: "Email", sub: "support@nere.com", color: "bg-purple-50", iconColor: "text-purple-500" },
+            { icon: MessageCircle, label: /* t.chatDirect */ "Chat direct", sub: /* t.disponible */ "Disponible 24h/24", color: "bg-blue-50",   iconColor: "text-blue-500" },
+            { icon: Phone,         label: "Téléphone",                       sub: "+237 xxx xxx xxx",                                            color: "bg-green-50",  iconColor: "text-green-500" },
+            { icon: Mail,          label: "Email",                           sub: "support@nere.com",                                            color: "bg-purple-50", iconColor: "text-purple-500" },
           ].map((item, index) => {
             const Icon = item.icon;
             return (

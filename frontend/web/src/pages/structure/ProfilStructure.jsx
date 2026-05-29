@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 import { 
   Building2, MapPin, Phone, Mail, Globe, 
   Clock, Camera, Save, ShieldCheck, Activity 
 } from 'lucide-react';
 
 export default function ProfilStructure({ darkMode }) {
-  const { langue } = useLanguage();
+  const langue = "fr";
   
   // État pour simuler les données de la structure
   const [formData, setFormData] = useState({
@@ -55,7 +55,7 @@ export default function ProfilStructure({ darkMode }) {
   const content = langue === 'fr' ? t.fr : t.en;
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
       
       {/* Header avec action de sauvegarde */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">

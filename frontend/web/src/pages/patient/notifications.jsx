@@ -1,7 +1,9 @@
 import { Bell, FileText, Calendar, CreditCard, FlaskConical, Clock } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+// import { useLanguage } from '../../LanguageContext';
 
-const notifications = [
+const notificationsData = [
   { id: 1, message: "Rappel de votre rendez-vous de téléconsultation", temps: "Il y a 5 min", lu: false, icon: Calendar, couleur: "bg-blue-100 text-blue-500" },
   { id: 2, message: "Vos résultats d'examen sont disponibles", temps: "Il y a 30 min", lu: false, icon: FlaskConical, couleur: "bg-green-100 text-green-500" },
   { id: 3, message: "Votre paiement a été effectué avec succès", temps: "Il y a 1 heure", lu: false, icon: CreditCard, couleur: "bg-purple-100 text-purple-500" },
@@ -11,23 +13,27 @@ const notifications = [
 ];
 
 export default function Notifications({ darkMode }) {
-  const { t } = useLanguage();
+  // const { t } = useLanguage();
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState(notificationsData);
+
+  const handleNotificationClick = (id) => {
+    setNotifications(notifications.map((notif) =>
+      notif.id === id ? { ...notif, lu: true } : notif
+    ));
+    navigate(`/notification/${id}`);
+  };
+
+  const nonLues = notifications.filter(n => !n.lu).length;
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-6 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
-      <h1 className="text-lg font-bold text-blue-600 mb-2">{/*t.notifications*/}</h1>
-      <button className={`flex items-center gap-1 text-sm font-semibold mb-6
-        ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-      </button>
-
-        {/* Titre */}
+      {/* Titre */}
       <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-         Notifications
-        </h1>
+        <h1 className="text-2xl font-bold text-blue-500">Notifications</h1>
         <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-         Historique de vos notifications
+          Historique de vos notifications
         </p>
       </div>
 
@@ -38,26 +44,37 @@ export default function Notifications({ darkMode }) {
             <Bell size={20} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-600">3</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t.nonLues}</p>
+            <p className="text-2xl font-bold text-blue-600">{nonLues}</p>
+            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {/* {t.nonLues} */}
+              Non lues
+            </p>
           </div>
         </div>
+
         <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-green-900" : "bg-green-50"}`}>
           <div className="bg-green-100 p-3 rounded-xl">
             <FileText size={20} className="text-green-500" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-green-600">6</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t.total}</p>
+            <p className="text-2xl font-bold text-green-600">{notifications.length}</p>
+            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {/* {t.total} */}
+              Total
+            </p>
           </div>
         </div>
+
         <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-purple-900" : "bg-purple-50"}`}>
           <div className="bg-purple-100 p-3 rounded-xl">
             <Clock size={20} className="text-purple-500" />
           </div>
           <div>
             <p className="text-2xl font-bold text-purple-600">2</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t.aujourdhui}</p>
+            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {/* {t.aujourdhui} */}
+              Aujourd'hui
+            </p>
           </div>
         </div>
       </div>
@@ -67,15 +84,24 @@ export default function Notifications({ darkMode }) {
         <div className={`flex items-center justify-between px-6 py-4 border-b
           ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
           <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-            {t.toutesNotifs}
+            {/* {t.toutesNotifs} */}
+            Toutes les notifications
           </h2>
-          <button className="text-xs text-blue-500 hover:underline">{t.toutMarquer}</button>
+          <button
+            onClick={() => setNotifications(notifications.map(n => ({ ...n, lu: true })))}
+            className="text-xs text-blue-500 hover:underline"
+          >
+            {/* {t.toutMarquer} */}
+            Tout marquer comme lu
+          </button>
         </div>
 
         {notifications.map((notif, index) => {
           const Icon = notif.icon;
           return (
-            <div key={notif.id}
+            <div
+              key={notif.id}
+              onClick={() => handleNotificationClick(notif.id)}
               className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-all
                 ${index !== notifications.length - 1
                   ? darkMode ? "border-b border-gray-700" : "border-b border-gray-50"
@@ -101,7 +127,6 @@ export default function Notifications({ darkMode }) {
           );
         })}
       </div>
-
     </div>
   );
 }

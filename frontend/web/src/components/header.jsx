@@ -1,9 +1,9 @@
-import { Bell, Sun, Moon, Globe } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+//import { useState } from 'react';
+import { Bell, Sun, Moon } from 'lucide-react';
 import logo from '../logo.png';
 
 export default function Header({ darkMode, setDarkMode }) {
-  const { langue, setLangue } = useLanguage();
+  // Plus de useLanguage — bouton langue supprimé
 
   return (
     <div
@@ -12,32 +12,17 @@ export default function Header({ darkMode, setDarkMode }) {
       ${darkMode ? "bg-gray-800" : "bg-white"}`}
     >
 
-      {/* GAUCHE */}
+      {/* GAUCHE — Logo */}
       <div className="flex items-center">
-{/* LOGO */}
-<img
-  src={logo}
-  alt="NERE Health"
-  className="h-28 w-auto object-contain"
-/>
-
+        <img
+          src={logo}
+          alt="NERE Health"
+          className="h-28 w-auto object-contain"
+        />
       </div>
 
       {/* DROITE */}
       <div className="flex items-center gap-4">
-
-        {/* Bouton langue */}
-        <button
-          onClick={() => setLangue(langue === 'fr' ? 'en' : 'fr')}
-          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all
-            ${darkMode
-              ? "border-gray-600 text-gray-300 hover:bg-gray-700"
-              : "border-gray-200 text-gray-600 hover:bg-gray-100"
-            }`}
-        >
-          <Globe size={14} />
-          {langue === 'fr' ? 'EN' : 'FR'}
-        </button>
 
         {/* Bouton jour/nuit */}
         <button
@@ -49,21 +34,16 @@ export default function Header({ darkMode, setDarkMode }) {
             className={`w-6 h-6 rounded-full absolute top-0.5 flex items-center justify-center transition-all duration-300
             ${darkMode ? "right-0.5 bg-white" : "left-0.5 bg-white"}`}
           >
-            {darkMode ? (
-              <Moon size={12} className="text-blue-600" />
-            ) : (
-              <Sun size={12} className="text-yellow-500" />
-            )}
+            {darkMode
+              ? <Moon size={12} className="text-blue-600" />
+              : <Sun size={12} className="text-yellow-500" />
+            }
           </div>
         </button>
 
         {/* Cloche */}
         <div className="relative cursor-pointer">
-          <Bell
-            size={22}
-            className={darkMode ? "text-gray-300" : "text-gray-600"}
-          />
-
+          <Bell size={22} className={darkMode ? "text-gray-300" : "text-gray-600"} />
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
             3
           </span>
@@ -74,12 +54,7 @@ export default function Header({ darkMode, setDarkMode }) {
           <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
             <span className="text-green-600 text-sm font-bold">M</span>
           </div>
-
-          <span
-            className={`text-sm font-medium ${
-              darkMode ? "text-gray-300" : "text-gray-700"
-            }`}
-          >
+          <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
             Mle agine
           </span>
         </div>

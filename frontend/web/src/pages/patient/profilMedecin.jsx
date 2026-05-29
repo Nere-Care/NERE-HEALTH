@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Star, MapPin, Clock, Heart, Video, User, ArrowLeft, CheckCircle, Calendar } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 import { medecins } from '../../constants/medecins';
 
 const creneaux = [
@@ -20,7 +20,8 @@ const avis = [
 export default function ProfilMedecin({ darkMode }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { langue } = useLanguage();
+  //const { langue } = useLanguage();
+  const langue = "fr";
 
   const medecin = medecins.find(m => m.id === parseInt(id));
 

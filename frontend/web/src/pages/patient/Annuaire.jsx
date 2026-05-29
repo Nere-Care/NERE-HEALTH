@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { Search, Filter, Star, MapPin, Clock, Heart, Video, User } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
 import { medecins, specialites } from '../../constants/medecins';
 import { useNavigate } from 'react-router-dom';
 
 export default function Annuaire({ darkMode }) {
-  const { langue } = useLanguage();
   const navigate = useNavigate();
   const [recherche, setRecherche] = useState("");
   const [filtreSpec, setFiltreSpec] = useState("Toutes");
@@ -14,7 +12,8 @@ export default function Annuaire({ darkMode }) {
   );
 
   const medecinsFiltres = medecins.filter((m) => {
-    const matchRecherche = m.nom.toLowerCase().includes(recherche.toLowerCase()) ||
+    const matchRecherche =
+      m.nom.toLowerCase().includes(recherche.toLowerCase()) ||
       m.specialite.toLowerCase().includes(recherche.toLowerCase());
     const matchSpec = filtreSpec === "Toutes" || m.specialite === filtreSpec;
     return matchRecherche && matchSpec;
@@ -26,17 +25,13 @@ export default function Annuaire({ darkMode }) {
   };
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       {/* Titre */}
-      <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-          {langue === 'fr' ? "Trouver un Médecin" : "Find a Doctor"}
-        </h1>
+      <div className="mb-6 -mt-2">
+        <h1 className="text-2xl font-bold text-blue-500">Trouver un Médecin</h1>
         <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          {langue === 'fr'
-            ? "Parcourez notre réseau de professionnels de santé"
-            : "Browse our network of healthcare professionals"}
+          Parcourez notre réseau de professionnels de santé
         </p>
       </div>
 
@@ -47,7 +42,7 @@ export default function Annuaire({ darkMode }) {
           <Search size={16} className="text-gray-400 flex-shrink-0" />
           <input
             type="text"
-            placeholder={langue === 'fr' ? "Rechercher par nom ou spécialité..." : "Search by name or specialty..."}
+            placeholder="Rechercher par nom ou spécialité..."
             className={`outline-none text-sm w-full ${darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""}`}
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
@@ -56,7 +51,7 @@ export default function Annuaire({ darkMode }) {
         <button className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 text-sm flex-shrink-0
           ${darkMode ? "bg-gray-800 border-gray-600 text-gray-300" : "bg-white border-gray-200 text-gray-600"}`}>
           <Filter size={16} />
-          {langue === 'fr' ? "Filtres" : "Filters"}
+          Filtres
         </button>
       </div>
 
@@ -74,14 +69,14 @@ export default function Annuaire({ darkMode }) {
                   : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
               }`}
           >
-            {langue === 'fr' ? spec.label : spec.labelEn}
+            {spec.label}
           </button>
         ))}
       </div>
 
       {/* Résultats */}
       <p className={`text-xs mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-        {medecinsFiltres.length} {langue === 'fr' ? "médecin(s) trouvé(s)" : "doctor(s) found"}
+        {medecinsFiltres.length} médecin(s) trouvé(s)
       </p>
 
       {/* Grille médecins */}
@@ -111,9 +106,7 @@ export default function Annuaire({ darkMode }) {
               {/* Badge disponibilité */}
               <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-semibold
                 ${medecin.disponible ? "bg-green-500 text-white" : "bg-gray-400 text-white"}`}>
-                {medecin.disponible
-                  ? langue === 'fr' ? "Disponible" : "Available"
-                  : langue === 'fr' ? "Indisponible" : "Unavailable"}
+                {medecin.disponible ? "Disponible" : "Indisponible"}
               </div>
             </div>
 
@@ -124,9 +117,7 @@ export default function Annuaire({ darkMode }) {
                   <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
                     {medecin.nom}
                   </p>
-                  <p className="text-xs text-blue-500 font-medium">
-                    {langue === 'fr' ? medecin.specialite : medecin.specialiteEn}
-                  </p>
+                  <p className="text-xs text-blue-500 font-medium">{medecin.specialite}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <Star size={12} fill="#FBBF24" className="text-yellow-400" />
@@ -135,9 +126,8 @@ export default function Annuaire({ darkMode }) {
                   </span>
                 </div>
               </div>
-
               <p className={`text-xs mt-1 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                {langue === 'fr' ? medecin.description : medecin.descriptionEn}
+                {medecin.description}
               </p>
             </div>
 
@@ -146,7 +136,7 @@ export default function Annuaire({ darkMode }) {
               <div className="flex items-center gap-1.5">
                 <Clock size={12} className="text-gray-400 flex-shrink-0" />
                 <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {medecin.experience} {langue === 'fr' ? "d'expérience" : "experience"}
+                  {medecin.experience} d'expérience
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -158,8 +148,7 @@ export default function Annuaire({ darkMode }) {
               <div className="flex items-center gap-1.5">
                 <Clock size={12} className="text-blue-400 flex-shrink-0" />
                 <span className="text-xs text-blue-400 font-medium">
-                  {langue === 'fr' ? "Prochain : " : "Next: "}
-                  {langue === 'fr' ? medecin.prochainRdv : medecin.prochainRdvEn}
+                  Prochain : {medecin.prochainRdv}
                 </span>
               </div>
             </div>
@@ -170,7 +159,7 @@ export default function Annuaire({ darkMode }) {
                 <span key={mode} className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg
                   ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"}`}>
                   {mode === "Video" ? <Video size={11} /> : <User size={11} />}
-                  {langue === 'fr' ? mode : mode === "Video" ? "Video" : "In-Person"}
+                  {mode}
                 </span>
               ))}
             </div>
@@ -188,7 +177,7 @@ export default function Annuaire({ darkMode }) {
                 onClick={(e) => { e.stopPropagation(); navigate(`/medecin/${medecin.id}`); }}
                 className="flex-1 bg-blue-600 text-white rounded-xl py-2 text-xs font-medium hover:bg-blue-700 transition-all"
               >
-                {langue === 'fr' ? "Réserver" : "Book"}
+                Réserver
               </button>
             </div>
 
