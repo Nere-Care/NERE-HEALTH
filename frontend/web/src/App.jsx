@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AideStructure from './pages/structure/AideStructure';
 import ParametresStructure from './pages/structure/ParametresStructure';
-import ProfilStructure from './pages/structure/profilStructure';
+import ProfilStructureadmin from './pages/structure/profilStructure';
 import DemandesStructure from './pages/structure/DemandesStructure'; 
 import PersonnelStructure from './pages/structure/PersonnelStructure';
 
@@ -31,6 +31,8 @@ import Paiement from './pages/patient/Paiement';
 import MiseAJour from './pages/patient/MiseAJour';
 import DetailNotification from './pages/patient/DetailNotification';
 import PrescriptionDetail from './pages/patient/PrescriptionDetail';
+import ProfilStructurePatient from './pages/patient/profilStructure';
+
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -61,7 +63,7 @@ function App() {
                 <Route path="/aide" element={<Aide darkMode={darkMode} />} />
                 <Route path="/parametres" element={<Parametres darkMode={darkMode} />} />
                 <Route path="/structures" element={<StructuresSante darkMode={darkMode} />} />
-                <Route path="/profilStructure/:id" element={<ProfilStructure darkMode={darkMode} />} />
+                <Route path="/profilStructure/:id" element={<ProfilStructurePatient darkMode={darkMode} />} />
 
               </Routes>
             </main>
@@ -89,7 +91,7 @@ function App() {
               <Route path="/structure" element={<DashboardStructure darkMode={darkMode} />} />
               <Route path="/structure/aide" element={<AideStructure darkMode={darkMode} />} />
               <Route path="/structure/parametres" element={<ParametresStructure darkMode={darkMode} />} />
-              <Route path="/structure/profil" element={<ProfilStructure darkMode={darkMode} />} />
+              <Route path="/structure/profil" element={<ProfilStructureadmin darkMode={darkMode} />} />
              <Route path="/structure/personnel" element={<PersonnelStructure darkMode={darkMode} />} /> 
              <Route path="/structure/demandes" element={<DemandesStructure darkMode={darkMode} />} />
 

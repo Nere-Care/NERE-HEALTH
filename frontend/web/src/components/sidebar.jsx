@@ -105,6 +105,9 @@ export default function Sidebar({ darkMode, role, nomStructure, typeStructure })
           >
             <X size={20} />
           </button>
+         
+         
+
         </div>
 
         {/* INFOS STRUCTURE */}
@@ -116,7 +119,7 @@ export default function Sidebar({ darkMode, role, nomStructure, typeStructure })
         )}
 
         {/* MENU */}
-        <nav className="flex flex-col gap-1 flex-1">
+        <nav className="flex flex-col gap-3 flex-1 mt-3">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -138,8 +141,27 @@ export default function Sidebar({ darkMode, role, nomStructure, typeStructure })
                   }
                 `}
               >
-                <Icon size={18} className="shrink-0" />
-                <span>{item.label}</span>
+                <div className="relative">
+  <Icon size={18} className="shrink-0" />
+
+  {/* Badge notifications */}
+  {item.path === "/notifications" && (
+    <span
+      className="
+        absolute -top-2 -right-2
+        bg-red-500 text-white
+        text-[10px] font-bold
+        min-w-[16px] h-4
+        flex items-center justify-center
+        rounded-full px-1
+      "
+    >
+      3
+    </span>
+  )}
+</div>
+
+<span>{item.label}</span>
               </button>
             );
           })}

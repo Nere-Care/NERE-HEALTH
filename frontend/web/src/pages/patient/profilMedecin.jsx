@@ -48,7 +48,7 @@ export default function ProfilMedecin({ darkMode }) {
   };
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       {/* Bouton retour */}
       <button

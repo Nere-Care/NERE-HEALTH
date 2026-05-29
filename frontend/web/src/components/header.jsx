@@ -41,13 +41,7 @@ export default function Header({ darkMode, setDarkMode }) {
           </div>
         </button>
 
-        {/* Cloche */}
-        <div className="relative cursor-pointer">
-          <Bell size={22} className={darkMode ? "text-gray-300" : "text-gray-600"} />
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-            3
-          </span>
-        </div>
+       
 
         {/* Profil */}
         <div className="flex items-center gap-2 cursor-pointer">
