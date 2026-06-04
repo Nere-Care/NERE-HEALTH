@@ -27,13 +27,11 @@ export default function Annuaire({ darkMode }) {
   };
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       {/* Titre */}
-      <div className="mb-6">
-        <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-          Trouver un Médecin
-        </h1>
+      <div className="mb-6 -mt-2">
+        <h1 className="text-2xl font-bold text-blue-500">Trouver un Médecin</h1>
         <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
           Parcourez notre réseau de professionnels de santé
         </p>
@@ -47,9 +45,7 @@ export default function Annuaire({ darkMode }) {
           <input
             type="text"
             placeholder="Rechercher par nom ou spécialité..."
-            className={`outline-none text-sm w-full ${
-              darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""
-            }`}
+            className={`outline-none text-sm w-full ${darkMode ? "bg-gray-800 text-white placeholder-gray-500" : ""}`}
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
           />
@@ -127,9 +123,7 @@ export default function Annuaire({ darkMode }) {
                   <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
                     {medecin.nom}
                   </p>
-                  <p className="text-xs text-blue-500 font-medium">
-                    {medecin.specialite}
-                  </p>
+                  <p className="text-xs text-blue-500 font-medium">{medecin.specialite}</p>
                 </div>
 
                 <div className="flex items-center gap-1">
@@ -139,7 +133,6 @@ export default function Annuaire({ darkMode }) {
                   </span>
                 </div>
               </div>
-
               <p className={`text-xs mt-1 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                 {medecin.description}
               </p>

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { useLanguage } from '../../LanguageContext';
+// import { useLanguage } from '../../LanguageContext';
 import { 
   Building2, MapPin, Phone, Mail, Globe, 
   Clock, Camera, Save, ShieldCheck, Activity 
 } from 'lucide-react';
 
 export default function ProfilStructure({ darkMode }) {
-  const { langue } = useLanguage();
+  const langue = "fr";
   
   // État pour simuler les données de la structure
   const [formData, setFormData] = useState({
@@ -55,12 +55,12 @@ export default function ProfilStructure({ darkMode }) {
   const content = langue === 'fr' ? t.fr : t.en;
 
   return (
-    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
+    <div className={`px-6 pt-4 pb-6 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
       
       {/* Header avec action de sauvegarde */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{content.titre}</h1>
+          <h1 className="text-2xl font-bold text-blue-500">{content.titre}</h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{content.sousTitre}</p>
         </div>
         <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg text-sm">

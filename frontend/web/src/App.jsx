@@ -21,6 +21,13 @@ import StructuresSante from "./pages/patient/structuressante";
 import ProfilMedecin from "./pages/patient/profilMedecin";
 import Prescriptions from "./pages/patient/prescriptions";
 import Factures from "./pages/patient/factures";
+// Ajouts complémentaires (autre branche)
+import Paiement from "./pages/patient/Paiement";
+import MiseAJour from "./pages/patient/MiseAJour";
+import DetailNotification from "./pages/patient/DetailNotification";
+import PrescriptionDetail from "./pages/patient/PrescriptionDetail";
+import ProfilStructurePatient from "./pages/patient/profilStructure";
+import MessagesPatient from "./pages/patient/messages";
 
 /* DOCTOR */
 import DoctorDirectory from "./pages/doctor/doctorDirectory";
@@ -42,6 +49,9 @@ import ProfilStructure from "./pages/structure/profilStructure";
 import DemandesStructure from "./pages/structure/DemandesStructure";
 import PersonnelStructure from "./pages/structure/PersonnelStructure";
 import DashboardStructure from "./pages/structure/DashboardStructure";
+// Ajouts complémentaires (autre branche)
+import AideStructure from "./pages/structure/AideStructure";
+import ParametresStructure from "./pages/structure/ParametresStructure";
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -51,9 +61,7 @@ function App() {
 
   return (
     <BrowserRouter>
-
       <Routes>
-
         {/* LOGIN */}
         <Route path="/" element={<Auth />} />
 
@@ -61,12 +69,10 @@ function App() {
         <Route
           path="*"
           element={
-
             <div
               className={`flex min-h-screen transition-all duration-300
               ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}
             >
-
               {/* SIDEBAR */}
               <Sidebar
                 darkMode={darkMode}
@@ -81,7 +87,6 @@ function App() {
                   ${collapsed ? "lg:ml-20" : "lg:ml-56"}
                 `}
               >
-
                 {/* HEADER */}
                 <Header
                   darkMode={darkMode}
@@ -91,104 +96,115 @@ function App() {
 
                 {/* PAGE CONTENT */}
                 <main className="p-4 md:p-6 mt-16">
-
                   <Routes>
-
-                    {/* PATIENT */}
+                    {/* ========== PATIENT ========== */}
                     <Route
                       path="/Patient-dashboard"
                       element={<DashboardPatient darkMode={darkMode} />}
                     />
-
+                    <Route
+                      path="/dashboard"
+                      element={<DashboardPatient darkMode={darkMode} />}
+                    />
                     <Route
                       path="/annuaire"
                       element={<Annuaire darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/medecin/:id"
                       element={<ProfilMedecin darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/dossiers"
                       element={<DossierPatient darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/prescriptions"
                       element={<Prescriptions darkMode={darkMode} />}
                     />
-
+                    <Route
+                      path="/prescription/:id"
+                      element={<PrescriptionDetail darkMode={darkMode} />}
+                    />
                     <Route
                       path="/factures"
                       element={<Factures darkMode={darkMode} />}
                     />
-
+                    <Route
+                      path="/paiement"
+                      element={<Paiement darkMode={darkMode} />}
+                    />
+                    <Route
+                      path="/miseajour/:id"
+                      element={<MiseAJour darkMode={darkMode} />}
+                    />
                     <Route
                       path="/notifications"
                       element={<Notifications darkMode={darkMode} />}
                     />
-
+                    <Route
+                      path="/notification/:id"
+                      element={<DetailNotification darkMode={darkMode} />}
+                    />
                     <Route
                       path="/aide"
                       element={<Aide darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/parametres"
                       element={<Parametres darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/structures"
                       element={<StructuresSante darkMode={darkMode} />}
                     />
+                    <Route
+                      path="/profilStructure/:id"
+                      element={<ProfilStructurePatient darkMode={darkMode} />}
+                    />
+                    <Route
+                      path="/messages"
+                      element={<MessagesPatient darkMode={darkMode} />}
+                    />
 
-                    {/* DOCTOR */}
+                    {/* ========== DOCTOR ========== */}
                     <Route
                       path="/doctors"
                       element={<DoctorDirectory darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/appointments"
                       element={<Appointment darkMode={darkMode} />}
                     />
-
                     <Route
-                      path="/messages"
+                      path="/doctor-messages"
                       element={<Messages darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/patients"
                       element={<Patient darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/teleconsultation"
                       element={<TeleConsultation darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/payments"
                       element={<Payments darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/doctor-dashboard"
                       element={<Dashboard darkMode={darkMode} />}
                     />
 
-                    {/* OBSERVER */}
+                    {/* ========== OBSERVER ========== */}
                     <Route
                       path="/observer-dashboard"
                       element={<ObserverDashboard darkMode={darkMode} />}
                     />
                     <Route
                       path="/observer/doctor"
-                      element={<DoctorObserver darkMode={darkMode} />}  
+                      element={<DoctorObserver darkMode={darkMode} />}
                     />
                     <Route
                       path="/observer/patient"
@@ -199,38 +215,43 @@ function App() {
                       element={<StructureObserver darkMode={darkMode} />}
                     />
 
-                    {/* STRUCTURE */}
+                    {/* ========== STRUCTURE ========== */}
                     <Route
                       path="/structure"
                       element={<DashboardStructure darkMode={darkMode} />}
                     />
-
+                    <Route
+                      path="/structure-dashboard"
+                      element={<DashboardStructure darkMode={darkMode} />}
+                    />
                     <Route
                       path="/structure/profil"
                       element={<ProfilStructure darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/structure/personnel"
                       element={<PersonnelStructure darkMode={darkMode} />}
                     />
-
                     <Route
                       path="/structure/demandes"
                       element={<DemandesStructure darkMode={darkMode} />}
                     />
-
+                    {/* Ajouts complémentaires (autre branche) */}
+                    <Route
+                      path="/structure/aide"
+                      element={<AideStructure darkMode={darkMode} />}
+                    />
+                    <Route
+                      path="/structure/parametres"
+                      element={<ParametresStructure darkMode={darkMode} />}
+                    />
                   </Routes>
-
                 </main>
-
               </div>
             </div>
           }
         />
-
       </Routes>
-
     </BrowserRouter>
   );
 }

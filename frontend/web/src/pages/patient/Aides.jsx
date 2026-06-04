@@ -1,16 +1,6 @@
-import {
-  Search,
-  ChevronDown,
-  ChevronUp,
-  MessageCircle,
-  Phone,
-  Mail,
-  BookOpen,
-  Video,
-  FileQuestion
-} from "lucide-react";
-
-import { useState } from "react";
+import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
+import { useState } from 'react';
+// import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
   {
@@ -41,36 +31,37 @@ const faqs = [
 ];
 
 export default function Aide({ darkMode }) {
-  const [openIndex, setOpenIndex] = useState(null);
-  const [search, setSearch] = useState("");
+  // const { t } = useLanguage();
+  const [ouvert, setOuvert] = useState(null);
+  const [recherche, setRecherche] = useState("");
 
   const filteredFaqs = faqs.filter((f) =>
-    f.question.toLowerCase().includes(search.toLowerCase())
+    f.question.toLowerCase().includes(recherche.toLowerCase())
   );
 
   return (
-    <div
-      className={`min-h-screen p-4 md:p-6 transition
-      ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}
-    >
-      {/* HEADER */}
-      <h1 className="text-2xl font-bold text-blue-500 mb-6">
-        Centre d’aide
+    <div className={`p-9 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+
+      <h1 className="text-lg font-bold text-blue-600 mb-6">
+        {/* {t.aideTitre} */}
+        Centre d'aide
       </h1>
 
-      {/* SEARCH BANNER */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white mb-6">
-        <h2 className="text-lg font-semibold mb-2">
+      {/* Bannière */}
+      <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-2xl p-6 mb-6 text-white">
+        <h2 className="text-xl font-bold mb-1">
+          {/* {t.commentAider} */}
           Comment pouvons-nous vous aider ?
         </h2>
-
+        <p className="text-sm text-blue-100 mb-4">Trouvez rapidement une réponse à vos questions</p>
         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2">
           <Search size={16} className="text-gray-400" />
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher une question..."
-            className="w-full outline-none text-sm text-gray-700"
+            type="text"
+            placeholder={/* t.rechercherQuestion */ "Rechercher une question..."}
+            className="outline-none text-sm text-gray-700 w-full"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
           />
         </div>
       </div>
@@ -78,139 +69,96 @@ export default function Aide({ darkMode }) {
       {/* SHORTCUTS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
-          { icon: BookOpen, label: "Guide utilisateur", color: "text-blue-500" },
-          { icon: Video, label: "Tutoriels vidéo", color: "text-green-500" },
-          { icon: FileQuestion, label: "FAQ", color: "text-purple-500" }
-        ].map((item, i) => {
+          { icon: BookOpen,     label: /* t.guideUtilisateur */ "Guide utilisateur", color: "bg-blue-100 text-blue-500",   hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
+          { icon: Video,        label: /* t.tutoriels */        "Tutoriels vidéo",   color: "bg-green-100 text-green-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-green-50" },
+          { icon: FileQuestion, label: /* t.faq */              "FAQ",               color: "bg-purple-100 text-purple-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-purple-50" },
+        ].map((item, index) => {
           const Icon = item.icon;
 
           return (
-            <div
-              key={i}
-              className={`p-4 rounded-2xl border cursor-pointer transition
-              ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}
-              hover:shadow`}
-            >
-              <Icon className={`w-6 h-6 ${item.color}`} />
-              <p className="mt-2 text-sm font-medium">{item.label}</p>
+            <div key={index} className={`rounded-2xl shadow p-4 flex flex-col items-center gap-2 cursor-pointer transition-all ${item.hover}
+              ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+              <div className={`p-3 rounded-xl ${item.color.split(' ')[0]}`}>
+                <Icon size={20} className={item.color.split(' ')[1]} />
+              </div>
+              <p className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                {item.label}
+              </p>
             </div>
           );
         })}
       </div>
 
       {/* FAQ */}
-      <div
-        className={`rounded-2xl border overflow-hidden
-        ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
-      >
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 font-semibold">
-          Questions fréquentes
+      <div className={`rounded-2xl shadow overflow-hidden mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
+          <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+            {/* {t.questionsFrequentes} */}
+            Questions fréquentes
+          </h2>
         </div>
 
         {filteredFaqs.map((faq, index) => (
           <div
             key={index}
-            className="border-b border-gray-100 dark:border-gray-700"
+            className={`border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}
           >
             <button
               onClick={() =>
-                setOpenIndex(openIndex === index ? null : index)
+                setOuvert(ouvert === index ? null : index)
               }
-              className="w-full flex justify-between items-center p-4 text-left"
+              className={`w-full flex justify-between items-center p-4 text-left transition-all
+                ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
             >
-              <span className="text-sm font-medium">{faq.question}</span>
+              <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                {faq.question}
+              </span>
 
-              {openIndex === index ? (
-                <ChevronUp size={16} />
+              {ouvert === index ? (
+                <ChevronUp size={16} className="text-blue-500 flex-shrink-0" />
               ) : (
-                <ChevronDown size={16} />
+                <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
               )}
             </button>
 
-            {openIndex === index && (
-              <div className="px-4 pb-4 text-sm text-gray-500">
-                {faq.reponse}
+            {ouvert === index && (
+              <div className="px-4 pb-4">
+                <p className={`text-sm rounded-xl p-3 ${darkMode ? "bg-gray-700 text-gray-300" : "bg-blue-50 text-gray-500"}`}>
+                  {faq.reponse}
+                </p>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* SUPPORT */}
-      <div
-        className={`mt-6 p-5 rounded-2xl border
-        ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
-      >
-        <h2 className="font-semibold mb-4">Contacter le support</h2>
-
+      {/* Support */}
+      <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+        <h2 className={`text-sm font-bold mb-4 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+          {/* {t.contacterSupport} */}
+          Contacter le support
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-  {/* CHAT */}
-  <div
-    className={`flex items-center gap-3 p-3 rounded-xl border transition
-    ${darkMode
-      ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
-      : "bg-blue-50 border-blue-100 hover:bg-blue-100"
-    }`}
-  >
-    <MessageCircle
-      className={`w-5 h-5 ${darkMode ? "text-blue-400" : "text-blue-500"}`}
-    />
-    <div>
-      <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-800"}`}>
-        Chat
-      </p>
-      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-        Disponible 24/7
-      </p>
-    </div>
-  </div>
-
-  {/* PHONE */}
-  <div
-    className={`flex items-center gap-3 p-3 rounded-xl border transition
-    ${darkMode
-      ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
-      : "bg-green-50 border-green-100 hover:bg-green-100"
-    }`}
-  >
-    <Phone
-      className={`w-5 h-5 ${darkMode ? "text-green-400" : "text-green-500"}`}
-    />
-    <div>
-      <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-800"}`}>
-        Téléphone
-      </p>
-      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-        +237 XXX XXX XXX
-      </p>
-    </div>
-  </div>
-
-  {/* EMAIL */}
-  <div
-    className={`flex items-center gap-3 p-3 rounded-xl border transition
-    ${darkMode
-      ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
-      : "bg-purple-50 border-purple-100 hover:bg-purple-100"
-    }`}
-  >
-    <Mail
-      className={`w-5 h-5 ${darkMode ? "text-purple-400" : "text-purple-500"}`}
-    />
-    <div>
-      <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-800"}`}>
-        Email
-      </p>
-      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-        support@nere.com
-      </p>
-    </div>
-  </div>
-
-</div>
-          
+          {[
+            { icon: MessageCircle, label: /* t.chatDirect */ "Chat direct", sub: /* t.disponible */ "Disponible 24h/24", color: "bg-blue-50",   iconColor: "text-blue-500" },
+            { icon: Phone,         label: "Téléphone",                       sub: "+237 xxx xxx xxx",                                            color: "bg-green-50",  iconColor: "text-green-500" },
+            { icon: Mail,          label: "Email",                           sub: "support@nere.com",                                            color: "bg-purple-50", iconColor: "text-purple-500" },
+          ].map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <div key={index} className={`flex items-center gap-3 rounded-xl p-3
+                ${darkMode ? "bg-gray-700" : item.color}`}>
+                <Icon size={18} className={item.iconColor} />
+                <div>
+                  <p className={`text-xs font-semibold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{item.label}</p>
+                  <p className="text-xs text-gray-400">{item.sub}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
     </div>
   );
 }

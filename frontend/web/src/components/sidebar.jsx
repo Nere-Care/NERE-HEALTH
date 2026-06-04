@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useLanguage } from '../LanguageContext';
+// import { useLanguage } from "../LanguageContext";
 import {
   LayoutDashboard,
   Users,
@@ -23,47 +23,16 @@ import {
   Receipt,
 } from "lucide-react";
 
-
-
 const menuByRole = {
- patient: [
-  {
-    icon: LayoutDashboard,
-    label: "Tableau de Bord",
-    path: "/Patient-dashboard",
-  },
-  {
-    icon: Users,
-    label: "Annuaire Médecins",
-    path: "/annuaire",
-  },
-  {
-    icon: Building2,
-    label: "Structures de Santé",
-    path: "/structures",
-  },
-  {
-    icon: FolderOpen,
-    label: "Dossiers Patient",
-    path: "/dossiers",
-  },
-  {
-    icon: FileText,
-    label: "Prescriptions",
-    path: "/prescriptions",
-  },
-  {
-    icon: Receipt,
-    label: "Factures",
-    path: "/factures",
-  },
-  {
-    icon: MessageSquare,
-    label: "Messages",
-    path: "/messages",
-  },
-  
-],
+  patient: [
+    { icon: LayoutDashboard, label: "Tableau de Bord", path: "/Patient-dashboard" },
+    { icon: Users, label: "Annuaire Médecins", path: "/annuaire" },
+    { icon: Building2, label: "Structures de Santé", path: "/structures" },
+    { icon: FolderOpen, label: "Dossiers Patient", path: "/dossiers" },
+    { icon: FileText, label: "Prescriptions", path: "/prescriptions" },
+    { icon: Receipt, label: "Factures", path: "/factures" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+  ],
 
   doctor: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
@@ -89,38 +58,40 @@ const menuByRole = {
     { icon: LayoutDashboard, label: "Structure", path: "/structure-dashboard" },
     { icon: Users, label: "Personnel", path: "/structure/personnel" },
     { icon: FolderOpen, label: "Dossiers", path: "/structure/demandes" },
+    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: Bell, label: "Notifications", path: "/notifications" },
+    { icon: Calendar, label: "Rendez-vous", path: "/structure/rendezvous" },
+    { icon: Settings, label: "Paramètres", path: "/structure/parametres" },
+    { icon: HelpCircle, label: "Aide", path: "/structure/aide" },
   ],
+
   observer: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard" },
     { icon: Users, label: "Patient", path: "/observer/patient" },
     { icon: Users, label: "Professional", path: "/observer/doctor" },
-    {
-    icon: Building2,
-    label: "Structures de Santé",
-    path: "/observer/structure",
-  },
-
-  ]
+    { icon: Building2, label: "Structures de Santé", path: "/observer/structure" },
+  ],
 };
-  
 
+// Ajout : Couleurs par type de structure (venant de l'autre branche)
+const typeCouleurs = {
+  Hôpital: "bg-blue-600",
+  Clinique: "bg-green-600",
+  Pharmacie: "bg-purple-600",
+  Laboratoire: "bg-orange-600",
+};
 
-export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
+export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructure, typeStructure }) {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState(null);
-
-  // NOUVEAU STATE
- // const [collapsed, setCollapsed] = useState(true);
-
   const navigate = useNavigate();
   const location = useLocation();
 
-
-   /* ================= LOAD USER ROLE ================= */
+  /* ================= LOAD USER ROLE ================= */
   useEffect(() => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  setRole(user?.role);
-}, []);
+    const user = JSON.parse(localStorage.getItem("user"));
+    setRole(user?.role);
+  }, []);
 
   const items = menuByRole[role] || [];
 
@@ -128,8 +99,6 @@ export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
     navigate(path);
     setOpen(false); // ferme le menu mobile après navigation
   };
-
-
 
   return (
     <>
@@ -160,7 +129,6 @@ export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
           transform transition-all duration-300
 
           ${collapsed ? "w-20" : "w-56"}
-          
 
           ${darkMode ? "bg-gray-800" : "bg-white"}
 
@@ -198,14 +166,22 @@ export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
             </button>
           </div>
 
-          
+          {/* ================= INFOS STRUCTURE (ajout) ================= */}
+          {role === "structure" && !collapsed && (
+            <div
+              className={`rounded-2xl p-4 mb-4 text-center text-white ${
+                typeCouleurs[typeStructure] || "bg-blue-600"
+              }`}
+            >
+              <h2 className="font-bold text-lg">{nomStructure}</h2>
+              <p className="text-sm opacity-90">{typeStructure}</p>
+            </div>
+          )}
 
           {/* MENU */}
           <nav className="flex flex-col gap-1">
-
             {items?.map((item) => {
               const Icon = item.icon;
-              const label = item.labelKey ? t[item.labelKey] : item.label;
               const isActive = location.pathname === item.path;
 
               return (
@@ -224,35 +200,51 @@ export default function Sidebar({ darkMode , collapsed, setCollapsed }) {
                     ${collapsed ? "justify-center" : ""}
                   `}
                 >
-                  <Icon size={18} />
+                  <div className="relative">
+                    <Icon size={18} />
+
+                    {/* Badge notifications (ajout) */}
+                    {item.path === "/notifications" && (
+                      <span
+                        className="
+                          absolute -top-2 -right-2
+                          bg-red-500 text-white
+                          text-[10px] font-bold
+                          min-w-[16px] h-4
+                          flex items-center justify-center
+                          rounded-full px-1
+                        "
+                      >
+                        3
+                      </span>
+                    )}
+                  </div>
 
                   {!collapsed && item.label}
                 </button>
               );
             })}
-
           </nav>
         </div>
 
         {/* Nere IA */}
-        
-{role === "patient" && (
-  <button
-    className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
-    ${
-      darkMode
-        ? "text-blue-400 hover:bg-gray-700"
-        : "text-blue-500 hover:bg-blue-50"
-    }
+        {role === "patient" && (
+          <button
+            className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
+            ${
+              darkMode
+                ? "text-blue-400 hover:bg-gray-700"
+                : "text-blue-500 hover:bg-blue-50"
+            }
 
-    ${collapsed ? "justify-center" : ""}
-    `}
-  >
-    <Sparkles size={18} />
+            ${collapsed ? "justify-center" : ""}
+            `}
+          >
+            <Sparkles size={18} />
 
-    {!collapsed && "NERE IA"}
-  </button>
-)}
+            {!collapsed && "NERE IA"}
+          </button>
+        )}
       </div>
     </>
   );

@@ -35,16 +35,21 @@ export default function ProfilStructure({ darkMode }) {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
-      
+
+    
+    <div className={`px-4 pt-2 pb-6 min-h-screen transition-colors duration-300 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
+     
       {/* Banner avec bouton retour */}
-      <div className="relative h-44 bg-gradient-to-br from-blue-700 to-blue-400">
-        <button 
-          onClick={() => navigate(-1)} // La flèche retour
-          className="absolute top-8 left-4 p-3 bg-white/20 backdrop-blur-lg rounded-full text-white hover:bg-white/30 transition-all border border-white/30"
-        >
-          <ArrowLeft size={22} />
-        </button>
+     <button 
+  onClick={() => navigate(-1)}
+  className={`flex items-center gap-2 mb-3 text-sm font-medium
+    ${darkMode ? "text-blue-400 hover:text-white" : "text-blue-600 hover:text-blue-800"}`}
+>
+  <ArrowLeft size={18} />
+  Retour
+</button>
+      <div className="relative h-16 bg-gradient-to-br from-blue-700 to-blue-400">
+        
       </div>
 
       {/* Carte de Profil */}
@@ -61,7 +66,7 @@ export default function ProfilStructure({ darkMode }) {
             </span>
           </div>
 
-          <h1 className="text-2xl font-extrabold leading-tight">{structure.nom}</h1>
+          <h1 className="text-2xl font-extrabold leading-tight text-blue-500">{structure.nom}</h1>
           
           <div className="flex items-center gap-1.5 mt-2 mb-6">
             <Star size={16} className="text-yellow-400 fill-yellow-400" />
