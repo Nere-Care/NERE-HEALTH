@@ -36,7 +36,7 @@ import ProfilStructurePatient from './pages/patient/profilStructure';
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [role] = useState("patient");
+  const [role] = useState("structure");
 
   // ── INTERFACE PATIENT ──
   if (role === "patient") {

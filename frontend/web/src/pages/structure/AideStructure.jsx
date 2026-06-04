@@ -1,6 +1,5 @@
 import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
 import { useState } from 'react';
-// import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
   { question: "Comment ajouter un nouveau patient ?", reponse: "Allez dans la section Patients, cliquez sur + Nouveau Patient et remplissez le formulaire d'inscription." },
@@ -12,8 +11,6 @@ const faqs = [
 ];
 
 export default function AideStructure({ darkMode }) {
-  // const { langue } = useLanguage();
-  const langue = "fr";
   const [ouvert, setOuvert] = useState(null);
   const [recherche, setRecherche] = useState("");
 
@@ -25,22 +22,22 @@ export default function AideStructure({ darkMode }) {
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       <h1 className="text-lg font-bold text-blue-600 mb-6">
-        {langue === 'fr' ? "Centre d'Aide" : "Help Center"}
+        Centre d'Aide
       </h1>
 
       {/* Bannière */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-2xl p-6 mb-6 text-white">
         <h2 className="text-xl font-bold mb-1">
-          {langue === 'fr' ? "Comment pouvons-nous vous aider ?" : "How can we help you?"}
+          Comment pouvons-nous vous aider ?
         </h2>
         <p className="text-sm text-blue-100 mb-4">
-          {langue === 'fr' ? "Trouvez rapidement une réponse à vos questions" : "Find answers to your questions quickly"}
+          Trouvez rapidement une réponse à vos questions
         </p>
         <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2">
           <Search size={16} className="text-gray-400" />
           <input
             type="text"
-            placeholder={langue === 'fr' ? "Rechercher une question..." : "Search a question..."}
+            placeholder="Rechercher une question..."
             className="outline-none text-sm text-gray-700 w-full"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
@@ -51,8 +48,8 @@ export default function AideStructure({ darkMode }) {
       {/* Raccourcis */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
-          { icon: BookOpen, label: langue === 'fr' ? "Guide administrateur" : "Admin Guide", bg: "bg-blue-100", color: "text-blue-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
-          { icon: Video, label: langue === 'fr' ? "Tutoriels vidéo" : "Video Tutorials", bg: "bg-green-100", color: "text-green-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-green-50" },
+          { icon: BookOpen, label: "Guide administrateur", bg: "bg-blue-100", color: "text-blue-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
+          { icon: Video, label: "Tutoriels vidéo", bg: "bg-green-100", color: "text-green-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-green-50" },
           { icon: FileQuestion, label: "FAQ", bg: "bg-purple-100", color: "text-purple-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-purple-50" },
         ].map((item, index) => {
           const Icon = item.icon;
@@ -72,7 +69,7 @@ export default function AideStructure({ darkMode }) {
       <div className={`rounded-2xl shadow overflow-hidden mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <div className={`px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
           <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-            {langue === 'fr' ? "Questions fréquentes" : "Frequently Asked Questions"}
+            Questions fréquentes
           </h2>
         </div>
         {faqsFiltrees.map((faq, index) => (
@@ -104,12 +101,12 @@ export default function AideStructure({ darkMode }) {
       {/* Support */}
       <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <h2 className={`text-sm font-bold mb-4 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-          {langue === 'fr' ? "Contacter le support" : "Contact Support"}
+          Contacter le support
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { icon: MessageCircle, label: langue === 'fr' ? "Chat en direct" : "Live Chat", sub: langue === 'fr' ? "Disponible 24/7" : "Available 24/7", bg: darkMode ? "bg-gray-700" : "bg-blue-50", color: "text-blue-500" },
-            { icon: Phone, label: langue === 'fr' ? "Téléphone" : "Phone", sub: "+237 xxx xxx xxx", bg: darkMode ? "bg-gray-700" : "bg-green-50", color: "text-green-500" },
+            { icon: MessageCircle, label: "Chat en direct", sub: "Disponible 24/7", bg: darkMode ? "bg-gray-700" : "bg-blue-50", color: "text-blue-500" },
+            { icon: Phone, label: "Téléphone", sub: "+237 xxx xxx xxx", bg: darkMode ? "bg-gray-700" : "bg-green-50", color: "text-green-500" },
             { icon: Mail, label: "Email", sub: "support@nere.com", bg: darkMode ? "bg-gray-700" : "bg-purple-50", color: "text-purple-500" },
           ].map((item, index) => {
             const Icon = item.icon;

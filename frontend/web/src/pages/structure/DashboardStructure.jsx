@@ -1,4 +1,3 @@
-//import { useLanguage } from '../../LanguageContext';
 import { Users, Calendar, Clock, TrendingUp, CheckCircle, XCircle, AlertCircle, ChevronRight } from 'lucide-react';
 
 const patientsRecents = [
@@ -17,33 +16,32 @@ const medecins = [
 ];
 
 export default function DashboardStructure({ darkMode }) {
-  // const { langue } = useLanguage();
-    const langue = "fr";
   const stats = [
     {
-      label: langue === 'fr' ? "Patients aujourd'hui" : "Today's Patients",
+      label: "Patients aujourd'hui",
       value: "48",
-      sub: langue === 'fr' ? "+8% depuis hier" : "+8% from yesterday",
+      sub: "+8% depuis hier",
       icon: Users,
       color: "bg-blue-100 text-blue-500",
     },
     {
-      label: langue === 'fr' ? "Rendez-vous" : "Appointments",
+      label: "Rendez-vous",
       value: "24",
-      sub: langue === 'fr' ? "12 confirmés" : "12 confirmed",
+      sub: "12 confirmés",
       icon: Calendar,
       color: "bg-green-100 text-green-500",
     },
     {
-      label: langue === 'fr' ? "En attente" : "Waiting",
+      label: "En attente",
       value: "06",
-      sub: langue === 'fr' ? "Temps moyen: 15 min" : "Average time: 15 min",
+      sub: "Temps moyen: 15 min",
       icon: Clock,
       color: "bg-orange-100 text-orange-500",
     },
     {
+      label: "Taux d'occupation",
       value: "87%",
-      sub: langue === 'fr' ? "+5% ce mois" : "+5% this month",
+      sub: "+5% ce mois",
       icon: TrendingUp,
       color: "bg-purple-100 text-purple-500",
     },
@@ -55,12 +53,10 @@ export default function DashboardStructure({ darkMode }) {
       {/* Bienvenue */}
       <div className="mb-6">
         <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-          {langue === 'fr' ? "Tableau de Bord 👋" : "Dashboard 👋"}
+          Tableau de Bord 👋
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          {langue === 'fr'
-            ? "Bienvenue ! Voici un aperçu de votre activité aujourd'hui."
-            : "Welcome! Here's an overview of your activity today."}
+          Bienvenue ! Voici un aperçu de votre activité aujourd'hui.
         </p>
       </div>
 
@@ -95,22 +91,16 @@ export default function DashboardStructure({ darkMode }) {
             <div className={`flex items-center justify-between px-5 py-4 border-b
               ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
               <h2 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-                {langue === 'fr' ? "Rendez-vous du jour" : "Today's Appointments"}
+                Rendez-vous du jour
               </h2>
               <button className="text-xs text-blue-500 hover:underline">
-                {langue === 'fr' ? "Voir tout" : "View all"}
+                Voir tout
               </button>
             </div>
             <table className="w-full text-sm">
               <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
                 <tr>
-                  {[
-                    langue === 'fr' ? "Patient" : "Patient",
-                    langue === 'fr' ? "Motif" : "Reason",
-                    langue === 'fr' ? "Heure" : "Time",
-                    langue === 'fr' ? "Statut" : "Status",
-                    langue === 'fr' ? "Action" : "Action",
-                  ].map((h) => (
+                  {["Patient", "Motif", "Heure", "Statut", "Action"].map((h) => (
                     <th key={h} className={`text-left px-5 py-3 text-xs font-semibold
                       ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                       {h}
@@ -147,7 +137,7 @@ export default function DashboardStructure({ darkMode }) {
                     </td>
                     <td className="px-5 py-3">
                       <button className="text-xs text-blue-500 hover:underline flex items-center gap-1">
-                        {langue === 'fr' ? "Voir" : "View"}
+                        Voir
                         <ChevronRight size={12} />
                       </button>
                     </td>
@@ -161,12 +151,12 @@ export default function DashboardStructure({ darkMode }) {
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-                {langue === 'fr' ? "Activité de la semaine" : "Weekly Activity"}
+                Activité de la semaine
               </h2>
               <select className={`text-xs border rounded-lg px-2 py-1
                 ${darkMode ? "bg-gray-700 border-gray-600 text-gray-300" : "border-gray-200 text-gray-600"}`}>
-                <option>{langue === 'fr' ? "Cette semaine" : "This week"}</option>
-                <option>{langue === 'fr' ? "Ce mois" : "This month"}</option>
+                <option>Cette semaine</option>
+                <option>Ce mois</option>
               </select>
             </div>
             {/* Barres simples */}
@@ -200,10 +190,10 @@ export default function DashboardStructure({ darkMode }) {
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>
-                {langue === 'fr' ? "Médecins" : "Doctors"}
+                Médecins
               </h2>
               <button className="text-xs text-blue-500 hover:underline">
-                {langue === 'fr' ? "Voir tout" : "View all"}
+                Voir tout
               </button>
             </div>
             <div className="flex flex-col gap-3">
@@ -231,14 +221,14 @@ export default function DashboardStructure({ darkMode }) {
           {/* Résumé rapide */}
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <h2 className={`font-bold mb-4 ${darkMode ? "text-white" : "text-gray-800"}`}>
-              {langue === 'fr' ? "Résumé rapide" : "Quick Summary"}
+              Résumé rapide
             </h2>
             <div className="flex flex-col gap-3">
               {[
-                { label: langue === 'fr' ? "Lits disponibles" : "Available Beds", value: "12/50", color: "text-green-500" },
-                { label: langue === 'fr' ? "Urgences" : "Emergencies", value: "3", color: "text-red-500" },
-                { label: langue === 'fr' ? "Opérations prévues" : "Planned Operations", value: "5", color: "text-blue-500" },
-                { label: langue === 'fr' ? "Sorties aujourd'hui" : "Discharges Today", value: "8", color: "text-purple-500" },
+                { label: "Lits disponibles", value: "12/50", color: "text-green-500" },
+                { label: "Urgences", value: "3", color: "text-red-500" },
+                { label: "Opérations prévues", value: "5", color: "text-blue-500" },
+                { label: "Sorties aujourd'hui", value: "8", color: "text-purple-500" },
               ].map((item, index) => (
                 <div key={index} className={`flex items-center justify-between py-2 border-b last:border-0
                   ${darkMode ? "border-gray-700" : "border-gray-50"}`}>

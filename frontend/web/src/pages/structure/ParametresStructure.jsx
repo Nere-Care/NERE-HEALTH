@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { Building2, Lock, Bell, Shield, Users, Eye, EyeOff, Smartphone } from 'lucide-react';
-// import { useLanguage } from '../../LanguageContext';
 
 export default function ParametresStructure({ darkMode }) {
-  const langue = "fr";
   const [section, setSection] = useState("Informations");
   const [showPassword, setShowPassword] = useState(false);
   const [notifs, setNotifs] = useState({
@@ -11,18 +9,18 @@ export default function ParametresStructure({ darkMode }) {
   });
 
   const sections = [
-    { icon: Building2, label: langue === 'fr' ? "Informations" : "Information" },
-    { icon: Users, label: langue === 'fr' ? "Personnel" : "Staff" },
-    { icon: Bell, label: langue === 'fr' ? "Notifications" : "Notifications" },
-    { icon: Lock, label: langue === 'fr' ? "Sécurité" : "Security" },
-    { icon: Shield, label: langue === 'fr' ? "Confidentialité" : "Privacy" },
+    { icon: Building2, label: "Informations" },
+    { icon: Users, label: "Personnel" },
+    { icon: Bell, label: "Notifications" },
+    { icon: Lock, label: "Sécurité" },
+    { icon: Shield, label: "Confidentialité" },
   ];
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       <h1 className="text-lg font-bold text-blue-600 mb-6">
-        {langue === 'fr' ? "Paramètres" : "Settings"}
+        Paramètres
       </h1>
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -61,10 +59,10 @@ export default function ParametresStructure({ darkMode }) {
         <div className="flex-1">
 
           {/* INFORMATIONS */}
-          {section === (langue === 'fr' ? "Informations" : "Information") && (
+          {section === "Informations" && (
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                {langue === 'fr' ? "Informations de la structure" : "Structure Information"}
+                Informations de la structure
               </h2>
 
               {/* Logo */}
@@ -76,12 +74,10 @@ export default function ParametresStructure({ darkMode }) {
                   <p className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-700"}`}>
                     Hôpital Général de Yaoundé
                   </p>
-                  <p className="text-xs text-gray-400 mb-2">
-                    {langue === 'fr' ? "Hôpital • Agréé" : "Hospital • Accredited"}
-                  </p>
+                  <p className="text-xs text-gray-400 mb-2">Hôpital • Agréé</p>
                   <button className={`text-xs px-3 py-1.5 rounded-lg
                     ${darkMode ? "bg-gray-600 text-blue-400 hover:bg-gray-500" : "bg-blue-50 text-blue-500 hover:bg-blue-100"}`}>
-                    {langue === 'fr' ? "Changer le logo" : "Change Logo"}
+                    Changer le logo
                   </button>
                 </div>
               </div>
@@ -89,12 +85,12 @@ export default function ParametresStructure({ darkMode }) {
               {/* Formulaire */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { label: langue === 'fr' ? "Nom de la structure" : "Structure Name", value: "Hôpital Général de Yaoundé" },
-                  { label: langue === 'fr' ? "Type" : "Type", value: "Hôpital" },
+                  { label: "Nom de la structure", value: "Hôpital Général de Yaoundé" },
+                  { label: "Type", value: "Hôpital" },
                   { label: "Email", value: "contact@hopital-general.cm" },
-                  { label: langue === 'fr' ? "Téléphone" : "Phone", value: "+237 658 648 394" },
-                  { label: langue === 'fr' ? "Adresse" : "Address", value: "Yaoundé, Cameroun" },
-                  { label: langue === 'fr' ? "Capacité (lits)" : "Capacity (beds)", value: "250" },
+                  { label: "Téléphone", value: "+237 658 648 394" },
+                  { label: "Adresse", value: "Yaoundé, Cameroun" },
+                  { label: "Capacité (lits)", value: "250" },
                 ].map((field) => (
                   <div key={field.label}>
                     <label className="text-xs text-gray-400 mb-1 block">{field.label}</label>
@@ -109,15 +105,13 @@ export default function ParametresStructure({ darkMode }) {
 
               {/* Horaires */}
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">
-                  {langue === 'fr' ? "Horaires d'ouverture" : "Opening Hours"}
-                </label>
+                <label className="text-xs text-gray-400 mb-1 block">Horaires d'ouverture</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { jour: langue === 'fr' ? "Lundi - Vendredi" : "Monday - Friday", horaire: "07:00 - 22:00" },
-                    { jour: langue === 'fr' ? "Samedi" : "Saturday", horaire: "08:00 - 18:00" },
-                    { jour: langue === 'fr' ? "Dimanche" : "Sunday", horaire: "09:00 - 15:00" },
-                    { jour: langue === 'fr' ? "Urgences" : "Emergencies", horaire: "24h/24" },
+                    { jour: "Lundi - Vendredi", horaire: "07:00 - 22:00" },
+                    { jour: "Samedi", horaire: "08:00 - 18:00" },
+                    { jour: "Dimanche", horaire: "09:00 - 15:00" },
+                    { jour: "Urgences", horaire: "24h/24" },
                   ].map((h) => (
                     <div key={h.jour} className={`flex justify-between items-center p-3 rounded-xl
                       ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
@@ -129,20 +123,20 @@ export default function ParametresStructure({ darkMode }) {
               </div>
 
               <button className="bg-blue-500 text-white text-sm px-6 py-2 rounded-xl hover:bg-blue-600 self-end">
-                {langue === 'fr' ? "Sauvegarder" : "Save"}
+                Sauvegarder
               </button>
             </div>
           )}
 
           {/* PERSONNEL */}
-          {section === (langue === 'fr' ? "Personnel" : "Staff") && (
+          {section === "Personnel" && (
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <div className="flex items-center justify-between border-b pb-3">
                 <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                  {langue === 'fr' ? "Gestion du personnel" : "Staff Management"}
+                  Gestion du personnel
                 </h2>
                 <button className="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600">
-                  + {langue === 'fr' ? "Ajouter" : "Add"}
+                  + Ajouter
                 </button>
               </div>
 
@@ -170,7 +164,7 @@ export default function ParametresStructure({ darkMode }) {
                         {p.statut}
                       </span>
                       <button className="text-xs text-blue-500 hover:underline">
-                        {langue === 'fr' ? "Modifier" : "Edit"}
+                        Modifier
                       </button>
                     </div>
                   </div>
@@ -183,15 +177,15 @@ export default function ParametresStructure({ darkMode }) {
           {section === "Notifications" && (
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                {langue === 'fr' ? "Préférences de notifications" : "Notification Preferences"}
+                Préférences de notifications
               </h2>
 
               {[
-                { key: "rdv", label: langue === 'fr' ? "Nouveaux rendez-vous" : "New Appointments", desc: langue === 'fr' ? "Être notifié des nouveaux rendez-vous" : "Get notified of new appointments" },
-                { key: "messages", label: langue === 'fr' ? "Nouveaux messages" : "New Messages", desc: langue === 'fr' ? "Recevoir les messages des patients" : "Receive messages from patients" },
-                { key: "urgences", label: langue === 'fr' ? "Urgences" : "Emergencies", desc: langue === 'fr' ? "Alertes pour les cas urgents" : "Alerts for urgent cases" },
-                { key: "rapports", label: langue === 'fr' ? "Rapports quotidiens" : "Daily Reports", desc: langue === 'fr' ? "Recevoir le rapport d'activité quotidien" : "Receive daily activity report" },
-                { key: "newsletter", label: langue === 'fr' ? "Newsletter médicale" : "Medical Newsletter", desc: langue === 'fr' ? "Actualités et formations médicales" : "Medical news and training" },
+                { key: "rdv", label: "Nouveaux rendez-vous", desc: "Être notifié des nouveaux rendez-vous" },
+                { key: "messages", label: "Nouveaux messages", desc: "Recevoir les messages des patients" },
+                { key: "urgences", label: "Urgences", desc: "Alertes pour les cas urgents" },
+                { key: "rapports", label: "Rapports quotidiens", desc: "Recevoir le rapport d'activité quotidien" },
+                { key: "newsletter", label: "Newsletter médicale", desc: "Actualités et formations médicales" },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center justify-between py-2 border-b last:border-0
                   ${darkMode ? "border-gray-700" : "border-gray-50"}`}>
@@ -212,18 +206,14 @@ export default function ParametresStructure({ darkMode }) {
           )}
 
           {/* SÉCURITÉ */}
-          {section === (langue === 'fr' ? "Sécurité" : "Security") && (
+          {section === "Sécurité" && (
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                {langue === 'fr' ? "Sécurité du compte" : "Account Security"}
+                Sécurité du compte
               </h2>
 
               <div className="flex flex-col gap-4">
-                {[
-                  langue === 'fr' ? "Mot de passe actuel" : "Current Password",
-                  langue === 'fr' ? "Nouveau mot de passe" : "New Password",
-                  langue === 'fr' ? "Confirmer le mot de passe" : "Confirm Password"
-                ].map((label) => (
+                {["Mot de passe actuel", "Nouveau mot de passe", "Confirmer le mot de passe"].map((label) => (
                   <div key={label}>
                     <label className="text-xs text-gray-400 mb-1 block">{label}</label>
                     <div className="relative">
@@ -250,10 +240,10 @@ export default function ParametresStructure({ darkMode }) {
                   <Smartphone size={18} className="text-blue-500" />
                   <div>
                     <p className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-700"}`}>
-                      {langue === 'fr' ? "Double authentification" : "Two-Factor Authentication"}
+                      Double authentification
                     </p>
                     <p className="text-xs text-gray-400">
-                      {langue === 'fr' ? "Sécurisez votre compte avec un code SMS" : "Secure your account with SMS code"}
+                      Sécurisez votre compte avec un code SMS
                     </p>
                   </div>
                 </div>
@@ -263,22 +253,22 @@ export default function ParametresStructure({ darkMode }) {
               </div>
 
               <button className="bg-blue-500 text-white text-sm px-6 py-2 rounded-xl hover:bg-blue-600 self-end">
-                {langue === 'fr' ? "Mettre à jour" : "Update"}
+                Mettre à jour
               </button>
             </div>
           )}
 
           {/* CONFIDENTIALITÉ */}
-          {section === (langue === 'fr' ? "Confidentialité" : "Privacy") && (
+          {section === "Confidentialité" && (
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                {langue === 'fr' ? "Confidentialité" : "Privacy"}
+                Confidentialité
               </h2>
 
               {[
-                { label: langue === 'fr' ? "Partage de données patients" : "Patient Data Sharing", desc: langue === 'fr' ? "Autoriser le partage sécurisé des données" : "Allow secure data sharing" },
-                { label: langue === 'fr' ? "Visibilité de la structure" : "Structure Visibility", desc: langue === 'fr' ? "Rendre votre structure visible aux patients" : "Make your structure visible to patients" },
-                { label: langue === 'fr' ? "Historique des activités" : "Activity History", desc: langue === 'fr' ? "Conserver l'historique des activités" : "Keep activity history" },
+                { label: "Partage de données patients", desc: "Autoriser le partage sécurisé des données" },
+                { label: "Visibilité de la structure", desc: "Rendre votre structure visible aux patients" },
+                { label: "Historique des activités", desc: "Conserver l'historique des activités" },
               ].map((item, index) => (
                 <div key={index} className={`flex items-center justify-between py-3 border-b last:border-0
                   ${darkMode ? "border-gray-700" : "border-gray-50"}`}>
@@ -294,7 +284,7 @@ export default function ParametresStructure({ darkMode }) {
 
               <button className={`mt-4 w-full border text-red-500 text-sm py-2 rounded-xl
                 ${darkMode ? "border-red-800 hover:bg-red-900" : "border-red-200 hover:bg-red-50"}`}>
-                {langue === 'fr' ? "Supprimer le compte" : "Delete Account"}
+                Supprimer le compte
               </button>
             </div>
           )}
