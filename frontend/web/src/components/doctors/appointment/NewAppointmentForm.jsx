@@ -38,7 +38,8 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
 
       <div
-        className={`w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl p-6 shadow-xl border transition-all duration-300 ${
+        className={`w-full sm:max-w-lg  max-h-[90vh]
+        overflow-y-auto rounded-t-3xl sm:rounded-2xl p-6 shadow-xl border transition-all duration-300 ${
           darkMode
             ? "bg-gray-900 text-white border-gray-700"
             : "bg-white text-gray-900 border-gray-200"
@@ -73,7 +74,7 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
             placeholder="Patient name"
             value={formData.patient}
             onChange={handleChange}
-            className={`w-full border rounded-xl px-4 py-3 outline-none ${
+            className={`w-full border rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 outline-none ${
               darkMode
                 ? "bg-gray-800 border-gray-700"
                 : "bg-white border-gray-300"
@@ -90,7 +91,7 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
               placeholder="Patient email"
               value={formData.email}
               onChange={handleChange}
-              className={`w-full pl-10 border rounded-xl px-4 py-3 outline-none ${
+              className={`w-full pl-10 border rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 outline-none ${
                 darkMode
                   ? "bg-gray-800 border-gray-700"
                   : "bg-white border-gray-300"
@@ -101,13 +102,13 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
 
 
           {/* DATE / TIME */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               type="date"
               name="date"
               value={formData.date}
               onChange={handleChange}
-              className={`border rounded-xl px-4 py-3 ${
+              className={`border rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 ${
                 darkMode
                   ? "bg-gray-800 border-gray-700"
                   : "bg-white border-gray-300"
@@ -120,7 +121,7 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
               name="time"
               value={formData.time}
               onChange={handleChange}
-              className={`border rounded-xl px-4 py-3 ${
+              className={`border rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 ${
                 darkMode
                   ? "bg-gray-800 border-gray-700"
                   : "bg-white border-gray-300"
@@ -134,7 +135,7 @@ export default function NewAppointmentForm({ open, onClose, darkMode }) {
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className={`w-full border rounded-xl px-4 py-3 ${
+            className={`w-full border rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 ${
               darkMode
                 ? "bg-gray-800 border-gray-700"
                 : "bg-white border-gray-300"

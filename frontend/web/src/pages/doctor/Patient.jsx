@@ -117,7 +117,7 @@ export default function Patients({ darkMode }) {
             <>
               <div className="flex flex-col lg:flex-row lg:justify-between gap-4">
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold mb-1 text-[#3b82f6]">
+                  <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
                     Patients
                   </h1>
 

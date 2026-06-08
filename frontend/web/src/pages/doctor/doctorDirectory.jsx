@@ -108,7 +108,7 @@ const handleSendOpinion = (data) => {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
             <div>
-              <h1 className="text-xl sm:text-2xl mb-2 font-bold text-[#3b82f6]"> 
+              <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]"> 
                 Directory of health professionals
               </h1>
 

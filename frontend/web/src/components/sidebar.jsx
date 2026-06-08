@@ -37,6 +37,7 @@ const menuByRole = {
   doctor: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
     { icon: Users, label: "avis", path: "/doctors" },
+    { icon: Building2, label: "Structures de Santé", path: "/structures" },
     { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },
     { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },

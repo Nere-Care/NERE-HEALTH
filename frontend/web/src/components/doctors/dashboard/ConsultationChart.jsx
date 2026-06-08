@@ -20,6 +20,7 @@ export default function ConsultationChart({ darkMode }) {
     <div
       className={`rounded-2xl p-4 sm:p-5 border transition
       h-[260px] sm:h-[300px] lg:h-[340px]
+      flex flex-col min-h-0
       ${
         darkMode
           ? "bg-gray-800 border-gray-700 text-white"
@@ -27,7 +28,7 @@ export default function ConsultationChart({ darkMode }) {
       }`}
     >
       {/* HEADER */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h2 className="font-semibold text-sm sm:text-base">
           Monthly Consultations
         </h2>
@@ -38,45 +39,35 @@ export default function ConsultationChart({ darkMode }) {
       </div>
 
       {/* CHART */}
-      <ResponsiveContainer width="100%" height="85%">
-        <BarChart data={consultationsData}>
-          
-          {/* GRID */}
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke={darkMode ? "#374151" : "#e5e7eb"}
-          />
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={consultationsData}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke={darkMode ? "#374151" : "#e5e7eb"}
+            />
 
-          {/* AXES */}
-          <XAxis
-            dataKey="month"
-            tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#374151" }}
-          />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#374151" }}
+            />
 
-          <YAxis
-            tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#374151" }}
-          />
+            <YAxis
+              tick={{ fontSize: 11, fill: darkMode ? "#9ca3af" : "#374151" }}
+            />
 
-          {/* TOOLTIP */}
-          <Tooltip
-            contentStyle={{
-              backgroundColor: darkMode ? "#1f2937" : "#fff",
-              border: "none",
-              borderRadius: "10px",
-              color: darkMode ? "#fff" : "#000",
-            }}
-            cursor={{ fill: darkMode ? "#374151" : "#f3f4f6" }}
-          />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: darkMode ? "#1f2937" : "#fff",
+                border: "none",
+                borderRadius: "10px",
+              }}
+            />
 
-          {/* BAR */}
-          <Bar
-            dataKey="total"
-            fill="#3b82f6"
-            radius={[8, 8, 0, 0]}
-            barSize={30}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+            <Bar dataKey="total" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -18,13 +18,11 @@ export default function AvailabilityForm({
   onSave,
 }) {
   const [selectedDays, setSelectedDays] = useState([]);
-
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
 
   if (!open) return null;
 
-  // SELECT / UNSELECT DAY
   const toggleDay = (day) => {
     setSelectedDays((prev) =>
       prev.includes(day)
@@ -33,7 +31,6 @@ export default function AvailabilityForm({
     );
   };
 
-  // SAVE
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -59,33 +56,46 @@ export default function AvailabilityForm({
 
     onClose();
 
-    // RESET
     setSelectedDays([]);
     setStartTime("");
     setEndTime("");
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-
+    <div
+      className="
+        fixed inset-0 z-50
+        bg-black/50
+        flex items-end sm:items-center
+        justify-center
+        p-0 sm:p-4
+      "
+    >
       <div
-        className={`w-full max-w-lg rounded-3xl p-6 ${
-          darkMode
-            ? "bg-gray-900 text-white"
-            : "bg-white text-gray-900"
-        }`}
+        className={`
+          w-full
+          sm:max-w-lg
+          max-h-[95vh]
+          overflow-y-auto
+          rounded-t-3xl sm:rounded-3xl
+          p-4 sm:p-6
+          shadow-2xl
+          ${
+            darkMode
+              ? "bg-gray-900 text-white"
+              : "bg-white text-gray-900"
+          }
+        `}
       >
-
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-6">
-
-          <div>
-            <h2 className="text-xl font-bold">
+        <div className="flex items-start justify-between gap-3 mb-5 sm:mb-6">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold">
               Manage Availability
             </h2>
 
             <p
-              className={`text-sm mt-1 ${
+              className={`text-xs sm:text-sm mt-1 ${
                 darkMode
                   ? "text-gray-400"
                   : "text-gray-500"
@@ -97,28 +107,24 @@ export default function AvailabilityForm({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-200/10"
+            className="p-2 rounded-xl hover:bg-gray-200/10 flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
-
         </div>
 
         {/* FORM */}
         <form
           onSubmit={handleSubmit}
-          className="space-y-6"
+          className="space-y-5 sm:space-y-6"
         >
-
           {/* DAYS */}
           <div>
-
             <label className="block text-sm font-medium mb-3">
               Available Days
             </label>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {weekDays.map((day) => {
                 const active =
                   selectedDays.includes(day);
@@ -129,8 +135,16 @@ export default function AvailabilityForm({
                     key={day}
                     onClick={() => toggleDay(day)}
                     className={`
-                      flex items-center justify-center gap-2
-                      px-4 py-3 rounded-2xl text-sm font-medium transition
+                      flex items-center justify-center gap-1.5
+                      min-h-[48px]
+                      px-2 sm:px-4
+                      py-2 sm:py-3
+                      rounded-xl sm:rounded-2xl
+                      text-xs sm:text-sm
+                      font-medium
+                      transition
+                      break-words
+                      text-center
                       ${
                         active
                           ? "bg-blue-600 text-white"
@@ -141,23 +155,22 @@ export default function AvailabilityForm({
                     `}
                   >
                     {active && (
-                      <Check className="w-4 h-4" />
+                      <Check className="w-4 h-4 flex-shrink-0" />
                     )}
 
-                    {day}
+                    <span className="leading-tight">
+                      {day}
+                    </span>
                   </button>
                 );
               })}
-
             </div>
           </div>
 
           {/* HOURS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
             {/* START */}
             <div>
-
               <label className="block text-sm font-medium mb-2">
                 Start Time
               </label>
@@ -169,7 +182,13 @@ export default function AvailabilityForm({
                   setStartTime(e.target.value)
                 }
                 className={`
-                  w-full rounded-2xl border px-4 py-3 outline-none
+                  w-full
+                  rounded-xl sm:rounded-2xl
+                  border
+                  px-3 sm:px-4
+                  py-2.5 sm:py-3
+                  text-sm
+                  outline-none
                   ${
                     darkMode
                       ? "bg-gray-800 border-gray-700"
@@ -181,7 +200,6 @@ export default function AvailabilityForm({
 
             {/* END */}
             <div>
-
               <label className="block text-sm font-medium mb-2">
                 End Time
               </label>
@@ -193,7 +211,13 @@ export default function AvailabilityForm({
                   setEndTime(e.target.value)
                 }
                 className={`
-                  w-full rounded-2xl border px-4 py-3 outline-none
+                  w-full
+                  rounded-xl sm:rounded-2xl
+                  border
+                  px-3 sm:px-4
+                  py-2.5 sm:py-3
+                  text-sm
+                  outline-none
                   ${
                     darkMode
                       ? "bg-gray-800 border-gray-700"
@@ -202,23 +226,26 @@ export default function AvailabilityForm({
                 `}
               />
             </div>
-
           </div>
 
           {/* BUTTON */}
           <button
             type="submit"
             className="
-              w-full bg-blue-600 hover:bg-blue-700
-              text-white py-3 rounded-2xl
-              font-medium transition
+              w-full
+              bg-blue-600
+              hover:bg-blue-700
+              text-white
+              py-3
+              rounded-xl sm:rounded-2xl
+              text-sm sm:text-base
+              font-medium
+              transition
             "
           >
             Save Availability
           </button>
-
         </form>
-
       </div>
     </div>
   );
