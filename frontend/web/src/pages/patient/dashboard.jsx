@@ -71,6 +71,7 @@ export default function Dashboard({ darkMode }) {
     const timer = setInterval(() => {
       setNewsIndex((prev) => (prev + 1) % actualites.length);
     }, 5000);
+
     return () => clearInterval(timer);
   }, []);
 
@@ -86,7 +87,8 @@ export default function Dashboard({ darkMode }) {
   const specialitesAffichees = voirToutesSpec ? specialites : specialites.slice(0, 6);
 
   return (
-    <div className="p-3 md:p-6">
+    <div className="min-h-screen  p-3 md:p-6">
+
 
       {/* Bienvenue + Carousel */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
@@ -122,6 +124,7 @@ export default function Dashboard({ darkMode }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
+
           return (
             <div
               key={index}
@@ -189,9 +192,15 @@ export default function Dashboard({ darkMode }) {
           {/* Prochain rendez-vous */}
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-semibold">À VENIR</span>
-              <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Téléconsultation</span>
+              <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-semibold">
+                À VENIR
+              </span>
+
+              <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                Téléconsultation
+              </span>
             </div>
+
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div onClick={() => navigate(`/medecin/1`)} className="flex items-center gap-4 cursor-pointer">
                 <div className="w-14 h-14 bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xl rounded-lg">N</div>
@@ -223,6 +232,7 @@ export default function Dashboard({ darkMode }) {
                 {voirToutesSpec ? "Voir moins" : "Voir tout"}
               </button>
             </div>
+
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
               {specialitesAffichees.map((spec, index) => (
                 <button
@@ -243,6 +253,7 @@ export default function Dashboard({ darkMode }) {
             <div className={`flex items-center justify-between px-5 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
               <h2 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Consultations récentes</h2>
             </div>
+
             <table className="w-full text-sm">
               <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
                 <tr>
@@ -251,6 +262,7 @@ export default function Dashboard({ darkMode }) {
                   ))}
                 </tr>
               </thead>
+
               <tbody>
                 {consultationsRecentes.map((c, index) => (
                   <tr key={index} className={`border-t ${darkMode ? "border-gray-700" : "border-gray-50"}`}>

@@ -159,7 +159,6 @@ export default function DashboardStructure({ darkMode }) {
                 <option>Ce mois</option>
               </select>
             </div>
-            {/* Barres simples */}
             <div className="flex items-end gap-3 h-32">
               {[
                 { jour: "Lun", valeur: 75 },

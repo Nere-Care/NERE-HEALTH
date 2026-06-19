@@ -3,11 +3,31 @@ import { useState } from 'react';
 // import { useLanguage } from '../../LanguageContext';
 
 const faqs = [
-  { question: "Comment prendre un rendez-vous ?", reponse: "Allez dans Annuaire Médecins, choisissez un médecin et cliquez sur Consulter pour prendre rendez-vous." },
-  { question: "Comment accéder à mes dossiers médicaux ?", reponse: "Dans le menu à gauche, cliquez sur Ma Santé pour accéder à toutes vos informations médicales." },
-  { question: "Comment démarrer une téléconsultation ?", reponse: "Cliquez sur Téléconsultation dans le menu, puis rejoignez votre session au moment du rendez-vous." },
-  { question: "Comment modifier mes informations personnelles ?", reponse: "Allez dans Paramètres puis cliquez sur Profil pour modifier vos informations." },
-  { question: "Comment renouveler une ordonnance ?", reponse: "Dans Ma Santé, onglet Prescriptions, cliquez sur Renouveler à côté du médicament concerné." },
+  {
+    question: "Comment prendre un rendez-vous ?",
+    reponse:
+      "Allez dans Annuaire Médecins, choisissez un médecin et cliquez sur Consulter pour prendre rendez-vous."
+  },
+  {
+    question: "Comment accéder à mes dossiers médicaux ?",
+    reponse:
+      "Dans le menu, cliquez sur Ma Santé pour accéder à vos informations médicales."
+  },
+  {
+    question: "Comment démarrer une téléconsultation ?",
+    reponse:
+      "Cliquez sur Téléconsultation puis rejoignez la session à l'heure du rendez-vous."
+  },
+  {
+    question: "Comment modifier mes informations ?",
+    reponse:
+      "Allez dans Paramètres > Profil pour modifier vos données personnelles."
+  },
+  {
+    question: "Comment renouveler une ordonnance ?",
+    reponse:
+      "Dans Ma Santé > Prescriptions, cliquez sur Renouveler."
+  }
 ];
 
 export default function Aide({ darkMode }) {
@@ -15,7 +35,7 @@ export default function Aide({ darkMode }) {
   const [ouvert, setOuvert] = useState(null);
   const [recherche, setRecherche] = useState("");
 
-  const faqsFiltrees = faqs.filter(f =>
+  const filteredFaqs = faqs.filter((f) =>
     f.question.toLowerCase().includes(recherche.toLowerCase())
   );
 
@@ -46,7 +66,7 @@ export default function Aide({ darkMode }) {
         </div>
       </div>
 
-      {/* Raccourcis */}
+      {/* SHORTCUTS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[
           { icon: BookOpen,     label: /* t.guideUtilisateur */ "Guide utilisateur", color: "bg-blue-100 text-blue-500",   hover: darkMode ? "hover:bg-gray-700" : "hover:bg-blue-50" },
@@ -54,6 +74,7 @@ export default function Aide({ darkMode }) {
           { icon: FileQuestion, label: /* t.faq */              "FAQ",               color: "bg-purple-100 text-purple-500", hover: darkMode ? "hover:bg-gray-700" : "hover:bg-purple-50" },
         ].map((item, index) => {
           const Icon = item.icon;
+
           return (
             <div key={index} className={`rounded-2xl shadow p-4 flex flex-col items-center gap-2 cursor-pointer transition-all ${item.hover}
               ${darkMode ? "bg-gray-800" : "bg-white"}`}>
@@ -76,23 +97,32 @@ export default function Aide({ darkMode }) {
             Questions fréquentes
           </h2>
         </div>
-        {faqsFiltrees.map((faq, index) => (
-          <div key={index} className={`border-b last:border-0 ${darkMode ? "border-gray-700" : "border-gray-50"}`}>
+
+        {filteredFaqs.map((faq, index) => (
+          <div
+            key={index}
+            className={`border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}
+          >
             <button
-              onClick={() => setOuvert(ouvert === index ? null : index)}
-              className={`w-full flex items-center justify-between px-6 py-4 text-left transition-all
+              onClick={() =>
+                setOuvert(ouvert === index ? null : index)
+              }
+              className={`w-full flex justify-between items-center p-4 text-left transition-all
                 ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
             >
               <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
                 {faq.question}
               </span>
-              {ouvert === index
-                ? <ChevronUp size={16} className="text-blue-500 flex-shrink-0" />
-                : <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
-              }
+
+              {ouvert === index ? (
+                <ChevronUp size={16} className="text-blue-500 flex-shrink-0" />
+              ) : (
+                <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />
+              )}
             </button>
+
             {ouvert === index && (
-              <div className="px-6 pb-4">
+              <div className="px-4 pb-4">
                 <p className={`text-sm rounded-xl p-3 ${darkMode ? "bg-gray-700 text-gray-300" : "bg-blue-50 text-gray-500"}`}>
                   {faq.reponse}
                 </p>

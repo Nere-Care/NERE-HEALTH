@@ -37,9 +37,12 @@ export default function Notifications({ darkMode }) {
         </p>
       </div>
 
-      {/* Résumé */}
+      {/* RESUME */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}>
+
+        <div className={`rounded-2xl p-4 flex items-center gap-3 ${
+          darkMode ? "bg-blue-900" : "bg-blue-50"
+        }`}>
           <div className="bg-blue-100 p-3 rounded-xl">
             <Bell size={20} className="text-blue-500" />
           </div>
@@ -77,6 +80,7 @@ export default function Notifications({ darkMode }) {
             </p>
           </div>
         </div>
+
       </div>
 
       {/* Liste */}
@@ -96,36 +100,56 @@ export default function Notifications({ darkMode }) {
           </button>
         </div>
 
+        {/* ITEMS */}
         {notifications.map((notif, index) => {
           const Icon = notif.icon;
+
           return (
             <div
               key={notif.id}
               onClick={() => handleNotificationClick(notif.id)}
               className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-all
                 ${index !== notifications.length - 1
-                  ? darkMode ? "border-b border-gray-700" : "border-b border-gray-50"
-                  : ""}
+                  ? darkMode ? "border-b border-gray-700" : "border-b border-gray-100"
+                  : ""
+                }
                 ${!notif.lu
-                  ? darkMode ? "bg-blue-900/20" : "bg-blue-50/30"
-                  : darkMode ? "bg-gray-800" : "bg-white"}
-                ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                  ? darkMode ? "bg-gray-700/40" : "bg-blue-50/40"
+                  : ""
+                }
+                ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}
+              `}
             >
+
+              {/* ICON */}
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${notif.couleur}`}>
                 <Icon size={18} />
               </div>
+
+              {/* TEXT */}
               <div className="flex-1">
-                <p className={`text-sm ${!notif.lu
-                  ? darkMode ? "font-semibold text-white" : "font-semibold text-gray-800"
-                  : darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                <p className={`text-sm ${
+                  !notif.lu
+                    ? darkMode ? "text-white font-semibold" : "text-gray-800 font-semibold"
+                    : darkMode ? "text-gray-400" : "text-gray-600"
+                }`}>
                   {notif.message}
                 </p>
-                <p className="text-xs text-gray-400 mt-0.5">{notif.temps}</p>
+
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {notif.temps}
+                </p>
               </div>
-              {!notif.lu && <div className="w-2 h-2 rounded-full bg-red-500" />}
+
+              {/* DOT */}
+              {!notif.lu && (
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+              )}
+
             </div>
           );
         })}
+
       </div>
     </div>
   );

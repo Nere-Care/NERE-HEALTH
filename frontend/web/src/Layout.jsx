@@ -23,15 +23,19 @@ export default function Layout({ children, darkMode, setDarkMode }) {
 
         {/* CONTENU — plus de marginLeft ni marginTop */}
         <main
-          className={`
-            flex-1
-            min-w-0
-            h-full
-            overflow-y-auto
-            px-6 py-4
-            ${darkMode ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-800"}
-          `}
-        >
+  className={`
+    flex-1
+    min-w-0
+    h-full
+    overflow-x-hidden
+    overflow-y-auto
+    px-3 sm:px-4 md:px-6
+    py-4
+    ${darkMode
+      ? "bg-gray-900 text-white"
+      : "bg-gray-100 text-gray-800"}
+  `}
+>
           {children}
         </main>
 

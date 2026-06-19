@@ -205,15 +205,15 @@ export default function Factures({ darkMode }) {
               ${filtre === f.val
                 ? "bg-blue-600 text-white"
                 : darkMode
-                  ? "bg-gray-800 text-gray-300 border border-gray-600 hover:bg-gray-700"
-                  : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}
+                  ? "bg-gray-800 text-gray-300 border border-gray-600"
+                  : "bg-white text-gray-600 border border-gray-200"}`}
           >
             {f.label}
           </button>
         ))}
       </div>
 
-      {/* ── MOBILE : cartes ── */}
+      {/* MOBILE : cartes */}
       <div className="flex flex-col gap-3 md:hidden">
         {facturesFiltrees.map((f) => (
           <div key={f.id} className={`rounded-2xl shadow p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
@@ -254,7 +254,7 @@ export default function Factures({ darkMode }) {
         ))}
       </div>
 
-      {/* ── DESKTOP : tableau ── */}
+      {/* DESKTOP : tableau */}
       <div className={`hidden md:block rounded-2xl shadow overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <table className="w-full text-sm">
           <thead className={darkMode ? "bg-gray-700" : "bg-gray-50"}>
