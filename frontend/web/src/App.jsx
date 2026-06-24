@@ -45,7 +45,7 @@ import PatientObserver from "./pages/observer/Patient";
 import StructureObserver from "./pages/observer/Structure";
 
 /* STRUCTURE */
-import ProfilStructure from "./pages/structure/profilStructure";
+import ProfilStructure from "./pages/structure/ProfilStructure";
 import DemandesStructure from "./pages/structure/DemandesStructure";
 import PersonnelStructure from "./pages/structure/PersonnelStructure";
 import DashboardStructure from "./pages/structure/DashboardStructure";

@@ -24,6 +24,13 @@ class UserCreate(UserBase):
     prenom: str
     nom: str
     telephone: Optional[str] = None
+    role: str
+    city: Optional[str] = None
+    district: Optional[str] = None
+    dob: Optional[date] = None
+    experience: Optional[int] = None
+    hospital: Optional[str] = None
+    registration_number: Optional[str] = None
 
 
 class UserRead(UserBase):
@@ -37,6 +44,9 @@ class UserRead(UserBase):
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+class GoogleAuth(BaseModel):
+    credential: str
 
 
 class PatientBase(BaseModel):
@@ -65,6 +75,31 @@ class PatientBase(BaseModel):
     consentement_donnees: Optional[bool] = False
     date_consentement: Optional[datetime] = None
     consentement_marketing: Optional[bool] = False
+
+class ProfilUpdate(BaseModel):
+    """Schéma pour mise à jour du profil patient"""
+    # Patient fields
+    date_naissance: Optional[date] = None
+    sexe: Optional[str] = None
+    groupe_sanguin: Optional[str] = None
+    taille_cm: Optional[float] = None
+    poids_kg: Optional[float] = None
+    allergies: Optional[List[str]] = None
+    antecedents_medicaux: Optional[str] = None
+    medicaments_en_cours: Optional[str] = None
+    contact_urgence_nom: Optional[str] = None
+    contact_urgence_tel: Optional[str] = None
+    contact_urgence_lien: Optional[str] = None
+    
+    # DossierMedical fields
+    antecedents_familiaux: Optional[str] = None
+    antecedents_personnels: Optional[str] = None
+    antecedents_chirurgicaux: Optional[str] = None
+    antecedents_allergiques: Optional[str] = None
+    antecedents_gyneco: Optional[str] = None
+    habitudes_vie: Optional[dict] = None
+    vaccinations: Optional[list] = None
+    traitements_chroniques: Optional[list] = None
 
 
 class PatientCreate(PatientBase):
@@ -166,6 +201,14 @@ class OrdonnanceBase(BaseModel):
     nb_renouvellements: Optional[int] = 0
     lignes: Optional[List[OrdonnanceLigneCreate]] = None
 
+class PreautorisationRequest(BaseModel):
+    rdv_id: str
+    methode: str  # "mobile_money" ou "carte"
+    fournisseur: str  # "mtn_momo", "orange_money", "stripe"
+    # Données de paiement simulées (pas envoyées à un vrai gateway)
+    phone_number: Optional[str] = None  # pour mobile money
+    card_number: Optional[str] = None   # pour carte (juste 4 derniers chiffres stockés)
+    card_holder: Optional[str] = None
 
 class OrdonnanceCreate(OrdonnanceBase):
     pass

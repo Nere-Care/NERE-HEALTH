@@ -11,6 +11,8 @@ from db import get_db
 from models import Medecin, User
 from schemas import MedecinCreate, MedecinRead
 
+from models import Medecin, User, MedecinSpecialite, Specialite, Structure
+
 router = APIRouter(tags=["medecins"])
 
 
@@ -108,3 +110,156 @@ async def delete_medecin(
     db.delete(medecin)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
+@router.get("/annuaire/medecins")
+async def annuaire_medecins(
+    search: Optional[str] = Query(None),
+    specialite: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    stmt = (
+        select(Medecin, User)
+        .join(User, Medecin.id == User.id)
+        .where(User.statut == "actif")
+    )
+
+    if search:
+        stmt = stmt.where(
+            (User.nom.ilike(f"%{search}%")) |
+            (User.prenom.ilike(f"%{search}%"))
+        )
+
+    rows = db.execute(stmt).all()
+
+    result = []
+    for medecin, user in rows:
+        specs = (
+            db.query(Specialite)
+            .join(MedecinSpecialite, Specialite.id == MedecinSpecialite.specialite_id)
+            .filter(MedecinSpecialite.medecin_id == medecin.id)
+            .all()
+        )
+        specialites_labels = [s.libelle_fr for s in specs]
+
+        if specialite and specialite != "Toutes":
+            if specialite not in specialites_labels:
+                continue
+
+        # Lieu d'exercice via structure
+        lieu_exercice = "Cabinet indépendant"
+        if medecin.structure_id:
+            structure = db.get(Structure, medecin.structure_id)
+            if structure:
+                lieu_exercice = structure.nom_etablissement
+
+        result.append({
+            "id": str(medecin.id),
+            "nom": f"Dr. {user.prenom} {user.nom}",
+            "specialite": specialites_labels[0] if specialites_labels else "Médecine Générale",
+            "specialites": specialites_labels,
+            "note": float(medecin.note_moyenne or 0),
+            "experience": f"{medecin.annees_experience or 0} ans",
+            "disponible": bool(medecin.disponible_maintenant),
+            "tarif": float(medecin.tarif_consultation or 5000),
+            "devise": medecin.devise or "XAF",
+            "teleconsultation": bool(medecin.teleconsultation_active),
+            "biographie": medecin.biographie or "",
+            "langues": medecin.langues_parlees or [],
+            "statut_verification": medecin.statut_verification,
+            "lieu_exercice": lieu_exercice,
+        })
+
+    return result
+
+
+@router.get("/annuaire/medecins/{medecin_id}")
+async def profil_medecin(
+    medecin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Médecin non trouvé")
+
+    user = db.get(User, medecin_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+
+    # Spécialités
+    specs = (
+        db.query(Specialite)
+        .join(MedecinSpecialite, Specialite.id == MedecinSpecialite.specialite_id)
+        .filter(MedecinSpecialite.medecin_id == medecin.id)
+        .all()
+    )
+
+    # Structure
+    lieu_exercice = "Cabinet indépendant"
+    ville = ""
+    if medecin.structure_id:
+        structure = db.get(Structure, medecin.structure_id)
+        if structure:
+            lieu_exercice = structure.nom_etablissement
+            ville = structure.ville or ""
+
+    # Avis vérifiés
+    from models import Avis
+    avis_list = (
+        db.query(Avis, User)
+        .join(User, Avis.patient_id == User.id)
+        .filter(Avis.medecin_id == medecin.id, Avis.verifie == True, Avis.masque == False)
+        .order_by(Avis.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    # Disponibilités
+    from models import Disponibilite
+    dispos = (
+        db.query(Disponibilite)
+        .filter(Disponibilite.medecin_id == medecin.id, Disponibilite.actif == True)
+        .all()
+    )
+
+    return {
+        "id": str(medecin.id),
+        "nom": f"Dr. {user.prenom} {user.nom}",
+        "specialite": specs[0].libelle_fr if specs else "Médecine Générale",
+        "specialites": [s.libelle_fr for s in specs],
+        "note": float(medecin.note_moyenne or 0),
+        "nombre_avis": medecin.nombre_avis or 0,
+        "experience": f"{medecin.annees_experience or 0} ans",
+        "disponible": bool(medecin.disponible_maintenant),
+        "tarif": float(medecin.tarif_consultation or 5000),
+        "devise": medecin.devise or "XAF",
+        "teleconsultation": bool(medecin.teleconsultation_active),
+        "biographie": medecin.biographie or "",
+        "langues": medecin.langues_parlees or [],
+        "lieu_exercice": lieu_exercice,
+        "ville": ville,
+        "statut_verification": medecin.statut_verification,
+        "avis": [
+            {
+                "nom": f"{u.prenom} {u.nom[0]}.",
+                "note": a.note,
+                "commentaire": a.commentaire or "",
+                "date": a.created_at.strftime("%d/%m/%Y"),
+                "reponse_medecin": a.reponse_medecin or None,
+            }
+            for a, u in avis_list
+        ],
+        "disponibilites": [
+            {
+                "jour": d.jour_semaine,
+                "heure_debut": str(d.heure_debut),
+                "heure_fin": str(d.heure_fin),
+                "type": d.type,
+                "duree_minutes": d.duree_creneau_minutes or 30,
+            }
+            for d in dispos
+        ],
+    }

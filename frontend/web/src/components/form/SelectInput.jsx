@@ -1,8 +1,18 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-export default function SelectInput({ placeholder, options = [] }) {
-  const [value, setValue] = useState("");
+export default function SelectInput({ placeholder, options = [], value, onChange }) {
+  const [internalValue, setInternalValue] = useState("");
+
+  const currentValue = value !== undefined ? value : internalValue;
+
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    setInternalValue(newValue);
+    if (onChange) {
+      onChange(newValue);
+    }
+  };
 
   return (
     <div className="
@@ -17,8 +27,8 @@ export default function SelectInput({ placeholder, options = [] }) {
       transition-all
     ">
       <select
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        value={currentValue}
+        onChange={handleChange}
         className="
           w-full
           px-4 py-4

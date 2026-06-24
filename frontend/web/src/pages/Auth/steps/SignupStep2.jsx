@@ -1,65 +1,92 @@
+import { useState, useEffect } from "react";
 import SelectInput from "../../../components/form/SelectInput";
 import DateInput from "../../../components/form/DateInput";
-
 import {
   doctorSpecialities,
   nurseSpecialities,
   cities,
-  districts,
+  getDistrictsByCity,
 } from "../../../constants/medicalOptions";
 
 export default function SignupStep2({
-  selectedRole,
   saveUser,
   navigate,
   redirectByRole,
   setStepThree,
+  updateForm,
+  formData,
+  handleSubmit,
 }) {
+  // État local pour les districts filtrés par ville
+  const [availableDistricts, setAvailableDistricts] = useState([]);
+
+  // Mettre à jour les districts quand la ville change
+  useEffect(() => {
+    if (formData.city) {
+      setAvailableDistricts(getDistrictsByCity(formData.city));
+      // Réinitialiser le district si la ville change
+      if (formData.district && !getDistrictsByCity(formData.city).includes(formData.district)) {
+        updateForm("district", "");
+      }
+    } else {
+      setAvailableDistricts([]);
+    }
+  }, [formData.city]);
+
   return (
     <>
       <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-
         <div className="space-y-5">
 
-          <SelectInput placeholder="Select City" options={cities} />
+          <SelectInput
+            placeholder="Select City"
+            options={cities}
+            value={formData.city || ""}
+            onChange={(val) => {
+              console.log("CITY SELECTED:", val);
+              updateForm("city", val);
+            }}
+          />
 
-          <SelectInput placeholder="Select District" options={districts} />
+          <SelectInput
+            placeholder={formData.city ? "Select District" : "Select a city first"}
+            options={availableDistricts}
+            value={formData.district || ""}
+            onChange={(val) => updateForm("district", val)}
+            disabled={!formData.city}
+          />
 
-          {selectedRole === "patient" && <DateInput />}
+          {formData.role === "patient" && (
+            <DateInput onChange={(val) => updateForm("dob", val)} />
+          )}
 
-          {selectedRole === "doctor" && (
+          {formData.role === "doctor" && (
             <>
               <SelectInput
                 placeholder="Select Speciality"
                 options={doctorSpecialities}
+                onChange={(val) => updateForm("speciality", val)}
               />
-              <DateInput />
+              <DateInput onChange={(val) => updateForm("dob", val)} />
             </>
           )}
 
-          {selectedRole === "nurse" && (
+          {formData.role === "nurse" && (
             <>
               <SelectInput
                 placeholder="Select Speciality"
                 options={nurseSpecialities}
+                onChange={(val) => updateForm("speciality", val)}
               />
-              <DateInput />
+              <DateInput onChange={(val) => updateForm("dob", val)} />
             </>
           )}
         </div>
 
-        {selectedRole === "patient" ? (
+        {formData.role === "patient" ? (
           <button
             className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8]"
-            onClick={() => {
-              const user = {
-                role: selectedRole,
-                email: "user@email.com",
-              };
-
-              saveUser(user);
-              navigate(redirectByRole(user.role));
-            }}
+            onClick={handleSubmit}
           >
             Sign Up
           </button>

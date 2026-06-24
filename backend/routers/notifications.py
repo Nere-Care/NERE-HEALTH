@@ -66,3 +66,36 @@ async def read_notification(
     if current_user.role != "admin" and notification.utilisateur_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     return notification
+
+
+
+@router.patch("/notifications/{notification_id}/lire")
+async def marquer_lue(
+    notification_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    notification = db.get(Notification, notification_id)
+    if not notification:
+        raise HTTPException(404, "Notification non trouvée")
+    if notification.utilisateur_id != current_user.id:
+        raise HTTPException(403, "Accès refusé")
+    notification.statut = "lu"
+    db.commit()
+    return {"ok": True}
+
+
+@router.patch("/notifications/tout-lire")
+async def tout_marquer_lue(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    from sqlalchemy import update
+    db.execute(
+        update(Notification)
+        .where(Notification.utilisateur_id == current_user.id)
+        .where(Notification.statut != "lu")
+        .values(statut="lu")
+    )
+    db.commit()
+    return {"ok": True}

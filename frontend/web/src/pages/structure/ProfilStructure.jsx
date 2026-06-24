@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-// import { useLanguage } from '../../LanguageContext';
 import { 
   Building2, MapPin, Phone, Mail, Globe, 
   Clock, Camera, Save, ShieldCheck, Activity 
 } from 'lucide-react';
 
 export default function ProfilStructure({ darkMode }) {
-  const langue = "fr";
   
-  // État pour simuler les données de la structure
   const [formData, setFormData] = useState({
     nom: "Hôpital Central",
     type: "Hôpital",
@@ -23,44 +20,31 @@ export default function ProfilStructure({ darkMode }) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const t = {
-    fr: {
-      titre: "Profil de la Structure",
-      sousTitre: "Gérez les informations publiques et les paramètres de votre établissement",
-      infoGen: "Informations Générales",
-      type: "Type de structure",
-      nom: "Nom de l'établissement",
-      description: "Description / Bio",
-      contact: "Coordonnées de contact",
-      localisation: "Localisation",
-      horaires: "Horaires d'ouverture",
-      sauvegarder: "Enregistrer les modifications",
-      statut: "Structure Vérifiée"
-    },
-    en: {
-      titre: "Healthcare Profile",
-      sousTitre: "Manage public information and facility settings",
-      infoGen: "General Information",
-      type: "Facility Type",
-      nom: "Facility Name",
-      description: "Description / Bio",
-      contact: "Contact Details",
-      localisation: "Location",
-      horaires: "Opening Hours",
-      sauvegarder: "Save Changes",
-      statut: "Verified Facility"
-    }
+  // ✅ Textes en français uniquement (plus de logique de langue)
+  const content = {
+    titre: "Profil de la Structure",
+    sousTitre: "Gérez les informations publiques et les paramètres de votre établissement",
+    infoGen: "Informations Générales",
+    type: "Type de structure",
+    nom: "Nom de l'établissement",
+    description: "Description / Bio",
+    contact: "Coordonnées de contact",
+    localisation: "Localisation",
+    horaires: "Horaires d'ouverture",
+    sauvegarder: "Enregistrer les modifications",
+    statut: "Structure Vérifiée",
+    telephone: "Téléphone",
+    email: "Email",
+    siteWeb: "Site web",
   };
 
-  const content = langue === 'fr' ? t.fr : t.en;
-
   return (
-    <div className={`px-6 pt-4 pb-6 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
+    <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
       
       {/* Header avec action de sauvegarde */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-blue-500">{content.titre}</h1>
+          <h1 className="text-2xl font-bold">{content.titre}</h1>
           <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{content.sousTitre}</p>
         </div>
         <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg text-sm">
@@ -140,7 +124,7 @@ export default function ProfilStructure({ darkMode }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Email</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase">{content.email}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
                   <input 
@@ -151,7 +135,7 @@ export default function ProfilStructure({ darkMode }) {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">{langue === 'fr' ? 'Téléphone' : 'Phone'}</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase">{content.telephone}</label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 text-gray-400" size={18} />
                   <input 

@@ -34,7 +34,7 @@ const menuByRole = {
     { icon: MessageSquare, label: "Messages", path: "/messages" },
   ],
 
-  doctor: [
+  medecin: [
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
     { icon: Users, label: "avis", path: "/doctors" },
     { icon: Building2, label: "Structures de Santé", path: "/structures" },

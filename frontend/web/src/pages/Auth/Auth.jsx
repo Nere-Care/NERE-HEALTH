@@ -11,15 +11,13 @@ import {
   FileText,
 } from "lucide-react";
 
-import { FcGoogle } from "react-icons/fc";
+import {login} from "../../services/authService"
 
 import Input from "../../components/form/Input";
 import PasswordInput from "../../components/form/PasswordInput";
 import SelectInput from "../../components/form/SelectInput";
 import DateInput from "../../components/form/DateInput";
-import ExperienceInput from "../../components/form/ExperienceInput";
-import RoleCard from "../../components/form/RoleCard";
-
+import { register } from "../../services/authService";
 import LoginStep from "./steps/LoginStep";
 import SignupStep1 from "./steps/SignupStep1";
 import SignupStep2 from "./steps/SignupStep2";
@@ -35,13 +33,11 @@ import {
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
-  const [selectedRole, setSelectedRole] = useState("");
   const [stepTwo, setStepTwo] = useState(false);
   const [stepThree, setStepThree] = useState(false);
   const [experience, setExperience] = useState(0);
   const [errors, setErrors] = useState({});
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+ 
 
   const navigate = useNavigate();
 
@@ -49,15 +45,7 @@ export default function Auth() {
     localStorage.setItem("user", JSON.stringify(user));
   };
 
-  const handleNext = () => {
-    if (selectedRole) setStepTwo(true);
-  };
 
-  const handleSignUp = () => {
-    if (selectedRole === "doctor" || selectedRole === "nurse") {
-      setStepThree(true);
-    }
-  };
 
   const handlePrevious = () => {
     if (stepThree) {
@@ -71,52 +59,172 @@ export default function Auth() {
     setIsLogin(true);
     setStepTwo(false);
     setStepThree(false);
-    setSelectedRole("");
   };
 
-  const handleSubmit = () => {
-    const user = {
-      role: selectedRole,
-      experience,
-    };
+const handleSubmit = async () => {
+   alert("HANDLE SUBMIT EXECUTE");
 
-    saveUser(user);
-    navigate(redirectByRole(selectedRole));
-  };
+  console.log("HANDLE SUBMIT EXECUTE");
+  try {
+ const payload = {
+  email: formData.email,
+  password: formData.password,
+  prenom: formData.firstName,
+  nom: formData.lastName,
+  telephone: formData.telephone || null,
+  role: formData.role,
+  city: formData.city || null,
+  district: formData.district || null,
+  dob: formData.dob || null,
+  experience: formData.experience || 0,
+  hospital: formData.hospital || null,
+  registration_number: formData.registrationNumber || null,
+};
 
-  const validateForm = () => {
-    const newErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    console.log("📤 REGISTER PAYLOAD FINAL:", payload);
 
-    if (!emailRegex.test(email)) {
-      newErrors.email = "Email invalide";
-    }
+    const response = await register(payload);
 
-    if (!password || password.length < 6) {
-      newErrors.password = "Mot de passe (min 6 caractères)";
-    }
+    console.log("📥 REGISTER RESPONSE:", response);
 
-    setErrors(newErrors);
 
-    return Object.keys(newErrors).length === 0;
-  };
+// Connexion automatique après inscription
+const loginResponse = await login(formData.email, formData.password);
 
-  const redirectByRole = (role) => {
-    switch (role) {
-      case "patient":
-        return "/patient-dashboard";
-      case "doctor":
-        return "/doctor-dashboard";
-      case "nurse":
-        return "/nurse-dashboard";
-      case "observer":
-        return "/observer-dashboard";
-      case "structure":
-        return "/structure-dashboard";
-      default:
-        return "/";
-    }
-  };
+localStorage.setItem("token", loginResponse.access_token);
+
+saveUser(response);
+
+
+navigate(redirectByRole(response.role || formData.role));
+
+  } catch (error) {
+    console.error("❌ Signup error:", error);
+    setErrors({ api: error.message });
+  }
+};
+
+const validateForm = () => {
+  const newErrors = {};
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+if (!formData.email) {
+  newErrors.email = "Email requis";
+} else if (!emailRegex.test(formData.email)) {
+  newErrors.email = "Email invalide";
+}
+
+  if (!formData.password || formData.password.length < 6) {
+    newErrors.password = "Mot de passe (min 6 caractères)";
+  }
+
+  if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
+
+const validateLogin = () => {
+  const newErrors = {};
+
+  if (!formData.email) {
+    newErrors.email = "Email requis";
+  }
+
+  if (!formData.password) {
+    newErrors.password = "Mot de passe requis";
+  }
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
+
+const validateRegister = () => {
+  const newErrors = {};
+
+  if (!formData.email) {
+    newErrors.email = "Email requis";
+  }
+
+  if (!formData.password || formData.password.length < 6) {
+    newErrors.password = "Mot de passe trop court";
+  }
+
+  if (formData.password !== formData.confirmPassword) {
+    newErrors.confirmPassword =
+      "Les mots de passe ne correspondent pas";
+  }
+
+  setErrors(newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
+
+const handleNext = () => {
+  if (!formData.role) return;
+
+  if (
+    !formData.firstName ||
+    !formData.lastName ||
+    !formData.email ||
+    !formData.password ||
+    !formData.confirmPassword
+  ) {
+    return;
+  }
+
+  if (!validateRegister()) return;
+
+  setStepTwo(true);
+};
+
+
+const redirectByRole = (role) => {
+  switch (role) {
+    case "patient":
+      return "/patient-dashboard";
+    case "doctor":
+    case "medecin":
+      return "/doctor-dashboard";
+    case "nurse":
+    case "medecin":
+      return "/nurse-dashboard";
+    case "observer":
+      return "/observer-dashboard";
+    case "structure":
+      return "/structure-dashboard";
+    default:
+      return "/";
+  }
+};
+
+  const [formData, setFormData] = useState({
+  role: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  telephone: "",
+  confirmPassword: "",
+  city: "",
+  district: "",
+  speciality: "",
+  dob: "",
+  experience: 0,
+  hospital: "",
+  registrationNumber: "",
+  files: []
+});
+const updateForm = (field, value) => {
+  setFormData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
 
   return (
     <div className="min-h-screen flex bg-[#F4F9FF] overflow-hidden">
@@ -196,16 +304,16 @@ export default function Auth() {
           {isLogin ? (
             <>
               <LoginStep
-                email={email}
-                password={password}
-                setEmail={setEmail}
-                setPassword={setPassword}
+                email={formData.email}
+                password={formData.password}
+                setEmail={(val) => updateForm("email", val)}
+                setPassword={(val) => updateForm("password", val)}
                 navigate={navigate}
                 saveUser={saveUser}
                 redirectByRole={redirectByRole}
                 setIsLogin={setIsLogin}
                 errors={errors}
-                validateForm={validateForm}
+                validateForm={validateLogin}
               />
             </>
           ) : (
@@ -213,21 +321,23 @@ export default function Auth() {
               {/* ================= STEP 1 ================= */}
               {!stepTwo && !stepThree && (
                 <SignupStep1
-                  selectedRole={selectedRole}
-                  setSelectedRole={setSelectedRole}
                   handleNext={handleNext}
                   resetToLogin={resetToLogin}
+                  updateForm={updateForm}
+                  formData={formData}
                 />
               )}
 
               {/* ================= STEP 2 ================= */}
               {stepTwo && !stepThree && (
                 <SignupStep2
-                  selectedRole={selectedRole}
                   saveUser={saveUser}
                   navigate={navigate}
                   redirectByRole={redirectByRole}
                   setStepThree={setStepThree}
+                  updateForm={updateForm}
+                  formData={formData}
+                  handleSubmit={handleSubmit}
                 />
               )}
 
@@ -239,6 +349,8 @@ export default function Auth() {
                   setExperience={setExperience}
                   handleSubmit={handleSubmit}
                   resetToLogin={resetToLogin}
+                  updateForm={updateForm}
+                  formData={formData}
                 />
               )}
             </>

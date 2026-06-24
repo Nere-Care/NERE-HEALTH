@@ -13,7 +13,7 @@ import FilterButton from "../../components/common/FilterButton";
 import PatientListCard from "../../components/doctors/patient/PatientListCard";
 import PatientConsultationCard from "../../components/doctors/patient/PatientConsultationCard";
 
-import { patients } from "../../constants/doctors/patientData";
+import { patients } from "../../constants/doctors/PatientData";
 
 import PatientHistory from "../../components/doctors/patient/PatientHistory";
 import PatientInfo from "../../components/doctors/patient/PatientInfo";

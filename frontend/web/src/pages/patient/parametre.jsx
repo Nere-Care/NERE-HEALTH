@@ -1,23 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   User, Lock, Eye, EyeOff, Shield, 
-  Smartphone, LogOut, Users, FileText, ChevronRight, 
-  Activity, Heart, AlertCircle, History, CheckCircle2,
-  Route
+  LogOut, Heart, AlertCircle, Activity, 
+  ChevronRight, CheckCircle2, Save, Loader
 } from 'lucide-react';
+import { fetchProfilComplet, changePassword } from '../../services/userService';
 
-// Menu : Uniquement l'essentiel
-const sections = ["Profil", "Sécurité", "Confidentialités"];
+const sections = ["Profil", "Sécurité", "Confidentialité"];
 
 export default function Parametres({ darkMode }) {
-    const navigate = useNavigate();
-
+  const navigate = useNavigate();
   const [section, setSection] = useState("Profil");
   const [showPassword, setShowPassword] = useState(false);
+  const [accessType, setAccessType] = useState("standard");
   
-  // État pour la restriction du dossier médical
-  const [accessType, setAccessType] = useState("standard"); // "standard" ou "restreint"
+  const [profil, setProfil] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(null);
+  
+  // États pour les formulaires
+  const [formData, setFormData] = useState({});
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordMessage, setPasswordMessage] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const charger = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchProfilComplet();
+        setProfil(data);
+        setFormData({
+          prenom: data.prenom || "",
+          nom: data.nom || "",
+          email: data.email || "",
+          telephone: data.telephone || "",
+          ville: data.ville || "",
+          date_naissance: data.date_naissance || "",
+          groupe_sanguin: data.groupe_sanguin || "",
+        });
+      } catch (err) {
+        setErreur(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    charger();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
+  const handleChangePassword = async () => {
+    setPasswordMessage(null);
+    
+    if (!passwordData.oldPassword || !passwordData.newPassword) {
+      setPasswordMessage({ type: "error", text: "Veuillez remplir tous les champs" });
+      return;
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordMessage({ type: "error", text: "Les mots de passe ne correspondent pas" });
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      await changePassword(passwordData.oldPassword, passwordData.newPassword);
+      setPasswordMessage({ type: "success", text: "Mot de passe modifié avec succès" });
+      setPasswordData({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err) {
+      setPasswordMessage({ type: "error", text: err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={`p-6 min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <Loader className="animate-spin text-blue-500" size={32} />
+      </div>
+    );
+  }
+
+  if (erreur || !profil) {
+    return (
+      <div className={`p-6 min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50"}`}>
+        <p className="text-red-500">{erreur || "Profil introuvable"}</p>
+      </div>
+    );
+  }
+
+  const isPatient = profil.role === "patient";
+  const isMedecin = profil.role === "medecin";
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -29,7 +113,7 @@ export default function Parametres({ darkMode }) {
         <div className="w-full md:w-64 flex-shrink-0 flex flex-col gap-4">
           <div className={`rounded-2xl shadow overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             {sections.map((s, index) => {
-              const icons = [User, Lock, FileText];
+              const icons = [User, Lock, Shield];
               const Icon = icons[index];
 
               return (
@@ -48,13 +132,15 @@ export default function Parametres({ darkMode }) {
                 </button>
               );
             })}
-
           </div>
 
-          <button onClick={() => navigate('/') } className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all border
-            ${darkMode 
-              ? "bg-gray-800 border-red-900/30 text-red-400 hover:bg-red-950/20" 
-              : "bg-white border-red-100 text-red-500 hover:bg-red-50"}`}>
+          <button 
+            onClick={handleLogout}
+            className={`flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold transition-all border
+              ${darkMode 
+                ? "bg-gray-800 border-red-900/30 text-red-400 hover:bg-red-950/20" 
+                : "bg-white border-red-100 text-red-500 hover:bg-red-50"}`}
+          >
             <LogOut size={16} />
             Déconnexion
           </button>
@@ -63,7 +149,7 @@ export default function Parametres({ darkMode }) {
         {/* CONTENT */}
         <div className="flex-1 space-y-6">
 
-          {/* PROFIL - Informations augmentées */}
+          {/* PROFIL */}
           {section === "Profil" && (
             <div className="flex flex-col gap-6">
               <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
@@ -72,55 +158,167 @@ export default function Parametres({ darkMode }) {
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { label: "Prénom", value: "Jean" },
-                    { label: "Nom", value: "Dupont" },
-                    { label: "Email", value: "jean.dupont@email.com" },
-                    { label: "Téléphone", value: "+237 691 234 567" },
-                    { label: "Date de naissance", value: "15/06/1990" },
-                    { label: "Ville", value: "Douala" },
-                  ].map((field) => (
-                    <div key={field.label}>
-                      <label className="text-xs text-gray-400 mb-1 block">{field.label}</label>
-                      <input defaultValue={field.value} className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} />
-                    </div>
-                  ))}
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Prénom</label>
+                    <input 
+                      value={formData.prenom}
+                      onChange={(e) => setFormData({...formData, prenom: e.target.value})}
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Nom</label>
+                    <input 
+                      value={formData.nom}
+                      onChange={(e) => setFormData({...formData, nom: e.target.value})}
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Email</label>
+                    <input 
+                      value={formData.email}
+                      disabled
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-gray-400" : "border-gray-200 text-gray-500 bg-gray-50"}`} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Téléphone</label>
+                    <input 
+                      value={formData.telephone}
+                      onChange={(e) => setFormData({...formData, telephone: e.target.value})}
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} 
+                    />
+                  </div>
+                  
+                  {isPatient && (
+                    <>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Date de naissance</label>
+                        <input 
+                          type="date"
+                          value={formData.date_naissance}
+                          onChange={(e) => setFormData({...formData, date_naissance: e.target.value})}
+                          className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Ville</label>
+                        <input 
+                          value={formData.ville}
+                          onChange={(e) => setFormData({...formData, ville: e.target.value})}
+                          className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200 text-gray-800"}`} 
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  {isMedecin && (
+                    <>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Numéro d'ordre</label>
+                        <input 
+                          value={profil.numero_ordre || ""}
+                          disabled
+                          className={`w-full border rounded-xl px-3 py-2 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-gray-400" : "border-gray-200 text-gray-500 bg-gray-50"}`} 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Statut vérification</label>
+                        <input 
+                          value={profil.statut_verification === "verifie" ? "Vérifié" : "En attente"}
+                          disabled
+                          className={`w-full border rounded-xl px-3 py-2 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-gray-400" : "border-gray-200 text-gray-500 bg-gray-50"}`} 
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <h3 className={`text-xs font-bold uppercase mt-4 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Données médicales clés</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { label: "Groupe Sanguin", value: "O+", icon: Heart },
-                    { label: "Allergies", value: "Aucune", icon: AlertCircle },
-                    { label: "Urgence", value: "Mme Dupont (Épouse)", icon: Activity },
-                  ].map((item) => (
-                    <div key={item.label} className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
-                      <label className="text-[10px] text-gray-400 uppercase block mb-1">{item.label}</label>
-                      <div className="flex items-center gap-2">
-                        <item.icon size={14} className="text-blue-500" />
-                        <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{item.value}</span>
+                {/* Données médicales clés (patient uniquement) */}
+                {isPatient && (
+                  <>
+                    <h3 className={`text-xs font-bold uppercase mt-4 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Données médicales clés</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Groupe Sanguin</label>
+                        <div className="flex items-center gap-2">
+                          <Heart size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.groupe_sanguin || "Non renseigné"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Allergies</label>
+                        <div className="flex items-center gap-2">
+                          <AlertCircle size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.allergies?.length > 0 ? `${profil.allergies.length} allergie(s)` : "Aucune"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Contact urgence</label>
+                        <div className="flex items-center gap-2">
+                          <Activity size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.contact_urgence_nom || "Non renseigné"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </>
+                )}
 
-              {/* Mes Proches */}
-              <div className={`rounded-2xl shadow p-6 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-                <div className="flex items-center justify-between">
-                  <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Mes proches</h2>
-                  <button className="text-xs text-blue-500 font-semibold">+ Ajouter un proche</button>
-                </div>
-                <div className={`flex items-center justify-between p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/50" : "border-gray-100 bg-gray-50"}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center font-bold text-xs">MD</div>
-                    <div>
-                      <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-700"}`}>Marie Dupont</p>
-                      <p className="text-xs text-gray-400">Prendre RDV pour ce proche</p>
+                {/* Infos médecin */}
+                {isMedecin && (
+                  <>
+                    <h3 className={`text-xs font-bold uppercase mt-4 ${darkMode ? "text-blue-400" : "text-blue-600"}`}>Informations professionnelles</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Expérience</label>
+                        <div className="flex items-center gap-2">
+                          <User size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.annees_experience || 0} an(s)
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Structure</label>
+                        <div className="flex items-center gap-2">
+                          <Activity size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.structure_nom || "Non affilié"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
+                        <label className="text-[10px] text-gray-400 uppercase block mb-1">Note moyenne</label>
+                        <div className="flex items-center gap-2">
+                          <Heart size={14} className="text-blue-500" />
+                          <span className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
+                            {profil.note_moyenne || 0}/5 ({profil.nombre_avis || 0} avis)
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-400" />
-                </div>
+                    
+                    {profil.specialites?.length > 0 && (
+                      <div className="mt-4">
+                        <label className="text-xs text-gray-400 mb-2 block">Spécialités</label>
+                        <div className="flex flex-wrap gap-2">
+                          {profil.specialites.map((spec) => (
+                            <span key={spec.id} className={`px-3 py-1 rounded-full text-xs ${darkMode ? "bg-blue-900/30 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                              {spec.libelle}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -131,45 +329,74 @@ export default function Parametres({ darkMode }) {
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>Sécurité</h2>
               
               <div className="flex flex-col gap-4">
-                {["Mot de passe actuel", "Nouveau mot de passe"].map((label) => (
-                  <div key={label}>
-                    <label className="text-xs text-gray-400 mb-1 block">{label}</label>
-                    <div className="relative">
-                      <input type={showPassword ? "text" : "password"} className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} />
-                      <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <h3 className={`text-xs font-bold uppercase flex items-center gap-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  <History size={14} /> Appareils connectés
-                </h3>
-                <div className={`p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/30" : "border-gray-100 bg-gray-50"}`}>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className={darkMode ? "text-gray-200" : "text-gray-700"}>iPhone 15 - Douala, CM</span>
-                    <span className="text-green-500 font-bold">Actif</span>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Mot de passe actuel</label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={passwordData.oldPassword}
+                      onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
+                    />
+                    <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
+                
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Nouveau mot de passe</label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">Confirmer le nouveau mot de passe</label>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
+                  />
+                </div>
+                
+                {passwordMessage && (
+                  <div className={`p-3 rounded-xl text-sm ${
+                    passwordMessage.type === "success" 
+                      ? "bg-green-100 text-green-700" 
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    {passwordMessage.text}
+                  </div>
+                )}
+                
+                <button
+                  onClick={handleChangePassword}
+                  disabled={saving}
+                  className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                >
+                  {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
+                  {saving ? "Modification..." : "Modifier le mot de passe"}
+                </button>
               </div>
             </div>
           )}
 
-          {/* INFORMATIONS LÉGALES & ACCÈS MÉDICAUX */}
-          {section === "Confidentialités" && (
+          {/* CONFIDENTIALITE */}
+          {section === "Confidentialité" && (
             <div className="flex flex-col gap-6">
-              
-              {/* GESTION DES ACCÈS AU DOSSIER MÉDICAL */}
               <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                 <h2 className={`text-sm font-bold border-b pb-3 flex items-center gap-2 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
                   <Shield size={16} className="text-blue-500" /> Accès au dossier médical
                 </h2>
 
                 <div className="flex flex-col gap-4">
-                  {/* Option Par Défaut */}
                   <div 
                     onClick={() => setAccessType("standard")}
                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${accessType === "standard" 
@@ -185,7 +412,6 @@ export default function Parametres({ darkMode }) {
                     </p>
                   </div>
 
-                  {/* Option Restreinte */}
                   <div 
                     onClick={() => setAccessType("restreint")}
                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${accessType === "restreint" 
@@ -209,21 +435,6 @@ export default function Parametres({ darkMode }) {
                 </div>
               </div>
 
-              {/* Mes Préférences (Ancien contenu Confidentialité) */}
-              <div className={`rounded-2xl shadow p-6 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-                <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
-                  Mes préférences
-                </h2>
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <p className={`text-sm font-medium ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Partage de données anonymes</p>
-                    <p className="text-xs text-gray-400">Aider à l'amélioration du service</p>
-                  </div>
-                  <div className="w-10 h-5 bg-blue-500 rounded-full relative"><div className="w-4 h-4 bg-white rounded-full absolute right-0.5 top-0.5" /></div>
-                </div>
-              </div>
-
-              {/* Documents Légaux */}
               <div className={`rounded-2xl shadow p-6 flex flex-col gap-3 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                 <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>Informations légales</h2>
                 {["CGU", "Mentions Légales", "Politique de données"].map((doc) => (

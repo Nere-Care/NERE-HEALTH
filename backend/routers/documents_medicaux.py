@@ -86,6 +86,36 @@ async def read_document_medical(
     return document
 
 
+
+@router.get("/documents_medicaux/me")
+async def mes_documents(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    from models import DocumentMedical
+    from sqlalchemy import select
+    docs = db.execute(
+        select(DocumentMedical)
+        .where(DocumentMedical.patient_id == current_user.id)
+        .where(DocumentMedical.visible_patient == True)
+        .order_by(DocumentMedical.created_at.desc())
+    ).scalars().all()
+
+    return [
+        {
+            "id": str(d.id),
+            "nom_fichier_original": d.nom_fichier_original,
+            "type_document": d.type_document,
+            "mime_type": d.mime_type,
+            "taille_octets": d.taille_octets,
+            "url_stockage": d.url_stockage,
+            "date_document": d.date_document.isoformat() if d.date_document else None,
+            "description": d.description or "",
+        }
+        for d in docs
+    ]
+
+
 @router.put("/documents_medicaux/{document_id}", response_model=DocumentMedicalRead)
 async def update_document_medical(
     document_id: UUID,
