@@ -44,11 +44,11 @@ export default function PatientProfileModal({
 
           <div className="flex flex-col items-center">
 
-            <img
-              src={patient.patientImage}
-              alt={patient.patientName}
-              className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-            />
+            {/* Dans le HEADER de PatientProfileModal, remplace le bloc img par : */}
+<div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white shadow-lg
+  ${darkMode ? "bg-blue-900 text-blue-300" : "bg-blue-100 text-blue-600"}`}>
+  {patient.patientName?.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2) || "?"}
+</div>
 
             <h2 className="mt-4 text-xl font-bold">
               {patient.patientName}

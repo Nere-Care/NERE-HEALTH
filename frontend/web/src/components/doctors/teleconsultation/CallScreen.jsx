@@ -1,32 +1,24 @@
-import { useState, useEffect } from "react";
 import {
   Video,
   PhoneOff,
-  Mic,
-  MicOff,
-  VideoOff,
   User,
   FileText,
   Stethoscope,
   MessageSquare,
-  Monitor,
   Send,
   Save,
   Download,
   Clock,
   AlertCircle,
   Pill,
-  X,
   CheckCircle,
-  Paperclip,
   Wifi,
 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
 export default function CallScreen({ darkMode, endCall, patient }) {
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
   const [duree, setDuree] = useState(0);
-  const [activePanel, setActivePanel] = useState("notes"); // notes | chat | dossier
+  const [activePanel, setActivePanel] = useState("notes");
   const [notes, setNotes] = useState("");
   const [diagnostic, setDiagnostic] = useState("");
   const [prescription, setPrescription] = useState("");
@@ -35,6 +27,61 @@ export default function CallScreen({ darkMode, endCall, patient }) {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [showSavedToast, setShowSavedToast] = useState(false);
+
+  // ✅ Réfs pour Jitsi SDK
+  const jitsiContainerRef = useRef(null);
+  const jitsiApiRef = useRef(null);
+
+  // ✅ Initialisation Jitsi SDK
+  useEffect(() => {
+    if (!patient.lien_video || !jitsiContainerRef.current) return;
+
+    const loadJitsi = () => {
+      if (window.JitsiMeetExternalAPI) {
+        initJitsi();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://meet.jit.si/external_api.js";
+      script.onload = initJitsi;
+      document.head.appendChild(script);
+    };
+
+    const initJitsi = () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+      }
+      const roomName = patient.room_name || patient.lien_video?.split("/").pop();
+      jitsiApiRef.current = new window.JitsiMeetExternalAPI("meet.jit.si", {
+        roomName,
+        parentNode: jitsiContainerRef.current,
+        width: "100%",
+        height: "100%",
+        userInfo: {
+          displayName: `Dr. ${patient.doctorName || 'Medecin'}`,
+        },
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          disableDeepLinking: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_BRAND_WATERMARK: false,
+          TOOLBAR_BUTTONS: ["microphone", "camera", "hangup", "chat", "tileview", "fullscreen"],
+        },
+      });
+    };
+
+    loadJitsi();
+
+    return () => {
+      if (jitsiApiRef.current) {
+        jitsiApiRef.current.dispose();
+        jitsiApiRef.current = null;
+      }
+    };
+  }, [patient.lien_video, patient.room_name, patient.doctorName]);
 
   // Timer de consultation
   useEffect(() => {
@@ -128,7 +175,6 @@ ${prescription || "Aucune prescription"}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Timer */}
             <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
               <Clock size={16} className="text-blue-500" />
               <span className={`font-mono font-semibold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
@@ -136,7 +182,6 @@ ${prescription || "Aucune prescription"}
               </span>
             </div>
 
-            {/* Qualité connexion */}
             <div className={`hidden sm:flex items-center gap-1 px-3 py-2 rounded-xl ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
               <Wifi size={16} className="text-green-500" />
               <span className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Excellent</span>
@@ -155,55 +200,52 @@ ${prescription || "Aucune prescription"}
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-          {/* VIDEO */}
+          {/* COLONNE GAUCHE : VIDEO + CHAT */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="bg-black rounded-2xl relative h-[45vh] sm:h-[55vh] lg:h-[65vh] min-h-[300px] overflow-hidden flex items-center justify-center">
-              {camOn ? (
-                <div className="text-center text-white space-y-2 px-3">
-                  <Video className="w-10 h-10 mx-auto opacity-70" />
-                  <p className="text-xs sm:text-sm text-gray-300">Flux vidéo actif</p>
-                </div>
-              ) : (
-                <div className="text-center text-white space-y-2 px-3">
-                  <VideoOff className="w-10 h-10 mx-auto opacity-70" />
-                  <p className="text-xs sm:text-sm text-gray-300">Caméra désactivée</p>
+            
+            {/* ✅ VIDEO JITSI via SDK (pas d'iframe) */}
+            <div
+              ref={jitsiContainerRef}
+              className="bg-black rounded-2xl overflow-hidden relative"
+              style={{ height: "65vh", minHeight: "400px" }}
+            >
+              {!patient.lien_video && (
+                <div className="flex items-center justify-center h-full text-white text-center p-4">
+                  <div>
+                    <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm text-gray-400">Preparation de la salle video...</p>
+                  </div>
                 </div>
               )}
 
               {/* STATUS */}
-              <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] sm:text-xs px-3 py-1 rounded-lg flex items-center gap-2">
+              <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] sm:text-xs px-3 py-1 rounded-lg flex items-center gap-2 pointer-events-none z-10">
                 <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                Live Session
-              </div>
-
-              {/* CONTROLS */}
-              <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 bg-black/60 p-2 rounded-full backdrop-blur">
-                <button
-                  onClick={() => setMicOn(!micOn)}
-                  className={`p-2 sm:p-3 rounded-full transition ${micOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                  title={micOn ? "Couper le micro" : "Activer le micro"}
-                >
-                  {micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
-
-                <button
-                  onClick={() => setCamOn(!camOn)}
-                  className={`p-2 sm:p-3 rounded-full transition ${camOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                  title={camOn ? "Couper la caméra" : "Activer la caméra"}
-                >
-                  {camOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
-                </button>
-
-                <button
-                  className="p-2 sm:p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition"
-                  title="Partager l'écran"
-                >
-                  <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+                Live
               </div>
             </div>
 
-            {/* Panneau inférieur : Chat */}
+            {/* Lien patient a copier */}
+            {patient.lien_video && (
+              <div className={`rounded-xl p-3 flex items-center gap-3 ${darkMode ? "bg-gray-800" : "bg-blue-50"}`}>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-semibold mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                    Lien pour le patient
+                  </p>
+                  <p className={`text-xs truncate font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}>
+                    {patient.lien_video}
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(patient.lien_video)}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition flex-shrink-0"
+                >
+                  Copier
+                </button>
+              </div>
+            )}
+
+            {/* CHAT */}
             <div className={`rounded-2xl overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
               <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
                 <h3 className={`font-semibold text-sm flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
@@ -255,7 +297,7 @@ ${prescription || "Aucune prescription"}
             </div>
           </div>
 
-          {/* MEDICAL PANEL */}
+          {/* COLONNE DROITE : MEDICAL PANEL */}
           <div className={`rounded-2xl shadow-sm overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
 
             {/* Tabs */}
@@ -288,7 +330,6 @@ ${prescription || "Aucune prescription"}
 
               {activePanel === "notes" && (
                 <>
-                  {/* PATIENT CARD */}
                   <div className={`p-3 rounded-xl text-sm space-y-1 ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
                     <div className={`flex items-center gap-2 text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                       <User className="w-4 h-4" />
@@ -304,7 +345,6 @@ ${prescription || "Aucune prescription"}
                     )}
                   </div>
 
-                  {/* NOTES CLINIQUES */}
                   <div className="space-y-2">
                     <label className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                       <FileText size={14} />
@@ -320,7 +360,6 @@ ${prescription || "Aucune prescription"}
                     />
                   </div>
 
-                  {/* DIAGNOSTIC */}
                   <div className="space-y-2">
                     <label className={`text-xs sm:text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                       Diagnostic
@@ -334,7 +373,6 @@ ${prescription || "Aucune prescription"}
                     />
                   </div>
 
-                  {/* PRESCRIPTION */}
                   <div className="space-y-2">
                     <label className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                       <Pill size={14} />
@@ -350,7 +388,6 @@ ${prescription || "Aucune prescription"}
                     />
                   </div>
 
-                  {/* ACTIONS */}
                   <div className="space-y-2 pt-2 sticky bottom-0 pb-2">
                     <button
                       onClick={sauvegarderConsultation}
@@ -382,7 +419,6 @@ ${prescription || "Aucune prescription"}
 
               {activePanel === "dossier" && (
                 <>
-                  {/* Dossier patient */}
                   <div className={`p-3 rounded-xl ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
                     <p className={`text-xs font-bold uppercase mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                       Informations
@@ -397,7 +433,6 @@ ${prescription || "Aucune prescription"}
                     )}
                   </div>
 
-                  {/* Antécédents */}
                   <div>
                     <p className={`text-xs font-bold uppercase mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                       Antécédents médicaux
@@ -417,7 +452,6 @@ ${prescription || "Aucune prescription"}
                     )}
                   </div>
 
-                  {/* Allergies */}
                   <div>
                     <p className={`text-xs font-bold uppercase mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
                       Allergies
@@ -435,7 +469,6 @@ ${prescription || "Aucune prescription"}
                     )}
                   </div>
 
-                  {/* Dernière consultation */}
                   {patient.dossier?.dernierConsultation && (
                     <div>
                       <p className={`text-xs font-bold uppercase mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
@@ -455,7 +488,6 @@ ${prescription || "Aucune prescription"}
         </div>
       </div>
 
-      {/* TOAST */}
       {showSavedToast && (
         <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50 animate-slide-in">
           <CheckCircle size={18} />

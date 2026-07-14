@@ -12,6 +12,12 @@ from db import get_db
 from models import Consultation, Patient, User
 from schemas import ConsultationCreate, ConsultationRead
 
+
+
+from pydantic import BaseModel as PydanticBase
+from uuid import uuid4 as new_uuid4
+from datetime import datetime as dt2
+
 router = APIRouter(tags=["consultations"])
 
 
@@ -139,3 +145,125 @@ async def delete_consultation(
     db.delete(consultation)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
+
+class ConsultationPatientCreate(PydanticBase):
+    patient_id: UUID
+    motif: str
+    examen_clinique: Optional[str] = None
+    diagnostic_principal: Optional[str] = None
+    plan_traitement: Optional[str] = None
+    observations: Optional[str] = None
+    prescription_texte: Optional[str] = None
+    demande_labo: Optional[str] = None
+    date_prochain_rdv: Optional[str] = None
+    priorite: Optional[str] = "normal"
+
+@router.post("/medecin/consultations", status_code=201)
+async def medecin_creer_consultation(
+    payload: ConsultationPatientCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    patient = db.get(Patient, payload.patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient introuvable")
+
+    # Chercher un RDV recent pour lier la consultation
+    from models import RendezVous, DossierMedical
+    rdv = db.query(RendezVous).filter(
+        RendezVous.patient_id == payload.patient_id,
+        RendezVous.medecin_id == current_user.id,
+        RendezVous.statut.in_(["confirme", "en_cours"]),
+    ).order_by(RendezVous.date_heure_debut.desc()).first()
+
+    # Chercher ou creer le dossier
+    dossier = db.query(DossierMedical).filter(
+        DossierMedical.patient_id == payload.patient_id
+    ).first()
+    if not dossier:
+        dossier = DossierMedical(
+            numero_dossier=f"DM-{dt2.utcnow().year}-{str(new_uuid4())[:8].upper()}",
+            patient_id=payload.patient_id,
+            medecin_traitant_id=current_user.id,
+        )
+        db.add(dossier)
+        db.flush()
+
+    if not rdv:
+        # Creer un RDV virtuel si aucun RDV confirme trouve
+        numero_rdv = f"NER-RDV-{dt2.utcnow().year}-{str(new_uuid4())[:8].upper()}"
+        rdv = RendezVous(
+            numero_rdv=numero_rdv,
+            patient_id=payload.patient_id,
+            medecin_id=current_user.id,
+            date_heure_debut=dt2.utcnow(),
+            date_heure_fin=dt2.utcnow(),
+            type="presentiel",
+            statut="termine",
+            motif_consultation=payload.motif,
+        )
+        db.add(rdv)
+        db.flush()
+
+    numero_consult = f"CONS-{dt2.utcnow().year}-{str(new_uuid4())[:8].upper()}"
+
+    consultation = Consultation(
+        numero_consultation=numero_consult,
+        rdv_id=rdv.id,
+        dossier_id=dossier.id,
+        medecin_id=current_user.id,
+        patient_id=payload.patient_id,
+        date_heure_debut=dt2.utcnow(),
+        motif=payload.motif,
+        examen_clinique=payload.examen_clinique,
+        diagnostic_principal=payload.diagnostic_principal,
+        plan_traitement=payload.plan_traitement,
+        observations=payload.observations,
+        statut="terminee",
+    )
+    db.add(consultation)
+    db.flush()
+
+    # Creer l'ordonnance si prescription fournie
+    if payload.prescription_texte and payload.prescription_texte.strip():
+        from models import Ordonnance, OrdonnanceLigne
+        from datetime import date, timedelta
+        ordo = Ordonnance(
+            numero=f"ORD-{dt2.utcnow().year}-{str(new_uuid4())[:8].upper()}",
+            consultation_id=consultation.id,
+            medecin_id=current_user.id,
+            patient_id=payload.patient_id,
+            date_emission=date.today(),
+            date_expiration=date.today() + timedelta(days=90),
+            statut="active",
+            qr_code_data=f"NER-ORD-QR-{str(new_uuid4())[:8].upper()}",
+        )
+        db.add(ordo)
+        db.flush()
+
+        ligne = OrdonnanceLigne(
+            ordonnance_id=ordo.id,
+            ordre=1,
+            medicament_nom=payload.prescription_texte[:200],
+            dosage="Voir prescription",
+            forme="comprimes",
+            posologie=payload.prescription_texte,
+            frequence_par_jour=1,
+            duree_jours=30,
+            quantite=1,
+        )
+        db.add(ligne)
+
+    db.commit()
+
+    return {
+        "id": str(consultation.id),
+        "numero_consultation": consultation.numero_consultation,
+        "message": "Consultation enregistree avec succes",
+    }

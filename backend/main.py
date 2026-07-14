@@ -9,6 +9,7 @@ from config import settings
 from limiter import limiter
 from routers.root import router as root_router
 from routers.auth import router as auth_router
+from routers.admin import router as admin_router
 from routers.users import router as users_router
 from routers.patients import router as patients_router
 from routers.consultations import router as consultations_router
@@ -68,6 +69,7 @@ app.add_middleware(
 
 app.include_router(root_router)
 app.include_router(auth_router)
+app.include_router(admin_router, prefix=settings.API_PREFIX)
 app.include_router(users_router, prefix=settings.API_PREFIX)
 app.include_router(patients_router, prefix=settings.API_PREFIX)
 app.include_router(consultations_router, prefix=settings.API_PREFIX)
@@ -89,3 +91,16 @@ app.include_router(specialites_router, prefix=settings.API_PREFIX)
 app.include_router(structures_router, prefix=settings.API_PREFIX)
 app.include_router(audit_router, prefix=settings.API_PREFIX)
 app.include_router(tables_router, prefix=settings.API_PREFIX)
+
+
+
+
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# Créer le dossier uploads s'il n'existe pas
+UPLOAD_DIR = Path("/app/uploads/documents")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Monter le dossier en static files
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")

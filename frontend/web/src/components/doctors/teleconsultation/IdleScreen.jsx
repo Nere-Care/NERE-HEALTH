@@ -11,6 +11,8 @@ import {
   TrendingUp,
   Activity,
   FileText,
+  XCircle,
+  Ban,
 } from "lucide-react";
 
 export default function IdleScreen({
@@ -19,21 +21,30 @@ export default function IdleScreen({
   rdvDuJour,
   historique,
   stats,
+  loading,
+  erreur,
 }) {
   const [recherche, setRecherche] = useState("");
-  const [tabActif, setTabActif] = useState("file"); // file | historique
+  const [tabActif, setTabActif] = useState("file");
 
-  const rdvFiltres = rdvDuJour.filter((r) =>
-    r.patientName.toLowerCase().includes(recherche.toLowerCase()) ||
-    r.motif.toLowerCase().includes(recherche.toLowerCase())
+  const rdvFiltres = (rdvDuJour || []).filter((r) =>
+    (r.patientName || "").toLowerCase().includes(recherche.toLowerCase()) ||
+    (r.motif || "").toLowerCase().includes(recherche.toLowerCase())
   );
 
+  // ✅ TOUS les statuts possibles + fallback par défaut
   const statutConfig = {
     en_attente: {
       label: "En attente",
       color: "text-orange-500",
       bg: darkMode ? "bg-orange-900/30" : "bg-orange-50",
       icon: AlertCircle,
+    },
+    confirme: {
+      label: "Confirmé",
+      color: "text-blue-500",
+      bg: darkMode ? "bg-blue-900/30" : "bg-blue-50",
+      icon: CheckCircle,
     },
     en_cours: {
       label: "En cours",
@@ -47,6 +58,29 @@ export default function IdleScreen({
       bg: darkMode ? "bg-green-900/30" : "bg-green-50",
       icon: CheckCircle,
     },
+    annule_medecin: {
+      label: "Annulé (médecin)",
+      color: "text-red-500",
+      bg: darkMode ? "bg-red-900/30" : "bg-red-50",
+      icon: XCircle,
+    },
+    annule_patient: {
+      label: "Annulé (patient)",
+      color: "text-red-500",
+      bg: darkMode ? "bg-red-900/30" : "bg-red-50",
+      icon: XCircle,
+    },
+    no_show: {
+      label: "Absent",
+      color: "text-gray-500",
+      bg: darkMode ? "bg-gray-700" : "bg-gray-100",
+      icon: Ban,
+    },
+  };
+
+  // ✅ Fonction sécurisée avec fallback
+  const getStatutConfig = (statut) => {
+    return statutConfig[statut] || statutConfig.en_attente;
   };
 
   return (
@@ -58,11 +92,7 @@ export default function IdleScreen({
           <h1 className="text-xl sm:text-2xl font-bold text-[#3b82f6]">
             Téléconsultation
           </h1>
-          <p
-        className={`text-sm sm:text-base mt-1 ${
-          darkMode ? "text-gray-400" : "text-gray-500"
-        }`}
-      >
+          <p className={`text-sm sm:text-base mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
             Gérez vos consultations à distance
           </p>
         </div>
@@ -85,33 +115,46 @@ export default function IdleScreen({
         </button>
       </div>
 
+      {erreur && (
+        <div className={`mb-4 flex items-center gap-2 px-4 py-3 rounded-xl text-sm
+          ${darkMode ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-600"}`}>
+          <AlertCircle size={16} /> {erreur}
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex justify-center py-10">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
       {/* STATS CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard
           icon={<Calendar className="w-5 h-5" />}
           label="RDV aujourd'hui"
-          value={stats.total}
+          value={stats?.total || 0}
           color="blue"
           darkMode={darkMode}
         />
         <StatCard
           icon={<AlertCircle className="w-5 h-5" />}
           label="En attente"
-          value={stats.enAttente}
+          value={stats?.enAttente || 0}
           color="orange"
           darkMode={darkMode}
         />
         <StatCard
           icon={<Activity className="w-5 h-5" />}
           label="En cours"
-          value={stats.enCours}
+          value={stats?.enCours || 0}
           color="green"
           darkMode={darkMode}
         />
         <StatCard
           icon={<CheckCircle className="w-5 h-5" />}
           label="Terminées"
-          value={stats.terminees}
+          value={stats?.terminees || 0}
           color="purple"
           darkMode={darkMode}
         />
@@ -133,7 +176,7 @@ export default function IdleScreen({
                     ? "bg-blue-600 text-white"
                     : darkMode ? "text-gray-300" : "text-gray-600"}`}
               >
-                File d'attente ({stats.enAttente})
+                File d'attente ({stats?.enAttente || 0})
               </button>
               <button
                 onClick={() => setTabActif("historique")}
@@ -172,7 +215,8 @@ export default function IdleScreen({
                 </div>
               ) : (
                 rdvFiltres.map((rdv) => {
-                  const config = statutConfig[rdv.statut];
+                  // ✅ SÉCURITÉ : fallback vers en_attente si statut inconnu
+                  const config = getStatutConfig(rdv.statut);
                   const StatusIcon = config.icon;
 
                   return (
@@ -183,14 +227,14 @@ export default function IdleScreen({
                     >
                       {/* Avatar */}
                       <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                        {rdv.avatar}
+                        {rdv.avatar || "?"}
                       </div>
 
                       {/* Infos */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={`font-semibold text-sm sm:text-base truncate ${darkMode ? "text-white" : "text-gray-800"}`}>
-                            {rdv.patientName}
+                            {rdv.patientName || "Patient inconnu"}
                           </p>
                           {rdv.age && (
                             <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
@@ -199,12 +243,12 @@ export default function IdleScreen({
                           )}
                         </div>
                         <p className={`text-xs sm:text-sm truncate ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-                          {rdv.motif}
+                          {rdv.motif || "Pas de motif"}
                         </p>
                         <div className="flex items-center gap-3 mt-1">
                           <span className={`flex items-center gap-1 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                             <Clock size={10} />
-                            {rdv.heure}
+                            {rdv.heure || "--:--"}
                           </span>
                           <span className={`flex items-center gap-1 text-xs font-medium ${config.color}`}>
                             <StatusIcon size={10} />
@@ -214,13 +258,13 @@ export default function IdleScreen({
                       </div>
 
                       {/* Action */}
-                      {rdv.statut === "en_attente" && (
+                      {(rdv.statut === "en_attente" || rdv.statut === "confirme") && (
                         <button
                           onClick={() => startConsultation(rdv)}
                           className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs sm:text-sm hover:bg-blue-700 transition flex-shrink-0"
                         >
                           <Play size={14} className="fill-white" />
-                          <span className="hidden sm:inline">Démarrer</span>
+                          <span className="hidden sm:inline">Demarrer</span>
                         </button>
                       )}
 
@@ -286,16 +330,16 @@ export default function IdleScreen({
               <Calendar className="w-4 h-4 text-blue-500" />
               Prochain RDV
             </h3>
-            {rdvDuJour.find(r => r.statut === "en_attente") ? (
+            {(rdvDuJour || []).find(r => r.statut === "en_attente") ? (
               <div className={`p-3 rounded-xl ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
                 <p className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
-                  {rdvDuJour.find(r => r.statut === "en_attente").patientName}
+                  {(rdvDuJour || []).find(r => r.statut === "en_attente").patientName}
                 </p>
                 <p className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                  {rdvDuJour.find(r => r.statut === "en_attente").motif}
+                  {(rdvDuJour || []).find(r => r.statut === "en_attente").motif}
                 </p>
                 <p className="text-xs text-blue-500 font-semibold mt-2">
-                  à {rdvDuJour.find(r => r.statut === "en_attente").heure}
+                  à {(rdvDuJour || []).find(r => r.statut === "en_attente").heure}
                 </p>
               </div>
             ) : (
@@ -341,7 +385,7 @@ function StatCard({ icon, label, value, color, darkMode }) {
     purple: { bg: "bg-purple-100", text: "text-purple-600", dark: "bg-purple-900/30" },
   };
 
-  const c = colors[color];
+  const c = colors[color] || colors.blue;
 
   return (
     <div className={`rounded-xl p-3 sm:p-4 ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>

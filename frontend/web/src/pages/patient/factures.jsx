@@ -6,119 +6,464 @@ import autoTable from 'jspdf-autotable';
 import { fetchMesFactures } from '../../services/factureService';
 
 // =====================================================================
-// PDF HELPERS
+// PALETTE DE COULEURS MÉDICALES PROFESSIONNELLES
 // =====================================================================
-const dessinerFacture = (doc, f, startY) => {
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.5);
-  doc.line(20, startY, 190, startY);
-
-  doc.setFontSize(14);
-  doc.setTextColor(59, 130, 246);
-  doc.text(`Facture ${f.reference}`, 20, startY + 12);
-
-  doc.setFontSize(10);
-  doc.setTextColor(120, 120, 120);
-  doc.text(`Date : ${f.date}`, 20, startY + 22);
-
-  autoTable(doc, {
-    startY: startY + 28,
-    head: [["Champ", "Détail"]],
-    body: [
-      ["Médecin", f.medecin],
-      ["Acte médical", f.acte],
-      ["Montant", `${f.montant.toLocaleString()} ${f.devise}`],
-      ["Statut", f.statut],
-    ],
-    theme: "grid",
-    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: "bold", fontSize: 10 },
-    styles: { fontSize: 10, cellPadding: 4 },
-    columnStyles: { 0: { fontStyle: "bold", cellWidth: 55 } },
-    margin: { left: 20, right: 20 },
-  });
-
-  const finalY = doc.lastAutoTable.finalY + 6;
-  if (f.statut === "Payé") {
-    doc.setTextColor(34, 197, 94);
-    doc.text("✓ Facture payée", 20, finalY);
-  } else if (f.statut === "En attente") {
-    doc.setTextColor(249, 115, 22);
-    doc.text("⏳ Paiement en attente", 20, finalY);
-  } else {
-    doc.setTextColor(239, 68, 68);
-    doc.text("✕ Facture annulée", 20, finalY);
-  }
-
-  return doc.lastAutoTable.finalY + 20;
+const COLORS = {
+  // Bleu médical principal
+  primaryBlue: [16, 120, 168],      // #1078A8 - Bleu médical profond
+  lightBlue: [224, 242, 254],       // #E0F2FE - Bleu très clair
+  accentBlue: [14, 165, 233],       // #0EA5E9 - Bleu accent
+  
+  // Vert santé
+  primaryGreen: [16, 185, 129],     // #10B981 - Vert émeraude
+  lightGreen: [209, 250, 229],      // #D1FAE5 - Vert très clair
+  accentGreen: [5, 150, 105],       // #059669 - Vert foncé
+  
+  // Neutres
+  darkGray: [31, 41, 55],           // #1F2937 - Texte principal
+  mediumGray: [107, 114, 128],      // #6B7280 - Texte secondaire
+  lightGray: [243, 244, 246],       // #F3F4F6 - Fond léger
+  borderGray: [209, 213, 219],      // #D1D5DB - Bordures
+  
+  // Statuts
+  success: [16, 185, 129],          // Vert - Payé
+  warning: [245, 158, 11],          // Orange - En attente
+  danger: [239, 68, 68],            // Rouge - Annulé
 };
 
+// =====================================================================
+// FONCTIONS UTILITAIRES
+// =====================================================================
+const getStatutColor = (statut) => {
+  if (statut === "Payé") return COLORS.success;
+  if (statut === "En attente") return COLORS.warning;
+  return COLORS.danger;
+};
+
+const getStatutIcon = (statut) => {
+  if (statut === "Payé") return "✓";
+  if (statut === "En attente") return "⏳";
+  return "✕";
+};
+
+// =====================================================================
+// DESSINER L'EN-TÊTE PROFESSIONNEL MÉDICAL
+// =====================================================================
+const dessinerEnTete = (doc, startY = 15) => {
+  // Bandeau supérieur bleu médical
+  doc.setFillColor(...COLORS.primaryBlue);
+  doc.rect(0, 0, 210, 35, 'F');
+  
+  // Logo et nom de l'entreprise (en blanc sur fond bleu)
+  doc.setFontSize(32);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text("Néré Health", 20, 22);
+  
+  // Sous-titre
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text("Plateforme de santé numérique", 20, 30);
+  
+  // Coordonnées de l'entreprise (à droite, en blanc)
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  
+  const rightX = 190;
+  doc.text("Néré Health SARL", rightX, 15, { align: "right" });
+  doc.text("Douala, Cameroun", rightX, 20, { align: "right" });
+  doc.text("contact@nerehealth.com", rightX, 25, { align: "right" });
+  doc.text("+237 6XX XXX XXX", rightX, 30, { align: "right" });
+  
+  // Ligne verte fine sous le bandeau bleu
+  doc.setDrawColor(...COLORS.primaryGreen);
+  doc.setLineWidth(2);
+  doc.line(0, 35, 210, 35);
+  
+  return 45;
+};
+
+// =====================================================================
+// DESSINER LES INFOS FACTURE + PATIENT
+// =====================================================================
+const dessinerInfosFacture = (doc, f, startY) => {
+  // Titre "FACTURE" avec fond bleu clair
+  doc.setFillColor(...COLORS.lightBlue);
+  doc.roundedRect(20, startY, 80, 12, 2, 2, 'F');
+  
+  doc.setFontSize(20);
+  doc.setTextColor(...COLORS.primaryBlue);
+  doc.setFont("helvetica", "bold");
+  doc.text("FACTURE", 25, startY + 8);
+  
+  // Numéro de facture (à droite)
+  doc.setFontSize(13);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.setFont("helvetica", "bold");
+  doc.text(`N° ${f.reference}`, 190, startY + 8, { align: "right" });
+  
+  // Date de facture
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.mediumGray);
+  doc.text(`Date d'émission : ${f.date}`, 190, startY + 15, { align: "right" });
+  
+  // Date d'échéance (si en attente)
+  if (f.statut === "En attente") {
+    const dateEcheance = new Date();
+    dateEcheance.setDate(dateEcheance.getDate() + 30);
+    doc.setTextColor(...COLORS.warning);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Échéance : ${dateEcheance.toLocaleDateString('fr-FR')}`, 190, startY + 22, { align: "right" });
+  }
+  
+  // Encadré coordonnées du patient
+  const boxY = startY + 30;
+  doc.setFillColor(...COLORS.lightGray);
+  doc.setDrawColor(...COLORS.borderGray);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(20, boxY, 170, 35, 3, 3, 'FD');
+  
+  // Titre "Facturé à" avec icône
+  doc.setFillColor(...COLORS.primaryGreen);
+  doc.circle(25, boxY + 7, 2, 'F');
+  
+  doc.setFontSize(10);
+  doc.setTextColor(...COLORS.primaryGreen);
+  doc.setFont("helvetica", "bold");
+  doc.text("PATIENT", 30, boxY + 8);
+  
+  // Infos patient
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.setFont("helvetica", "normal");
+  
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (user) {
+    doc.setFont("helvetica", "bold");
+    doc.text(`${user.prenom} ${user.nom}`, 25, boxY + 18);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.mediumGray);
+    if (user.email) doc.text(user.email, 25, boxY + 24);
+    if (user.telephone) doc.text(user.telephone, 25, boxY + 30);
+  } else {
+    doc.text("Patient", 25, boxY + 18);
+  }
+  
+  return boxY + 45;
+};
+
+// =====================================================================
+// DESSINER LE TABLEAU DÉTAILLÉ
+// =====================================================================
+const dessinerTableauFacture = (doc, f, startY) => {
+  const acteDetails = f.acte.split(' — ');
+  const typeConsultation = acteDetails[0] || "Consultation";
+  const methode = acteDetails[1] || "Présentiel";
+  
+  autoTable(doc, {
+    startY: startY,
+    head: [["Description", "Quantité", "Prix unitaire", "Total"]],
+    body: [
+      [
+        `${typeConsultation}\nMéthode : ${methode}`,
+        "1",
+        `${f.montant.toLocaleString()} ${f.devise}`,
+        `${f.montant.toLocaleString()} ${f.devise}`
+      ],
+    ],
+    theme: "plain",
+    headStyles: {
+      fillColor: COLORS.primaryBlue,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 10,
+      cellPadding: 8,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      cellPadding: 8,
+      textColor: COLORS.darkGray,
+    },
+    alternateRowStyles: {
+      fillColor: COLORS.lightGray,
+    },
+    columnStyles: {
+      0: { cellWidth: 90, fontStyle: "normal" },
+      1: { cellWidth: 25, halign: "center" },
+      2: { cellWidth: 35, halign: "right" },
+      3: { cellWidth: 35, halign: "right", fontStyle: "bold", textColor: COLORS.primaryBlue },
+    },
+    margin: { left: 20, right: 20 },
+    didDrawPage: function(data) {
+      // Bordure verte en bas du tableau
+      doc.setDrawColor(...COLORS.primaryGreen);
+      doc.setLineWidth(1);
+      doc.line(20, data.cursor.y, 190, data.cursor.y);
+    },
+  });
+  
+  return doc.lastAutoTable.finalY;
+};
+
+// =====================================================================
+// DESSINER LE TOTAL AVEC DESIGN MÉDICAL
+// =====================================================================
+const dessinerTotal = (doc, f, startY) => {
+  const totalY = startY + 5;
+  
+  // Encadré total avec fond bleu très clair
+  doc.setFillColor(...COLORS.lightBlue);
+  doc.setDrawColor(...COLORS.primaryBlue);
+  doc.setLineWidth(1.5);
+  doc.roundedRect(115, totalY, 75, 45, 3, 3, 'FD');
+  
+  // Sous-total
+  doc.setFontSize(10);
+  doc.setTextColor(...COLORS.mediumGray);
+  doc.setFont("helvetica", "normal");
+  doc.text("Sous-total :", 120, totalY + 10);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.text(`${f.montant.toLocaleString()} ${f.devise}`, 185, totalY + 10, { align: "right" });
+  
+  // TVA
+  doc.setTextColor(...COLORS.mediumGray);
+  doc.text("TVA (0%) :", 120, totalY + 20);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.text(`0 ${f.devise}`, 185, totalY + 20, { align: "right" });
+  
+  // Ligne de séparation
+  doc.setDrawColor(...COLORS.primaryBlue);
+  doc.setLineWidth(0.5);
+  doc.line(120, totalY + 25, 185, totalY + 25);
+  
+  // TOTAL avec accent vert
+  doc.setFontSize(16);
+  doc.setTextColor(...COLORS.primaryGreen);
+  doc.setFont("helvetica", "bold");
+  doc.text("TOTAL", 120, totalY + 38);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.text(`${f.montant.toLocaleString()} ${f.devise}`, 185, totalY + 38, { align: "right" });
+  
+  return totalY + 55;
+};
+
+// =====================================================================
+// DESSINER LE STATUT DE PAIEMENT AVEC DESIGN MODERNE
+// =====================================================================
+const dessinerStatutPaiement = (doc, f, startY) => {
+  const statutColor = getStatutColor(f.statut);
+  const statutIcon = getStatutIcon(f.statut);
+  
+  // Badge statut avec design pill
+  const badgeWidth = 60;
+  const badgeX = 20;
+  
+  doc.setFillColor(...statutColor);
+  doc.roundedRect(badgeX, startY, badgeWidth, 12, 6, 6, 'F');
+  
+  // Texte du statut
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${statutIcon} ${f.statut.toUpperCase()}`, badgeX + badgeWidth / 2, startY + 8, { align: "center" });
+  
+  // Informations de paiement dans un encadré
+  const infoY = startY + 20;
+  doc.setFillColor(...COLORS.lightGray);
+  doc.setDrawColor(...COLORS.borderGray);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(20, infoY, 170, 25, 2, 2, 'FD');
+  
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.darkGray);
+  doc.setFont("helvetica", "normal");
+  
+  if (f.statut === "Payé") {
+    doc.setFillColor(...COLORS.lightGreen);
+    doc.circle(25, infoY + 7, 2, 'F');
+    doc.setTextColor(...COLORS.primaryGreen);
+    doc.setFont("helvetica", "bold");
+    doc.text("Paiement confirmé", 30, infoY + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.mediumGray);
+    doc.text(`Payé via ${f.methode?.replace("_", " ").toUpperCase() || "Mobile Money"}`, 25, infoY + 16);
+    doc.text(`Référence : ${f.reference}`, 25, infoY + 22);
+  } else if (f.statut === "En attente") {
+    doc.setFillColor(...COLORS.warning);
+    doc.circle(25, infoY + 7, 2, 'F');
+    doc.setTextColor(...COLORS.warning);
+    doc.setFont("helvetica", "bold");
+    doc.text("Paiement en attente", 30, infoY + 8);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...COLORS.mediumGray);
+    doc.text("Veuillez effectuer le paiement sous 30 jours", 25, infoY + 16);
+  } else {
+    doc.setFillColor(...COLORS.danger);
+    doc.circle(25, infoY + 7, 2, 'F');
+    doc.setTextColor(...COLORS.danger);
+    doc.setFont("helvetica", "bold");
+    doc.text("Facture annulée", 30, infoY + 8);
+  }
+  
+  return infoY + 35;
+};
+
+// =====================================================================
+// DESSINER LE PIED DE PAGE MÉDICAL
+// =====================================================================
+const dessinerPiedPage = (doc, pageHeight) => {
+  const footerY = pageHeight - 30;
+  
+  // Bandeau vert en bas
+  doc.setFillColor(...COLORS.primaryGreen);
+  doc.rect(0, footerY, 210, 30, 'F');
+  
+  // Texte de remerciement
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.text("Merci pour votre confiance !", 105, footerY + 8, { align: "center" });
+  
+  // Informations légales
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Néré Health SARL — Douala, Cameroun — contact@nerehealth.com", 105, footerY + 15, { align: "center" });
+  doc.text(`Document généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 105, footerY + 21, { align: "center" });
+};
+
+// =====================================================================
+// TÉLÉCHARGER UNE FACTURE INDIVIDUELLE
+// =====================================================================
 const telechargerFacture = (f) => {
   const doc = new jsPDF();
-  doc.setFontSize(22);
-  doc.setTextColor(59, 130, 246);
-  doc.text("Néré Health", 20, 20);
-  doc.setFontSize(10);
-  doc.setTextColor(120, 120, 120);
-  doc.text("Plateforme de santé numérique", 20, 28);
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.8);
-  doc.line(20, 33, 190, 33);
-  dessinerFacture(doc, f, 40);
-  doc.setFontSize(9);
-  doc.setTextColor(150);
-  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} — Néré Health`, 20, 285);
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  let currentY = dessinerEnTete(doc, 15);
+  currentY = dessinerInfosFacture(doc, f, currentY);
+  currentY = dessinerTableauFacture(doc, f, currentY);
+  currentY = dessinerTotal(doc, f, currentY);
+  currentY = dessinerStatutPaiement(doc, f, currentY);
+  dessinerPiedPage(doc, pageHeight);
+  
   doc.save(`facture-${f.reference}.pdf`);
 };
 
+// =====================================================================
+// TÉLÉCHARGER TOUTES LES FACTURES (RÉCAPITULATIF)
+// =====================================================================
 const telechargerToutesFactures = (factures) => {
   const doc = new jsPDF();
   const pageHeight = doc.internal.pageSize.getHeight();
-
-  doc.setFontSize(26);
-  doc.setTextColor(59, 130, 246);
-  doc.text("Néré Health", 20, 30);
-  doc.setFontSize(13);
-  doc.setTextColor(80, 80, 80);
-  doc.text("Récapitulatif complet de vos factures", 20, 42);
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.8);
-  doc.line(20, 48, 190, 48);
-
-  const totalPaye = factures
-    .filter(f => f.statut === "Payé")
-    .reduce((acc, f) => acc + f.montant, 0);
-
-  doc.setFontSize(11);
-  doc.setTextColor(50, 50, 50);
-  doc.text(`Nombre de factures : ${factures.length}`, 20, 62);
-  doc.text(`Total payé : ${totalPaye.toLocaleString()} XAF`, 20, 74);
-  doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR')}`, 20, 86);
-
-  factures.forEach((f) => {
-    doc.addPage();
-    doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text("Néré Health", 20, 18);
-    doc.setFontSize(9);
-    doc.setTextColor(150);
-    doc.text("Plateforme de santé numérique", 20, 25);
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.line(20, 29, 190, 29);
-    dessinerFacture(doc, f, 36);
-    doc.setFontSize(8);
-    doc.setTextColor(180);
-    doc.text(
-      `Néré Health — Généré le ${new Date().toLocaleDateString('fr-FR')}`,
-      20, pageHeight - 10
-    );
+  
+  let currentY = dessinerEnTete(doc, 20);
+  
+  // Titre récapitulatif
+  doc.setFontSize(24);
+  doc.setTextColor(...COLORS.primaryBlue);
+  doc.setFont("helvetica", "bold");
+  doc.text("RÉCAPITULATIF DES FACTURES", 20, currentY + 5);
+  
+  currentY += 20;
+  
+  // Statistiques globales
+  const totalPaye = factures.filter(f => f.statut === "Payé").reduce((acc, f) => acc + f.montant, 0);
+  const totalEnAttente = factures.filter(f => f.statut === "En attente").reduce((acc, f) => acc + f.montant, 0);
+  
+  // Encadré des statistiques avec design médical
+  doc.setFillColor(...COLORS.lightBlue);
+  doc.setDrawColor(...COLORS.primaryBlue);
+  doc.setLineWidth(1);
+  doc.roundedRect(20, currentY, 170, 50, 3, 3, 'FD');
+  
+  doc.setFontSize(12);
+  doc.setTextColor(...COLORS.primaryBlue);
+  doc.setFont("helvetica", "bold");
+  doc.text("STATISTIQUES GLOBALES", 25, currentY + 10);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...COLORS.darkGray);
+  doc.text(`Nombre total de factures :`, 25, currentY + 22);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${factures.length}`, 185, currentY + 22, { align: "right" });
+  
+  doc.setFont("helvetica", "normal");
+  doc.text(`Total payé :`, 25, currentY + 32);
+  doc.setTextColor(...COLORS.primaryGreen);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${totalPaye.toLocaleString()} XAF`, 185, currentY + 32, { align: "right" });
+  
+  doc.setTextColor(...COLORS.darkGray);
+  doc.setFont("helvetica", "normal");
+  doc.text(`En attente :`, 25, currentY + 42);
+  doc.setTextColor(...COLORS.warning);
+  doc.setFont("helvetica", "bold");
+  doc.text(`${totalEnAttente.toLocaleString()} XAF`, 185, currentY + 42, { align: "right" });
+  
+  currentY += 60;
+  
+  // Date d'export
+  doc.setFontSize(9);
+  doc.setTextColor(...COLORS.mediumGray);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Export généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, 20, currentY);
+  
+  currentY += 10;
+  
+  // Tableau récapitulatif
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Référence", "Date", "Médecin", "Montant", "Statut"]],
+    body: factures.map(f => [
+      f.reference,
+      f.date,
+      f.medecin,
+      `${f.montant.toLocaleString()} ${f.devise}`,
+      f.statut
+    ]),
+    theme: "plain",
+    headStyles: {
+      fillColor: COLORS.primaryBlue,
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+      fontSize: 9,
+      cellPadding: 6,
+    },
+    bodyStyles: {
+      fontSize: 8,
+      cellPadding: 5,
+      textColor: COLORS.darkGray,
+    },
+    alternateRowStyles: {
+      fillColor: COLORS.lightGray,
+    },
+    columnStyles: {
+      0: { cellWidth: 35, fontStyle: "bold", textColor: COLORS.primaryBlue },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 50 },
+      3: { cellWidth: 35, halign: "right", fontStyle: "bold" },
+      4: { cellWidth: 25, halign: "center", fontStyle: "bold" },
+    },
+    margin: { left: 20, right: 20 },
+    didParseCell: function(data) {
+      if (data.section === "body" && data.column.index === 4) {
+        const statut = data.cell.raw;
+        const color = getStatutColor(statut);
+        data.cell.styles.textColor = color;
+      }
+    },
   });
-
-  doc.save("toutes-mes-factures.pdf");
+  
+  dessinerPiedPage(doc, pageHeight);
+  
+  doc.save("recapitulatif-factures.pdf");
 };
 
 // =====================================================================
-// COMPOSANT
+// COMPOSANT PRINCIPAL
 // =====================================================================
 export default function Factures({ darkMode }) {
   const navigate = useNavigate();
@@ -144,13 +489,8 @@ export default function Factures({ darkMode }) {
     charger();
   }, [filtre]);
 
-  const total = factures
-    .filter(f => f.statut === "Payé")
-    .reduce((acc, f) => acc + f.montant, 0);
-
-  const enAttente = factures
-    .filter(f => f.statut === "En attente")
-    .reduce((acc, f) => acc + f.montant, 0);
+  const total = factures.filter(f => f.statut === "Payé").reduce((acc, f) => acc + f.montant, 0);
+  const enAttente = factures.filter(f => f.statut === "En attente").reduce((acc, f) => acc + f.montant, 0);
 
   const filtres = [
     { label: "Tous", val: "Tous" },
@@ -161,7 +501,6 @@ export default function Factures({ darkMode }) {
 
   return (
     <div className={`p-6 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-
       {/* Titre */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -228,14 +567,13 @@ export default function Factures({ darkMode }) {
       )}
 
       {/* Erreur */}
-      {/* Erreur */}
-{!loading && erreur && (
-  <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl mb-4
-    ${darkMode ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-600"}`}>
-    <XCircle size={18} className="flex-shrink-0" />
-    <span className="text-sm">{erreur}</span>
-  </div>
-)}
+      {!loading && erreur && (
+        <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl mb-4
+          ${darkMode ? "bg-red-900/30 text-red-300" : "bg-red-50 text-red-600"}`}>
+          <XCircle size={18} className="flex-shrink-0" />
+          <span className="text-sm">{erreur}</span>
+        </div>
+      )}
 
       {/* Tableau */}
       {!loading && !erreur && (
@@ -314,7 +652,6 @@ export default function Factures({ darkMode }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className={`w-full max-w-md rounded-3xl shadow-2xl p-6
             ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}`}>
-
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold text-blue-500">{factureVue.reference}</h2>

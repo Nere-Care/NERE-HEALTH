@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom'; // ✅ MODIFIÉ
 import {
   Search, Send, ArrowLeft, Video, Paperclip,
   MoreVertical, Flag, Trash2, AlertTriangle, X, CheckCircle, XCircle,
@@ -8,6 +8,7 @@ import { fetchConversations, fetchMessages, envoyerMessage } from '../../service
 
 export default function Messages({ darkMode }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams(); // ✅ AJOUTÉ
   const messagesEndRef = useRef(null);
 
   const [conversations, setConversations] = useState([]);
@@ -24,13 +25,29 @@ export default function Messages({ darkMode }) {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [envoi, setEnvoi] = useState(false);
 
-  // Charger conversations
+  // ✅ MODIFIÉ : charger conversations + ouvrir celle de l'URL
   useEffect(() => {
     const charger = async () => {
       try {
         setLoadingConvs(true);
         const data = await fetchConversations();
-        setConversations(data ?? []);
+        const convs = data ?? [];
+        setConversations(convs);
+        
+        // ✅ Si ?conv=xxx dans l'URL, ouvrir automatiquement
+        const convIdFromUrl = searchParams.get("conv");
+        if (convIdFromUrl) {
+          const convToOpen = convs.find(c => c.id === convIdFromUrl);
+          if (convToOpen) {
+            setConvActive(convToOpen);
+            setConversations(prev =>
+              prev.map(c => c.id === convToOpen.id ? { ...c, non_lus: 0 } : c)
+            );
+            afficherToast(`Conversation avec ${convToOpen.nom} ouverte`, "success");
+          } else {
+            afficherToast("Conversation introuvable", "error");
+          }
+        }
       } catch (err) {
         afficherToast(err.message, "error");
       } finally {
@@ -38,7 +55,9 @@ export default function Messages({ darkMode }) {
       }
     };
     charger();
-  }, []);
+  }, [searchParams]); // ✅ Ajouter searchParams dans les dépendances
+
+  // ... reste du code inchangé (les autres useEffect, fonctions, return, etc.)
 
   // Charger messages quand on change de conversation
   useEffect(() => {

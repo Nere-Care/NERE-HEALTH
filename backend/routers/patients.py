@@ -1,4 +1,6 @@
-from typing import List
+# ✅ APRÈS
+
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,10 +14,36 @@ from datetime import date, datetime, timedelta
 from auth import get_current_active_user, require_role
 from db import get_db
 from schemas import PatientCreate, PatientRead, ProfilUpdate
-
+from pydantic import BaseModel as PydanticBase
 from sqlalchemy import func, or_
 
 router = APIRouter(tags=["patients"])
+
+
+
+
+class ProfilUpdateComplet(PydanticBase):
+    date_naissance: Optional[str] = None
+    sexe: Optional[str] = None
+    groupe_sanguin: Optional[str] = None
+    taille_cm: Optional[float] = None
+    poids_kg: Optional[float] = None
+    telephone: Optional[str] = None
+    ville: Optional[str] = None
+    allergies: Optional[List[str]] = None
+    antecedents_medicaux: Optional[str] = None
+    contact_urgence_nom: Optional[str] = None
+    contact_urgence_tel: Optional[str] = None
+    contact_urgence_lien: Optional[str] = None
+
+class DossierUpdateComplet(PydanticBase):
+    antecedents_familiaux: Optional[str] = None
+    antecedents_personnels: Optional[str] = None
+    antecedents_chirurgicaux: Optional[str] = None
+    antecedents_allergiques: Optional[str] = None
+    habitudes_vie: Optional[dict] = None
+    vaccinations: Optional[list] = None
+    traitements_chroniques: Optional[list] = None
 
 
 @router.get("/patients", response_model=List[PatientRead])
@@ -356,3 +384,190 @@ async def get_dashboard_patient(
         "specialites": specialites_data,
         "resume_sante": resume_sante,
     }
+
+
+
+
+@router.put("/patients/me/dossier")
+async def update_dossier_patient(
+    payload: DossierUpdateComplet,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "patient":
+        raise HTTPException(403, "Reserve aux patients")
+
+    dossier = db.query(DossierMedical).filter(
+        DossierMedical.patient_id == current_user.id
+    ).first()
+
+    if not dossier:
+        # Créer le dossier si inexistant
+        from uuid import uuid4
+        dossier = DossierMedical(
+            numero_dossier=f"DM-{date_type.today().year}-{str(uuid4())[:8].upper()}",
+            patient_id=current_user.id,
+        )
+        db.add(dossier)
+        db.flush()
+
+    if payload.antecedents_familiaux is not None:
+        dossier.antecedents_familiaux = payload.antecedents_familiaux
+    if payload.antecedents_personnels is not None:
+        dossier.antecedents_personnels = payload.antecedents_personnels
+    if payload.antecedents_chirurgicaux is not None:
+        dossier.antecedents_chirurgicaux = payload.antecedents_chirurgicaux
+    if payload.antecedents_allergiques is not None:
+        dossier.antecedents_allergiques = payload.antecedents_allergiques
+    if payload.habitudes_vie is not None:
+        dossier.habitudes_vie = payload.habitudes_vie
+    if payload.vaccinations is not None:
+        dossier.vaccinations = payload.vaccinations
+    if payload.traitements_chroniques is not None:
+        dossier.traitements_chroniques = payload.traitements_chroniques
+
+    db.commit()
+    return {"message": "Dossier mis a jour avec succes"}
+
+
+
+
+
+
+
+@router.get("/medecin/mes-patients")
+async def medecin_mes_patients(
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    from sqlalchemy import select, distinct
+    from models import RendezVous, DossierMedical
+
+    # Patients distincts ayant eu un RDV avec ce medecin
+    stmt = (
+        select(Patient, User)
+        .join(User, Patient.id == User.id)
+        .join(RendezVous, RendezVous.patient_id == Patient.id)
+        .where(RendezVous.medecin_id == current_user.id)
+        .distinct(Patient.id)
+        .order_by(Patient.id, RendezVous.date_heure_debut.desc())
+    )
+
+    if search:
+        kw = f"%{search.lower()}%"
+        stmt = stmt.where(
+            or_(
+                func.lower(User.prenom).like(kw),
+                func.lower(User.nom).like(kw),
+                func.lower(Patient.numero_patient).like(kw),
+            )
+        )
+
+    rows = db.execute(stmt).all()
+
+    result = []
+    for patient, user in rows:
+        # Dernier RDV
+        dernier_rdv = db.query(RendezVous).filter(
+            RendezVous.patient_id == patient.id,
+            RendezVous.medecin_id == current_user.id,
+        ).order_by(RendezVous.date_heure_debut.desc()).first()
+
+        # Dossier medical
+        dossier = db.query(DossierMedical).filter(
+            DossierMedical.patient_id == patient.id
+        ).first()
+
+        initiales = ""
+        if user.prenom: initiales += user.prenom[0].upper()
+        if user.nom: initiales += user.nom[0].upper()
+
+        result.append({
+            "id": str(patient.id),
+            "nom": f"{user.prenom} {user.nom}",
+            "prenom": user.prenom or "",
+            "numero_patient": patient.numero_patient,
+            "age": None,  # calcule ci-dessous
+            "sexe": patient.sexe,
+            "groupe_sanguin": patient.groupe_sanguin,
+            "telephone": user.telephone,
+            "email": user.email,
+            "ville": patient.ville,
+            "allergies": patient.allergies or [],
+            "initiales": initiales or "?",
+            "derniere_visite": dernier_rdv.date_heure_debut.strftime("%d/%m/%Y") if dernier_rdv else None,
+            "antecedents_personnels": dossier.antecedents_personnels if dossier else None,
+            "antecedents_familiaux": dossier.antecedents_familiaux if dossier else None,
+            "antecedents_chirurgicaux": dossier.antecedents_chirurgicaux if dossier else None,
+            "habitudes_vie": dossier.habitudes_vie if dossier else {},
+            "vaccinations": dossier.vaccinations if dossier else [],
+        })
+
+    # Calcul age
+    from datetime import date
+    today = date.today()
+    for i, (patient, user) in enumerate(rows):
+        if patient.date_naissance:
+            age = today.year - patient.date_naissance.year - (
+                (today.month, today.day) < (patient.date_naissance.month, patient.date_naissance.day)
+            )
+            result[i]["age"] = age
+
+    return result
+
+
+@router.get("/medecin/patients/{patient_id}/consultations")
+async def patient_consultations(
+    patient_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    from models import Consultation, Ordonnance, OrdonnanceLigne
+
+    consultations = db.query(Consultation).filter(
+        Consultation.patient_id == patient_id,
+        Consultation.medecin_id == current_user.id,
+    ).order_by(Consultation.date_heure_debut.desc()).all()
+
+    result = []
+    for c in consultations:
+        # Ordonnances liees
+        ordonnances = db.query(Ordonnance).filter(
+            Ordonnance.consultation_id == c.id
+        ).all()
+
+        prescriptions = []
+        for ord in ordonnances:
+            lignes = db.query(OrdonnanceLigne).filter(
+                OrdonnanceLigne.ordonnance_id == ord.id
+            ).all()
+            for ligne in lignes:
+                prescriptions.append({
+                    "id": str(ligne.id),
+                    "nom": f"{ligne.medicament_nom} {ligne.dosage}",
+                    "dosage": ligne.dosage,
+                    "frequence": ligne.posologie,
+                    "duree": f"{ligne.duree_jours} jours",
+                })
+
+        result.append({
+            "id": str(c.id),
+            "motif": c.motif or "",
+            "diagnostic": c.diagnostic_principal or "",
+            "plan_traitement": c.plan_traitement or "",
+            "notes": c.observations or "",
+            "date": c.date_heure_debut.strftime("%d/%m/%Y") if c.date_heure_debut else "",
+            "heure": c.date_heure_debut.strftime("%H:%M") if c.date_heure_debut else "",
+            "statut": c.statut,
+            "prescriptions": prescriptions,
+            "documents": [],
+        })
+
+    return result

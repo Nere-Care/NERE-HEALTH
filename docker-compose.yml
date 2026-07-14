@@ -52,5 +52,21 @@ services:
     ports:
       - "4173:4173"
 
+  # ✅ CORRECTION : 'admin' est maintenant au même niveau que 'frontend' (pas d'indentation supplémentaire)
+  admin:
+    build: 
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8100
+    restart: unless-stopped
+    ports:
+      - "5174:5173"  # Port 5174 sur Windows, mappé vers le 5173 interne de Vite
+    volumes:
+      - ./admin:/app       # Monte ton code pour le rechargement à chaud (HMR)
+      - /app/node_modules  # Protège les node_modules du conteneur
+    environment:
+      - CHOKIDAR_USEPOLLING=true  # Force la détection des changements sous WSL2
+
 volumes:
   db_data:

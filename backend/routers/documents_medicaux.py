@@ -11,6 +11,13 @@ from db import get_db
 from models import Consultation, DocumentMedical, Patient, User
 from schemas import DocumentMedicalCreate, DocumentMedicalRead
 
+import os
+import uuid
+import hashlib
+from pathlib import Path
+from fastapi import UploadFile, File, Form
+from datetime import date
+
 router = APIRouter(tags=["documents_medicaux"])
 
 
@@ -87,7 +94,7 @@ async def read_document_medical(
 
 
 
-@router.get("/documents_medicaux/me")
+@router.get("/mes-documents-medicaux")
 async def mes_documents(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
@@ -162,3 +169,235 @@ async def delete_document_medical(
     db.delete(document)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+
+# Dossier de stockage
+UPLOAD_DIR = Path("/app/uploads/documents")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Mapping des types acceptés
+TYPES_DOCUMENT_VALIDES = [
+    "resultat_labo",
+    "imagerie_radio",
+    "imagerie_echographie",
+    "imagerie_scanner",
+    "imagerie_irm",
+    "compte_rendu_consultation",
+    "ordonnance_scannee",
+    "certificat_medical",
+    "carnet_vaccination",
+]
+
+# Taille max : 10 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
+# Types MIME autorisés
+ALLOWED_MIME_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/jpg",
+]
+
+
+@router.post("/documents-medicaux/upload")
+async def upload_document_medical(
+    file: UploadFile = File(...),
+    type_document: str = Form("resultat_labo"),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Upload un document médical pour le patient connecté."""
+    
+    # 1. Vérifier le rôle
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Réservé aux patients")
+    
+    # 2. Valider le type de document
+    if type_document not in TYPES_DOCUMENT_VALIDES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type invalide. Valeurs acceptées: {', '.join(TYPES_DOCUMENT_VALIDES)}"
+        )
+    
+    # 3. Valider le type MIME
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type de fichier non autorisé: {file.content_type}. Acceptés: PDF, JPG, PNG"
+        )
+    
+    # 4. Lire le contenu et vérifier la taille
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fichier trop volumineux. Maximum: {MAX_FILE_SIZE // (1024*1024)} MB"
+        )
+    
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Fichier vide")
+    
+    # 5. Générer un nom unique
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".pdf", ".jpg", ".jpeg", ".png"]:
+        ext = ".pdf"
+    
+    nom_stockage = f"{uuid.uuid4().hex}{ext}"
+    chemin_fichier = UPLOAD_DIR / nom_stockage
+    
+    # 6. Sauvegarder le fichier sur le disque
+    try:
+        with open(chemin_fichier, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur sauvegarde fichier: {e}")
+    
+    # 7. Calculer le checksum SHA256
+    checksum = hashlib.sha256(content).hexdigest()
+    
+    # 8. Créer l'entrée en base
+    document = DocumentMedical(
+        patient_id=current_user.id,
+        uploaded_par=current_user.id,
+        type_document=type_document,
+        nom_fichier_original=file.filename,
+        nom_fichier_stockage=nom_stockage,
+        url_stockage=f"/uploads/documents/{nom_stockage}",
+        checksum_sha256=checksum,
+        taille_octets=len(content),
+        mime_type=file.content_type,
+        est_chiffre=False,
+        visible_patient=True,
+        partage_avec_medecins=[],
+        description=description,
+        date_document=date.today(),
+    )
+    
+    db.add(document)
+    
+    try:
+        db.commit()
+        db.refresh(document)
+    except Exception as e:
+        db.rollback()
+        # Supprimer le fichier si erreur BDD
+        if chemin_fichier.exists():
+            chemin_fichier.unlink()
+        raise HTTPException(status_code=500, detail=f"Erreur BDD: {e}")
+    
+    return {
+        "id": str(document.id),
+        "nom_fichier_original": document.nom_fichier_original,
+        "type_document": document.type_document,
+        "mime_type": document.mime_type,
+        "taille_octets": document.taille_octets,
+        "url_stockage": document.url_stockage,
+        "date_document": document.date_document.isoformat() if document.date_document else None,
+        "message": "Document uploadé avec succès",
+    }
+
+
+
+
+
+@router.post("/mes-documents-medicaux")
+async def upload_mes_documents(
+    file: UploadFile = File(...),
+    type_document: str = Form("resultat_labo"),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Alias POST pour l'upload de document médical du patient connecté.
+    Réutilise la même logique que /documents-medicaux/upload."""
+
+    # 1. Vérifier le rôle
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Réservé aux patients")
+
+    # 2. Valider le type de document
+    if type_document not in TYPES_DOCUMENT_VALIDES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type invalide. Valeurs acceptées: {', '.join(TYPES_DOCUMENT_VALIDES)}"
+        )
+
+    # 3. Valider le type MIME
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type de fichier non autorisé: {file.content_type}. Acceptés: PDF, JPG, PNG"
+        )
+
+    # 4. Lire le contenu et vérifier la taille
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Fichier trop volumineux. Maximum: {MAX_FILE_SIZE // (1024*1024)} MB"
+        )
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Fichier vide")
+
+    # 5. Générer un nom unique
+    ext = Path(file.filename).suffix.lower()
+    if ext not in [".pdf", ".jpg", ".jpeg", ".png"]:
+        ext = ".pdf"
+    nom_stockage = f"{uuid.uuid4().hex}{ext}"
+    chemin_fichier = UPLOAD_DIR / nom_stockage
+
+    # 6. Sauvegarder le fichier sur le disque
+    try:
+        with open(chemin_fichier, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur sauvegarde fichier: {e}")
+
+    # 7. Checksum
+    checksum = hashlib.sha256(content).hexdigest()
+
+    # 8. Créer l'entrée en base
+    document = DocumentMedical(
+        patient_id=current_user.id,
+        uploaded_par=current_user.id,
+        type_document=type_document,
+        nom_fichier_original=file.filename,
+        nom_fichier_stockage=nom_stockage,
+        url_stockage=f"/uploads/documents/{nom_stockage}",
+        checksum_sha256=checksum,
+        taille_octets=len(content),
+        mime_type=file.content_type,
+        est_chiffre=False,
+        visible_patient=True,
+        partage_avec_medecins=[],
+        description=description,
+        date_document=date.today(),
+    )
+    db.add(document)
+
+    try:
+        db.commit()
+        db.refresh(document)
+    except Exception as e:
+        db.rollback()
+        if chemin_fichier.exists():
+            chemin_fichier.unlink()
+        raise HTTPException(status_code=500, detail=f"Erreur BDD: {e}")
+
+    return {
+        "id": str(document.id),
+        "nom_fichier_original": document.nom_fichier_original,
+        "type_document": document.type_document,
+        "mime_type": document.mime_type,
+        "taille_octets": document.taille_octets,
+        "url_stockage": document.url_stockage,
+        "date_document": document.date_document.isoformat() if document.date_document else None,
+        "message": "Document uploadé avec succès",
+    }

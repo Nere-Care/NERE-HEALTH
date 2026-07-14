@@ -1,30 +1,56 @@
 import { useState } from "react";
 import { CheckCircle, Clock, XCircle, Search, Download } from "lucide-react";
 
-export default function DoctorPaymentsHistory({ payments, darkMode }) {
+export default function DoctorPaymentsHistory({ payments = [], darkMode }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
+  // Configuration des statuts (indexée en minuscules pour éviter les conflits de casse)
   const statusConfig = {
-    Paid: { icon: CheckCircle, style: "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-800", label: "Paid" },
-    Pending: { icon: Clock, style: "text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-800", label: "Pending" },
-    Failed: { icon: XCircle, style: "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800", label: "Failed" },
+    paid: { 
+      icon: CheckCircle, 
+      style: "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-800", 
+      label: "Paid" 
+    },
+    pending: { 
+      icon: Clock, 
+      style: "text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-800", 
+      label: "Pending" 
+    },
+    failed: { 
+      icon: XCircle, 
+      style: "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800", 
+      label: "Failed" 
+    },
   };
 
+  // Helper pour obtenir le statut en minuscules de manière sécurisée
+  const getNormalizedStatus = (status) => {
+    return String(status || "").trim().toLowerCase();
+  };
+
+  // Filtrage des paiements
   const filtered = payments.filter((p) => {
     const v = search.toLowerCase();
-    const matchSearch = p.service.toLowerCase().includes(v) ||
-      p.method.toLowerCase().includes(v) ||
-      p.date.toLowerCase().includes(v);
-    const matchStatus = filterStatus === "all" || p.status === filterStatus;
+    const matchSearch = 
+      (p.service || "").toLowerCase().includes(v) ||
+      (p.method || "").toLowerCase().includes(v) ||
+      (p.date || "").toLowerCase().includes(v);
+
+    const paymentStatus = getNormalizedStatus(p.status);
+    const targetStatus = filterStatus.toLowerCase();
+
+    const matchStatus = targetStatus === "all" || paymentStatus === targetStatus;
+    
     return matchSearch && matchStatus;
   });
 
+  // Calcul dynamique des compteurs (insensible à la casse)
   const statusCounts = {
     all: payments.length,
-    Paid: payments.filter(p => p.status === "Paid").length,
-    Pending: payments.filter(p => p.status === "Pending").length,
-    Failed: payments.filter(p => p.status === "Failed").length,
+    Paid: payments.filter(p => getNormalizedStatus(p.status) === "paid").length,
+    Pending: payments.filter(p => getNormalizedStatus(p.status) === "pending").length,
+    Failed: payments.filter(p => getNormalizedStatus(p.status) === "failed").length,
   };
 
   return (
@@ -72,7 +98,8 @@ export default function DoctorPaymentsHistory({ payments, darkMode }) {
       <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1">
         {filtered.length > 0 ? (
           filtered.map((p) => {
-            const config = statusConfig[p.status] || statusConfig.Pending;
+            const normalizedStatus = getNormalizedStatus(p.status);
+            const config = statusConfig[normalizedStatus] || statusConfig.pending;
             const Icon = config.icon;
 
             return (

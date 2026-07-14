@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
 
-import Sidebar from "./components/Sidebar";
+import Sidebar from "./components/sideBar";
 import Header from "./components/Header";
 
 import Dashboard from "./pages/Dashboard";

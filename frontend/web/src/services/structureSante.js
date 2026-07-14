@@ -1,5 +1,5 @@
 // Dans services/structureSante.js
-const BASE_URL = "http://localhost:8000"; // À adapter si besoin
+const BASE_URL = "http://localhost:8100/api";
 
 function getToken() {
   return localStorage.getItem("token"); // ou le nom exact où tu stockes le token

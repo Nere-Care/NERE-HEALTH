@@ -541,8 +541,9 @@ class Conversation(Base):
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
-    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True, index=True)  # ✅ nullable=True
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False, index=True)
+    medecin_id_2 = Column(UUID(as_uuid=True), ForeignKey("medecins.id", ondelete="SET NULL"), nullable=True, index=True) 
     rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"))
     statut = Column(String(20), nullable=False, server_default=text("'active'"))
     nb_messages_non_lus_patient = Column(Integer, nullable=False, server_default=text("0"))

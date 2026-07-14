@@ -112,21 +112,22 @@ export default function MyOpinionRequestsTab({
                   Adressée à
                 </p>
 
-                <h3
-                  className={`
-                    font-bold
-                    text-sm sm:text-base md:text-lg
-                    break-words
-                    overflow-wrap-anywhere
-                    ${
-                      darkMode
-                        ? "text-white"
-                        : "text-gray-800"
-                    }
-                  `}
-                >
-                  Dr. {req.doctorName}
-                </h3>
+
+<h3
+  className={`
+    font-bold
+    text-sm sm:text-base md:text-lg
+    break-words
+    overflow-wrap-anywhere
+    ${
+      darkMode
+        ? "text-white"
+        : "text-gray-800"
+    }
+  `}
+>
+  Dr. {req.doctorName || "Médecin"}
+</h3>
 
                 {req.doctorSpeciality && (
                   <p

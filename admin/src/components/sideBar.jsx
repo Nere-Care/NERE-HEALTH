@@ -73,7 +73,7 @@ const items = [
   },
 ];
 
-export default function Sidebar({
+export default function sideBar({
   darkMode,
   collapsed,
   setCollapsed,

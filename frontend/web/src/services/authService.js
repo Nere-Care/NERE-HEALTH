@@ -5,7 +5,7 @@ export async function login(email, password) {
 
   console.log("➡️ LOGIN REQUEST:", { email, password });
 
-  const response = await fetch("http://localhost:8000/auth/token", {
+  const response = await fetch("http://localhost:8100/auth/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -30,7 +30,7 @@ export async function login(email, password) {
 export async function getCurrentUser(token) {
   console.log("➡️ GET CURRENT USER with token:", token);
 
-  const response = await fetch("http://localhost:8000/auth/me", {
+  const response = await fetch("http://localhost:8100/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -56,7 +56,7 @@ export const register = async (formData) => {
   console.log("🚀 REGISTER API CALLED");
   console.log("🚀 DATA:", formData);
 
-  const res = await fetch("http://localhost:8000/auth/register", {
+  const res = await fetch("http://localhost:8100/auth/register", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -81,7 +81,7 @@ export const register = async (formData) => {
 export async function loginWithGoogle(credential) {
   console.log("➡️ GOOGLE LOGIN REQUEST");
 
-  const response = await fetch("http://localhost:8000/auth/google", {
+  const response = await fetch("http://localhost:8100/auth/google", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ credential }),

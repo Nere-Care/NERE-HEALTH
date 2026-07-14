@@ -94,10 +94,15 @@ async def mes_conversations(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
+    from models import Medecin as MedecinModel
+
+    # Chercher toutes les conversations ou l'utilisateur apparait
+    # dans patient_id, medecin_id, OU medecin_id_2
     stmt = select(Conversation).where(
         or_(
             Conversation.patient_id == current_user.id,
             Conversation.medecin_id == current_user.id,
+            Conversation.medecin_id_2 == current_user.id,
         )
     ).order_by(Conversation.dernier_message_at.desc().nullslast())
 
@@ -105,14 +110,30 @@ async def mes_conversations(
     result = []
 
     for conv in convs:
-        # Récupérer l'interlocuteur
-        if current_user.role == "patient":
+        # Determiner l'interlocuteur
+        if conv.medecin_id_2 is not None:
+            # Conversation confrere-confrere
+            if conv.medecin_id == current_user.id:
+                # Je suis l'acceptant → interlocuteur est medecin_id_2
+                interlocuteur = db.get(User, conv.medecin_id_2)
+            else:
+                # Je suis le demandeur (medecin_id_2) → interlocuteur est medecin_id
+                interlocuteur = db.get(User, conv.medecin_id)
+        elif conv.patient_id == current_user.id:
+            # Je suis le patient → interlocuteur est medecin_id
             interlocuteur = db.get(User, conv.medecin_id)
         else:
-            interlocuteur = db.get(User, conv.patient_id)
+            # Je suis le medecin → interlocuteur est patient_id
+            interlocuteur = db.get(User, conv.patient_id) if conv.patient_id else None
 
         if not interlocuteur:
             continue
+
+        # Non lus selon la position
+        if conv.patient_id == current_user.id:
+            non_lus = conv.nb_messages_non_lus_patient or 0
+        else:
+            non_lus = conv.nb_messages_non_lus_medecin or 0
 
         result.append({
             "id": str(conv.id),
@@ -121,13 +142,12 @@ async def mes_conversations(
                    else f"{interlocuteur.prenom} {interlocuteur.nom}",
             "role": interlocuteur.role,
             "statut": conv.statut,
-            "non_lus": conv.nb_messages_non_lus_patient
-                       if current_user.role == "patient"
-                       else conv.nb_messages_non_lus_medecin,
+            "non_lus": non_lus,
             "dernier_message": conv.dernier_message_preview or "",
             "dernier_message_at": conv.dernier_message_at.strftime("%H:%M")
                                   if conv.dernier_message_at else "",
             "rdv_id": str(conv.rdv_id) if conv.rdv_id else None,
+            "type_conversation": "confrere" if conv.medecin_id_2 is not None else "patient",
         })
 
     return result
@@ -143,11 +163,13 @@ async def messages_conversation(
     if not conv:
         raise HTTPException(404, "Conversation introuvable")
 
-    if current_user.id not in (conv.patient_id, conv.medecin_id):
-        raise HTTPException(403, "Accès refusé")
+    # Verifier l'acces : l'utilisateur doit etre patient_id OU medecin_id
+    participants = [p for p in [conv.patient_id, conv.medecin_id, conv.medecin_id_2] if p is not None]
+    if current_user.id not in participants:
+        raise HTTPException(403, "Acces refuse")
 
-    # Marquer comme lu
-    if current_user.role == "patient":
+    # Marquer comme lu selon la position
+    if conv.patient_id == current_user.id:
         conv.nb_messages_non_lus_patient = 0
     else:
         conv.nb_messages_non_lus_medecin = 0
@@ -163,7 +185,6 @@ async def messages_conversation(
     result = []
     for msg, expediteur in msgs:
         try:
-            # Déchiffrement pgp_sym_decrypt
             from sqlalchemy import text
             row = db.execute(
                 text("SELECT pgp_sym_decrypt(:data, 'cle_demo_nere') AS texte"),
@@ -198,8 +219,10 @@ async def envoyer_message(
     if not conv:
         raise HTTPException(404, "Conversation introuvable")
 
-    if current_user.id not in (conv.patient_id, conv.medecin_id):
-        raise HTTPException(403, "Accès refusé")
+    # Verifier l'acces : l'utilisateur doit etre patient_id OU medecin_id
+    participants = [p for p in [conv.patient_id, conv.medecin_id, conv.medecin_id_2] if p is not None]
+    if current_user.id not in participants:
+        raise HTTPException(403, "Acces refuse")
 
     texte = body.get("texte", "").strip()
     if not texte:
@@ -220,14 +243,16 @@ async def envoyer_message(
     )
     db.add(msg)
 
-    # Mise à jour conversation
     conv.dernier_message_preview = texte[:80]
     from datetime import datetime, timezone
     conv.dernier_message_at = datetime.now(timezone.utc)
 
-    if current_user.role == "patient":
+    # Incrementer les non-lus pour l'autre participant
+    if conv.patient_id == current_user.id:
+        # Je suis dans patient_id → l'autre est medecin_id
         conv.nb_messages_non_lus_medecin = (conv.nb_messages_non_lus_medecin or 0) + 1
     else:
+        # Je suis dans medecin_id → l'autre est patient_id
         conv.nb_messages_non_lus_patient = (conv.nb_messages_non_lus_patient or 0) + 1
 
     db.commit()

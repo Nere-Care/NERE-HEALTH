@@ -45,35 +45,48 @@ const [erreurRdv, setErreurRdv] = useState(null);
 
 
 
-// Remplace handleConfirmer par :
-const handleConfirmer = async () => {
-  if (!methodePaiement || !fournisseur) {
-    setErreurRdv("Veuillez choisir un mode de paiement");
+const handleSubmit = async () => {
+  setError(null);
+  
+  // Validation
+  if (selectedMethod?.type === 'mobile_money' && !formData.phone?.trim()) {
+    setError('Veuillez saisir votre numéro de téléphone');
     return;
   }
-  
+  if (selectedMethod?.type === 'carte') {
+    if (!formData.cardNumber || formData.cardNumber.replace(/\s/g, '').length < 12) {
+      setError('Numéro de carte invalide');
+      return;
+    }
+    if (!formData.cardHolder?.trim()) {
+      setError('Nom du titulaire requis');
+      return;
+    }
+    if (!formData.expiry || !/^\d{2}\/\d{2}$/.test(formData.expiry)) {
+      setError("Date d'expiration invalide (MM/AA)");
+      return;
+    }
+    if (!formData.cvv || formData.cvv.length < 3) {
+      setError('CVV invalide');
+      return;
+    }
+  }
+
+  setLoading(true);
   try {
-    setLoading(true);
-    setErreurRdv(null);
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // 1. Créer le RDV
-    const rdv = await creerRendezVous({
-      medecin_id: medecin.id,
-      date_heure_debut: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // demain même heure
-      date_heure_fin: new Date(Date.now() + 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString(), // +30min
-      type: mode === "Vidéo" ? "video" : "presentiel",
-      motif_consultation: motif,
+    await onSubmit({
+      methode: selectedMethod.type,
+      fournisseur: methode,  // ✅ c'est l'ID (mtn_momo, orange_money, carte_visa...) qui va dans l'ENUM
+      phone_number: selectedMethod.type === 'mobile_money' ? formData.phone : null,
+      card_number: selectedMethod.type === 'carte' ? formData.cardNumber : null,
+      card_holder: selectedMethod.type === 'carte' ? formData.cardHolder : null,
     });
     
-    // 2. Pré-autoriser le paiement
-    await preautoriserPaiement(rdv.id, methodePaiement, fournisseur);
-    
-    // 3. Succès
-    setEtape(null);
-    setConfirme(true);
-    setTimeout(() => setConfirme(false), 5000);
+    setSuccess(true);
   } catch (err) {
-    setErreurRdv(err.message);
+    setError(err.message || 'Erreur de paiement');
   } finally {
     setLoading(false);
   }

@@ -1,77 +1,80 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import IdleScreen from "../../components/doctors/teleconsultation/IdleScreen";
 import CallScreen from "../../components/doctors/teleconsultation/CallScreen";
-
-// Données simulées des RDV du jour
-const rdvDuJour = [
-  {
-    id: 1,
-    patientName: "Marie Dupont",
-    age: 45,
-    motif: "Suivi diabète",
-    heure: "14:00",
-    statut: "en_attente",
-    avatar: "M",
-    dossier: {
-      antecedents: ["Diabète type 2", "Hypertension"],
-      allergies: ["Pénicilline"],
-      dernierConsultation: "2026-05-15",
-    },
-  },
-  {
-    id: 2,
-    patientName: "Jean Martin",
-    age: 62,
-    motif: "Douleurs thoraciques",
-    heure: "14:30",
-    statut: "en_cours",
-    avatar: "J",
-    dossier: {
-      antecedents: ["Cardiopathie", "Cholestérol"],
-      allergies: [],
-      dernierConsultation: "2026-04-20",
-    },
-  },
-  {
-    id: 3,
-    patientName: "Sophie Bernard",
-    age: 28,
-    motif: "Consultation générale",
-    heure: "15:00",
-    statut: "en_attente",
-    avatar: "S",
-    dossier: {
-      antecedents: [],
-      allergies: ["Latex"],
-      dernierConsultation: "2026-01-10",
-    },
-  },
-];
-
-const historiqueRecent = [
-  { id: 101, patient: "Paul Durand", date: "Aujourd'hui", heure: "10:30", duree: "25 min", diagnostic: "Rhinite allergique" },
-  { id: 102, patient: "Claire Moreau", date: "Aujourd'hui", heure: "09:00", duree: "18 min", diagnostic: "Angine bactérienne" },
-  { id: 103, patient: "Luc Petit", date: "Hier", heure: "16:00", duree: "32 min", diagnostic: "Lombalgie aiguë" },
-];
+import {
+  fetchTeleconsultationsDuJour,
+  fetchTeleconsultationsHistorique,
+  demarrerTeleconsultation,
+  terminerTeleconsultation,
+} from "../../services/rendezVousService";
 
 export default function TeleConsultation({ darkMode }) {
   const [consultationActive, setConsultationActive] = useState(null);
-  const [rdvList, setRdvList] = useState(rdvDuJour);
+  const [rdvList, setRdvList] = useState([]);
+  const [historique, setHistorique] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState(null);
 
-  const startConsultation = (rdv) => {
-    setConsultationActive(rdv);
-    // Mettre à jour le statut du RDV
-    setRdvList(rdvList.map(r => r.id === rdv.id ? { ...r, statut: "en_cours" } : r));
+  const charger = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErreur(null);
+      const [rdvs, hist] = await Promise.all([
+        fetchTeleconsultationsDuJour(),
+        fetchTeleconsultationsHistorique(),
+      ]);
+      setRdvList(rdvs ?? []);
+      setHistorique(hist ?? []);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { charger(); }, [charger]);
+
+  const startConsultation = async (rdv) => {
+    try {
+      // Appel backend pour demarrer et generer le lien Jitsi
+      const data = await demarrerTeleconsultation(rdv.id);
+
+      // Mettre a jour le RDV avec le lien genere
+      const rdvAvecLien = {
+        ...rdv,
+        statut: "en_cours",
+        lien_video: data.lien_video,
+        room_name: data.room_name,
+      };
+
+      setRdvList(prev => prev.map(r =>
+        r.id === rdv.id ? { ...r, statut: "en_cours", lien_video: data.lien_video } : r
+      ));
+      setConsultationActive(rdvAvecLien);
+    } catch (err) {
+      setErreur(err.message);
+    }
   };
 
-  const endConsultation = () => {
+  const endConsultation = async () => {
+    if (consultationActive?.id) {
+      try {
+        await terminerTeleconsultation(consultationActive.id);
+        setRdvList(prev => prev.map(r =>
+          r.id === consultationActive.id ? { ...r, statut: "termine" } : r
+        ));
+      } catch (err) {
+        console.error("Erreur fin consultation:", err.message);
+      }
+    }
     setConsultationActive(null);
+    charger(); // Rafraichir la liste
   };
 
   const stats = {
     total: rdvList.length,
     terminees: rdvList.filter(r => r.statut === "termine").length,
-    enAttente: rdvList.filter(r => r.statut === "en_attente").length,
+    enAttente: rdvList.filter(r => r.statut === "en_attente" || r.statut === "confirme").length,
     enCours: rdvList.filter(r => r.statut === "en_cours").length,
   };
 
@@ -88,8 +91,10 @@ export default function TeleConsultation({ darkMode }) {
           darkMode={darkMode}
           startConsultation={startConsultation}
           rdvDuJour={rdvList}
-          historique={historiqueRecent}
+          historique={historique}
           stats={stats}
+          loading={loading}
+          erreur={erreur}
         />
       )}
     </>
