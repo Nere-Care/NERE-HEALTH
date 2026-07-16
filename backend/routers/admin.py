@@ -1,13 +1,23 @@
+
+
+
 from typing import Optional, List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone, date, timedelta
 
 from auth import get_current_active_user
 from db import get_db
-from models import User, Patient, RendezVous, DossierMedical, AuditLog
+from models import User, Patient, Medecin, RendezVous, MedecinSpecialite, Specialite, Structure
+
+
+
+
+# ... (tes autres routes admin) ...
+
+
 
 router = APIRouter(tags=["admin"])
 
@@ -324,3 +334,436 @@ async def admin_delete_patient(
     user.statut = "inactif"
     db.commit()
     return {"message": "Patient désactivé"}
+
+
+
+
+
+
+@router.get("/admin/me")
+async def admin_me(
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Acces refuse — role admin requis")
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "nom": current_user.nom,
+        "prenom": current_user.prenom,
+        "role": current_user.role,
+        "statut": current_user.statut,
+    }
+
+
+
+
+
+
+
+
+
+# ... (Garde tes routes /admin/patients ici) ...
+
+
+# ==========================================
+# ROUTES MÉDECINS (Version Sécurisée)
+# ==========================================
+
+
+@router.get("/admin/medecins")
+async def admin_list_medecins(
+    search: Optional[str] = None,
+    specialite: Optional[str] = None,
+    statut_verification: Optional[str] = None,
+    statut_compte: Optional[str] = None,
+    limit: int = Query(50, gt=0, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    stmt = select(User, Medecin).join(Medecin, Medecin.id == User.id)
+
+    if search:
+        kw = f"%{search.lower()}%"
+        stmt = stmt.where(
+            or_(
+                func.lower(User.prenom).like(kw),
+                func.lower(User.nom).like(kw),
+                func.lower(User.email).like(kw),
+                func.lower(Medecin.numero_ordre).like(kw),
+            )
+        )
+    if statut_verification:
+        stmt = stmt.where(Medecin.statut_verification == statut_verification)
+    if statut_compte:
+        stmt = stmt.where(User.statut == statut_compte)
+
+    total = db.execute(
+        select(func.count()).select_from(stmt.subquery())
+    ).scalar() or 0
+
+    rows = db.execute(
+        stmt.order_by(User.created_at.desc()).limit(limit).offset(offset)
+    ).all()
+
+    result = []
+    for user, medecin in rows:
+        # Spécialités
+        specs = db.query(Specialite).join(
+            MedecinSpecialite, Specialite.id == MedecinSpecialite.specialite_id
+        ).filter(MedecinSpecialite.medecin_id == user.id).all()
+
+        # Filtrer par spécialité si demandé
+        spec_labels = [s.libelle_fr for s in specs]
+        if specialite and specialite not in spec_labels:
+            continue
+
+        # Structure
+        structure_nom = ""
+        if medecin.structure_id:
+            struct = db.get(Structure, medecin.structure_id)
+            if struct:
+                structure_nom = struct.nom_etablissement
+
+        # Nb consultations
+        nb_rdv = db.query(func.count(RendezVous.id)).filter(
+            RendezVous.medecin_id == user.id,
+            RendezVous.statut == "termine",
+        ).scalar() or 0
+
+        # Revenus (paiements confirmés)
+        from models import Paiement
+        from sqlalchemy import func as sqlfunc
+        revenus = db.execute(
+            select(sqlfunc.sum(Paiement.montant_total - sqlfunc.coalesce(Paiement.frais_plateforme, 0)))
+            .where(Paiement.medecin_id == user.id)
+            .where(Paiement.statut == "confirme")
+        ).scalar() or 0
+
+        result.append({
+            "id": str(user.id),
+            "nom": user.nom or "",
+            "prenom": user.prenom or "",
+            "email": user.email or "",
+            "telephone": user.telephone or "",
+            "statut": user.statut or "actif",
+            "statut_verification": medecin.statut_verification or "en_attente",
+            "numero_ordre": medecin.numero_ordre or "",
+            "specialites": spec_labels,
+            "specialite_principale": spec_labels[0] if spec_labels else "N/A",
+            "structure": structure_nom or "Cabinet indépendant",
+            "annees_experience": medecin.annees_experience or 0,
+            "tarif_consultation": float(medecin.tarif_consultation or 0),
+            "devise": medecin.devise or "XAF",
+            "teleconsultation": bool(medecin.teleconsultation_active),
+            "disponible": bool(medecin.disponible_maintenant),
+            "note_moyenne": float(medecin.note_moyenne or 0),
+            "nb_consultations": nb_rdv,
+            "revenus_total": float(revenus),
+            "langues": medecin.langues_parlees or [],
+            "biographie": medecin.biographie or "",
+            "created_at": user.created_at.strftime("%d/%m/%Y") if user.created_at else "",
+        })
+
+    return {"medecins": result, "total": total}
+
+
+@router.get("/admin/stats/medecins")
+async def admin_stats_medecins(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    total = db.execute(select(func.count(Medecin.id))).scalar() or 0
+
+    verifies = db.execute(
+        select(func.count(Medecin.id))
+        .where(Medecin.statut_verification == "verifie")
+    ).scalar() or 0
+
+    en_attente = db.execute(
+        select(func.count(Medecin.id))
+        .where(Medecin.statut_verification == "en_attente")
+    ).scalar() or 0
+
+    disponibles = db.execute(
+        select(func.count(Medecin.id))
+        .where(Medecin.disponible_maintenant == True)
+    ).scalar() or 0
+
+    from models import Paiement
+    revenus_total = db.execute(
+        select(func.sum(Paiement.montant_total - func.coalesce(Paiement.frais_plateforme, 0)))
+        .where(Paiement.statut == "confirme")
+    ).scalar() or 0
+
+    return {
+        "total": total,
+        "verifies": verifies,
+        "en_attente_verification": en_attente,
+        "disponibles": disponibles,
+        "revenus_total_plateforme": float(revenus_total),
+    }
+
+
+@router.get("/admin/medecins/{medecin_id}")
+async def admin_get_medecin(
+    medecin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    user    = db.get(User,    medecin_id)
+    medecin = db.get(Medecin, medecin_id)
+    if not user or not medecin:
+        raise HTTPException(404, "Médecin introuvable")
+
+    specs = db.query(Specialite).join(
+        MedecinSpecialite, Specialite.id == MedecinSpecialite.specialite_id
+    ).filter(MedecinSpecialite.medecin_id == medecin_id).all()
+
+    structure_nom = ""
+    if medecin.structure_id:
+        struct = db.get(Structure, medecin.structure_id)
+        if struct:
+            structure_nom = struct.nom_etablissement
+
+    rdvs = db.query(RendezVous).filter(
+        RendezVous.medecin_id == medecin_id
+    ).order_by(RendezVous.date_heure_debut.desc()).limit(10).all()
+
+    from models import Paiement
+    revenus = db.execute(
+        select(func.sum(Paiement.montant_total - func.coalesce(Paiement.frais_plateforme, 0)))
+        .where(Paiement.medecin_id == medecin_id)
+        .where(Paiement.statut == "confirme")
+    ).scalar() or 0
+
+    return {
+        "id": str(user.id),
+        "nom": user.nom or "",
+        "prenom": user.prenom or "",
+        "email": user.email or "",
+        "telephone": user.telephone or "",
+        "statut": user.statut or "actif",
+        "statut_verification": medecin.statut_verification or "en_attente",
+        "numero_ordre": medecin.numero_ordre or "",
+        "specialites": [s.libelle_fr for s in specs],
+        "structure": structure_nom,
+        "annees_experience": medecin.annees_experience or 0,
+        "tarif_consultation": float(medecin.tarif_consultation or 0),
+        "devise": medecin.devise or "XAF",
+        "teleconsultation": bool(medecin.teleconsultation_active),
+        "disponible": bool(medecin.disponible_maintenant),
+        "note_moyenne": float(medecin.note_moyenne or 0),
+        "biographie": medecin.biographie or "",
+        "langues": medecin.langues_parlees or [],
+        "revenus_total": float(revenus),
+        "nb_consultations": db.query(func.count(RendezVous.id)).filter(
+            RendezVous.medecin_id == medecin_id,
+            RendezVous.statut == "termine",
+        ).scalar() or 0,
+        "rendez_vous": [
+            {
+                "id": str(r.id),
+                "date": r.date_heure_debut.strftime("%d/%m/%Y %H:%M"),
+                "type": r.type,
+                "statut": r.statut,
+                "motif": r.motif_consultation or "",
+            }
+            for r in rdvs
+        ],
+        "created_at": user.created_at.strftime("%d/%m/%Y") if user.created_at else "",
+    }
+
+
+@router.patch("/admin/medecins/{medecin_id}/statut")
+async def admin_update_medecin_statut(
+    medecin_id: UUID,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    medecin = db.get(Medecin, medecin_id)
+    user    = db.get(User,    medecin_id)
+    if not medecin or not user:
+        raise HTTPException(404, "Médecin introuvable")
+
+    nouveau_statut = payload.get("statut")
+
+    # Statut de vérification
+    if nouveau_statut in ("verifie", "rejete", "en_attente", "suspendu"):
+        medecin.statut_verification = nouveau_statut
+
+    # Statut du compte
+    if nouveau_statut in ("actif", "inactif"):
+        user.statut = nouveau_statut
+
+    db.commit()
+    return {
+        "message": "Statut mis à jour",
+        "statut_verification": medecin.statut_verification,
+        "statut_compte": user.statut,
+    }
+
+
+@router.delete("/admin/medecins/{medecin_id}")
+async def admin_delete_medecin(
+    medecin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    user = db.get(User, medecin_id)
+    if not user:
+        raise HTTPException(404, "Médecin introuvable")
+    user.statut = "inactif"
+    db.commit()
+    return {"message": "Médecin désactivé"}
+
+
+@router.get("/admin/medecins/{medecin_id}/documents")
+async def admin_medecin_documents(
+    medecin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    from models import DocumentMedical
+    docs = db.query(DocumentMedical).filter(
+        DocumentMedical.uploaded_par == medecin_id,
+    ).order_by(DocumentMedical.created_at.desc()).all()
+
+    return [
+        {
+            "id": str(d.id),
+            "nom": d.nom_fichier_original,
+            "type": d.type_document,
+            "mime_type": d.mime_type,
+            "taille": d.taille_octets,
+            "url": d.url_stockage,
+            "date": d.created_at.strftime("%d/%m/%Y") if d.created_at else "",
+        }
+        for d in docs
+    ]
+
+
+
+
+
+
+
+
+
+@router.get("/admin/rendez-vous")
+async def admin_list_rdv(
+    search: Optional[str] = None,
+    statut: Optional[str] = None,
+    type: Optional[str] = None,
+    limit: int = Query(50, gt=0, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    stmt = select(RendezVous).options(
+        joinedload(RendezVous.patient_rel).joinedload(User.medecin), # Ajuste selon tes relations
+        joinedload(RendezVous.medecin_rel)
+    )
+    
+    if statut:
+        stmt = stmt.where(RendezVous.statut == statut)
+    if type:
+        stmt = stmt.where(RendezVous.type == type)
+    if search:
+        kw = f"%{search.lower()}%"
+        # Recherche simplifiée (à adapter selon tes relations SQLAlchemy exactes)
+        stmt = stmt.join(User, RendezVous.patient_id == User.id).where(
+            or_(func.lower(User.prenom).like(kw), func.lower(User.nom).like(kw))
+        )
+
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+    rdvs = db.execute(stmt.order_by(RendezVous.date_heure_debut.desc()).limit(limit).offset(offset)).scalars().all()
+
+    result = []
+    for r in rdvs:
+        # Récupération sécurisée des noms (adapte selon tes modèles)
+        patient = db.get(User, r.patient_id)
+        medecin = db.get(User, r.medecin_id)
+        structure = db.get(Structure, r.structure_id) if hasattr(r, 'structure_id') and r.structure_id else None
+
+        result.append({
+            "id": str(r.id),
+            "patient_prenom": patient.prenom if patient else "",
+            "patient_nom": patient.nom if patient else "",
+            "medecin_prenom": medecin.prenom if medecin else "",
+            "medecin_nom": medecin.nom if medecin else "",
+            "structure_nom": structure.nom_etablissement if structure else "Indépendant",
+            "motif_consultation": r.motif_consultation,
+            "type": r.type,
+            "lieu_consultation": r.lieu_consultation,
+            "lien_visio": r.lien_visio,
+            "date_heure_debut": r.date_heure_debut.isoformat() if r.date_heure_debut else None,
+            "statut": r.statut,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        })
+
+    return {"rendez_vous": result, "total": total}
+
+
+@router.post("/admin/rendez-vous")
+async def admin_create_rdv(
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    # Vérifie que patient et medecin existent
+    if not db.get(User, payload.get("patient_id")) or not db.get(User, payload.get("medecin_id")):
+        raise HTTPException(400, "Patient ou Médecin introuvable")
+
+    new_rdv = RendezVous(
+        patient_id=payload.get("patient_id"),
+        medecin_id=payload.get("medecin_id"),
+        structure_id=payload.get("structure_id"),
+        motif_consultation=payload.get("motif_consultation"),
+        type=payload.get("type", "presentiel"),
+        lieu_consultation=payload.get("lieu_consultation"),
+        lien_visio=payload.get("lien_visio"),
+        date_heure_debut=datetime.fromisoformat(payload.get("date_heure_debut")),
+        statut=payload.get("statut", "en_attente"),
+    )
+    db.add(new_rdv)
+    db.commit()
+    db.refresh(new_rdv)
+    return {"message": "Rendez-vous créé", "id": str(new_rdv.id)}
+
+
+@router.patch("/admin/rendez-vous/{rdv_id}/statut")
+async def admin_update_rdv_statut(
+    rdv_id: UUID,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    rdv = db.get(RendezVous, rdv_id)
+    if not rdv:
+        raise HTTPException(404, "Rendez-vous introuvable")
+    
+    nouveau_statut = payload.get("statut")
+    if nouveau_statut not in ["confirme", "annule", "en_attente", "termine"]:
+        raise HTTPException(400, "Statut invalide")
+        
+    rdv.statut = nouveau_statut
+    db.commit()
+    return {"message": f"Statut mis à jour: {nouveau_statut}"}
+
+
+@router.delete("/admin/rendez-vous/{rdv_id}")
+async def admin_delete_rdv(
+    rdv_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    rdv = db.get(RendezVous, rdv_id)
+    if not rdv:
+        raise HTTPException(404, "Rendez-vous introuvable")
+    
+    db.delete(rdv)
+    db.commit()
+    return {"message": "Rendez-vous supprimé"}
