@@ -7,6 +7,17 @@ import { FcGoogle } from "react-icons/fc";
 
 const GOOGLE_CLIENT_ID = "370116629692-j2f64k7n783qus34pv23la583g7vag22.apps.googleusercontent.com";
 
+
+function FieldError({ message }) {
+  if (!message) return null;
+  return (
+    <p className="flex items-center gap-1 text-xs text-red-500 mt-1 ml-1">
+      <AlertCircle size={11} className="flex-shrink-0" />
+      {message}
+    </p>
+  );
+}
+
 export default function LoginStep({
   email,
   password,
@@ -20,6 +31,7 @@ export default function LoginStep({
   validateForm,
   setIsLogin,
   onLogin,
+  setServerError,
   loading: externalLoading,
 }) {
   const hiddenGoogleBtnRef = useRef(null);
@@ -27,6 +39,7 @@ export default function LoginStep({
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState(null);
 
   const isLoading = externalLoading || localLoading;
 
@@ -48,7 +61,7 @@ export default function LoginStep({
 
       const user = await getCurrentUser(authData.access_token);
       saveUser(user);
-      navigate(redirectByRole(user.role));
+      redirectByRole(user.role);
     } catch (error) {
       console.error("❌ Google login error:", error);
       setGoogleError(error.message || "Erreur de connexion Google");
@@ -134,37 +147,74 @@ export default function LoginStep({
   // ============================================
   // GESTIONNAIRE LOGIN EMAIL/PASSWORD
   // ============================================
-  const handleLoginClick = async () => {
-    // ✅ Utiliser onLogin si fourni (nouveau système)
-    if (onLogin) {
-      onLogin();
+ const handleLoginClick = async () => {
+  try {
+    // Validation formulaire
+    // Validation formulaire
+if (validateForm && typeof validateForm === "function") {
+  const isValid = validateForm();
+  if (!isValid) {
+    setLocalError("Veuillez corriger les erreurs dans le formulaire.");
+    return;
+  }
+
+    } else if (!email?.trim() || !password) {
+      setLocalError("Email et mot de passe requis.");
       return;
     }
 
-    // ✅ Fallback : ancien système avec validateForm
-    try {
-      if (validateForm && typeof validateForm === "function") {
-        if (!validateForm()) return;
-      } else if (!email || !password) {
-        alert("Email et mot de passe requis");
-        return;
-      }
+    setLocalLoading(true);
+    setLocalError(null);
 
-      setLocalLoading(true);
-
-      const authData = await login(email, password);
-      localStorage.setItem("token", authData.access_token);
-
-      const user = await getCurrentUser(authData.access_token);
-      saveUser(user);
-      navigate(redirectByRole(user.role));
-    } catch (error) {
-      console.error("Login error:", error);
-      alert(error.message || "Erreur de connexion");
-    } finally {
-      setLocalLoading(false);
+    // Si le parent possède une fonction pour effacer les erreurs serveur
+    if (setServerError) {
+      setServerError(null);
     }
-  };
+
+    // Connexion
+    const tokenData = await login(
+      email.trim(),
+      password
+    );
+
+    localStorage.setItem(
+      "token",
+      tokenData.access_token
+    );
+
+    // Récupération du profil complet
+    const user = await getCurrentUser(
+      tokenData.access_token
+    );
+
+    // Sauvegarde utilisateur
+    saveUser(user);
+
+    localStorage.setItem(
+      "role",
+      user.role
+    );
+
+    // Redirection
+    redirectByRole(user.role);
+
+  } catch (err) {
+    console.error("Login error:", err);
+
+    // 1. On extrait proprement le message textuel
+    const finalMessage = err.message || "Identifiants incorrects.";
+
+    // 2. On met à jour l'erreur locale
+    setLocalError(finalMessage);
+
+    // 3. Si le parent utilise un setter général, on le met aussi à jour au cas où
+    if (setServerError) {
+      setServerError(finalMessage);
+    }
+  } finally {
+    setLocalLoading(false);
+  }
+};
 
   return (
     <>
@@ -175,7 +225,12 @@ export default function LoginStep({
             placeholder="Email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            // Pour l'input Email
+              onChange={(e) => {
+                 setEmail(e.target.value);
+                  setLocalError(null); // Plus de condition floue, on reset uniquement à la frappe
+                  if (errors?.email) setErrors?.({ ...errors, email: null });
+                }}
           />
 
           {errors?.email && (
@@ -185,7 +240,11 @@ export default function LoginStep({
           <PasswordInput
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (localError) setLocalError(null); // Clear l'erreur dès qu'on tape
+              if (errors?.password) setErrors?.({ ...errors, password: null });
+            }}
           />
 
           {errors?.password && (
@@ -200,6 +259,14 @@ export default function LoginStep({
             <span>{googleError}</span>
           </div>
         )}
+
+
+        {localError && (
+  <div className="mt-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2">
+    <AlertCircle size={14} className="flex-shrink-0" />
+    {localError}
+  </div>
+)}
 
         {/* BOUTON LOGIN */}
         <button

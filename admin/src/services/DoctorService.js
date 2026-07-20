@@ -1,4 +1,4 @@
-import { adminFetch } from "./AuthService"; 
+import { adminFetch } from "./AuthService"; // ← corrigé (était "AuthService")
 
 const API_URL = "http://localhost:8100/api";
 

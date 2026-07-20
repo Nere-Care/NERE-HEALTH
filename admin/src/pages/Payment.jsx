@@ -1,782 +1,338 @@
-import { useState, useMemo, useCallback } from "react";
-import { toast } from "react-hot-toast";
+import { useState, useEffect, useCallback } from "react";
 import {
-  CreditCard,
-  Search,
-  Download,
-  CheckCircle2,
-  XCircle,
-  Hash,
-  FileText,
-  User,
-  Building2,
-  TrendingUp,
-  AlertCircle,
-  X,
-  Eye,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  Phone,
-  Mail,
-  MapPin,
-  Clock,
-  Copy,
-  ExternalLink,
+  Search, Filter, Eye, X, AlertCircle, TrendingUp,
+  CreditCard, Clock, CheckCircle, XCircle, ChevronDown,
 } from "lucide-react";
+import {
+  fetchAdminPaiements,
+  fetchAdminPaiementsStats,
+  fetchAdminPaiement,
+  updatePaiementStatut,
+} from "../services/PaiementService";
 
-/* ================= MOCK DATA ================= */
-const initialPayments = [
-  {
-    id: 1001,
-    patient: "Marie Ndzi",
-    patientEmail: "marie.ndzi@email.cm",
-    patientPhone: "+237 690 111 222",
-    professional: "Dr. Martin Nkono",
-    structure: "Hôpital Laquintinie",
-    reason: "Consultation cardiologique",
-    amount: 25000,
-    method: "Mobile Money",
-    provider: "MTN Mobile Money",
-    reference: "TXN-2026-001001",
-    status: "Payé",
-    date: "2026-05-18",
-    time: "14:32",
-    notes: "Paiement reçu et vérifié",
-  },
-  {
-    id: 1002,
-    patient: "Paul Tchoumi",
-    patientEmail: "paul.tchoumi@email.cm",
-    patientPhone: "+237 670 333 444",
-    professional: "Dr. Sarah Ngono",
-    structure: "CHU Yaoundé",
-    reason: "Suivi pédiatrique",
-    amount: 15000,
-    method: "Carte bancaire",
-    provider: "Visa **** 4532",
-    reference: "TXN-2026-001002",
-    status: "En attente",
-    date: "2026-05-17",
-    time: "09:15",
-    notes: "En cours de validation bancaire",
-  },
-  {
-    id: 1003,
-    patient: "Brigitte Essomba",
-    patientEmail: "brigitte.essomba@email.cm",
-    patientPhone: "+237 655 555 666",
-    professional: "Dr. Paul Mbe",
-    structure: "Hôpital Général Douala",
-    reason: "Bilan annuel complet",
-    amount: 45000,
-    method: "Mobile Money",
-    provider: "Orange Money",
-    reference: "TXN-2026-001003",
-    status: "Échoué",
-    date: "2026-05-16",
-    time: "16:45",
-    notes: "Solde insuffisant - réessayez",
-  },
-];
+function BadgeStatut({ statut }) {
+  const config = {
+    confirme:   { label: "Confirmé",   cls: "bg-green-100 text-green-700"  },
+    initie:     { label: "Initié",     cls: "bg-yellow-100 text-yellow-700" },
+    en_attente: { label: "En attente", cls: "bg-yellow-100 text-yellow-700" },
+    echoue:     { label: "Échoué",     cls: "bg-red-100 text-red-700"      },
+    annule:     { label: "Annulé",     cls: "bg-gray-100 text-gray-600"    },
+    rembourse:  { label: "Remboursé",  cls: "bg-blue-100 text-blue-700"    },
+  };
+  const c = config[statut] || config.en_attente;
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.cls}`}>{c.label}</span>;
+}
 
-/* ================= COMPONENT ================= */
-export default function PaymentsPage({ darkMode }) {
-  const [payments, setPayments] = useState(initialPayments);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Tous");
-  const [methodFilter, setMethodFilter] = useState("Tous");
-  
-  // Modal state
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState(null);
-  
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+function PaiementDetailModal({ paiementId, onClose, onUpdateStatut, darkMode }) {
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [erreur, setErreur] = useState(null);
+  const [motif, setMotif] = useState("");
 
-  /* ================= KPI ================= */
-  const stats = useMemo(() => {
-    const totalAmount = payments.reduce((acc, p) => acc + p.amount, 0);
-    const paidAmount = payments.filter(p => p.status === "Payé").reduce((acc, p) => acc + p.amount, 0);
-    
-    return {
-      total: payments.length,
-      paid: payments.filter(p => p.status === "Payé").length,
-      pending: payments.filter(p => p.status === "En attente").length,
-      failed: payments.filter(p => p.status === "Échoué").length,
-      totalAmount,
-      paidAmount,
+  useEffect(() => {
+    const charger = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchAdminPaiement(paiementId);
+        setDetail(data);
+      } catch (err) {
+        setErreur(err.message);
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [payments]);
+    charger();
+  }, [paiementId]);
 
-  /* ================= FILTER ================= */
-  const filteredPayments = useMemo(() => {
-    return payments.filter((p) => {
-      const matchSearch =
-        p.patient.toLowerCase().includes(search.toLowerCase()) ||
-        p.professional.toLowerCase().includes(search.toLowerCase()) ||
-        p.reference.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "Tous" || p.status === statusFilter;
-      const matchMethod = methodFilter === "Tous" || p.method === methodFilter;
-      return matchSearch && matchStatus && matchMethod;
-    });
-  }, [payments, search, statusFilter, methodFilter]);
-
-  const paginatedPayments = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredPayments.slice(start, start + itemsPerPage);
-  }, [filteredPayments, currentPage]);
-
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
-
-  /* ================= ACTIONS ================= */
-  const handleViewDetails = useCallback((payment) => {
-    setSelectedPayment(payment);
-    setShowDetailsModal(true);
-  }, []);
-
-  const handleMarkPaid = useCallback((id) => {
-    setPayments(prev => prev.map(p => 
-      p.id === id ? { ...p, status: "Payé", notes: "Marqué comme payé manuellement" } : p
-    ));
-    toast.success("✅ Paiement marqué comme payé");
-    if (selectedPayment?.id === id) {
-      setSelectedPayment(prev => prev ? { ...prev, status: "Payé" } : null);
-    }
-  }, [selectedPayment]);
-
-  const handleMarkFailed = useCallback((id) => {
-    setPayments(prev => prev.map(p => 
-      p.id === id ? { ...p, status: "Échoué", notes: "Échec confirmé" } : p
-    ));
-    toast.error("🚫 Paiement marqué comme échoué");
-    if (selectedPayment?.id === id) {
-      setSelectedPayment(prev => prev ? { ...prev, status: "Échoué" } : null);
-    }
-  }, [selectedPayment]);
-
-  const handleDownloadReceipt = useCallback((payment) => {
+  const handleStatut = async (statut) => {
     try {
-      const receipt = {
-        reference: payment.reference,
-        patient: payment.patient,
-        amount: `${payment.amount.toLocaleString()} FCFA`,
-        date: `${payment.date} à ${payment.time}`,
-        structure: payment.structure,
-        professional: payment.professional,
-        reason: payment.reason,
-        method: `${payment.method} (${payment.provider})`,
-        status: payment.status,
-        generatedAt: new Date().toISOString(),
-      };
-      
-      const data = JSON.stringify(receipt, null, 2);
-      const blob = new Blob([data], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `recu_${payment.reference}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("📥 Reçu téléchargé");
-    } catch {
-      toast.error("❌ Erreur lors du téléchargement");
+      setSaving(true);
+      setErreur(null);
+      await onUpdateStatut(paiementId, statut, statut === "rembourse" ? motif : null);
+      onClose();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setSaving(false);
     }
-  }, []);
-
-  const handleCopyReference = useCallback((reference) => {
-    navigator.clipboard.writeText(reference);
-    toast.success("📋 Référence copiée");
-  }, []);
-
-  const resetFilters = useCallback(() => {
-    setSearch("");
-    setStatusFilter("Tous");
-    setMethodFilter("Tous");
-    setCurrentPage(1);
-    toast.info("🔄 Filtres réinitialisés");
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setShowDetailsModal(false);
-    setSelectedPayment(null);
-  }, []);
-
-  /* ================= RENDER HELPERS ================= */
-  const getStatusBadge = (status) => {
-    const styles = {
-      "Payé": "bg-green-500/10 text-green-500 border-green-500/20",
-      "En attente": "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-      "Échoué": "bg-red-500/10 text-red-500 border-red-500/20",
-    };
-    return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${styles[status] || styles["En attente"]}`}>
-        {status}
-      </span>
-    );
   };
-
-  const getMethodIcon = (method) => {
-    if (method.includes("Mobile")) return "📱";
-    if (method.includes("Carte")) return "💳";
-    if (method.includes("Espèces")) return "💵";
-    return "💰";
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  };
-
-  const formatAmount = (amount) => {
-    return new Intl.NumberFormat("fr-FR").format(amount);
-  };
-
-  const bg = darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900";
-  const card = darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200";
 
   return (
-    <div className={`min-h-screen p-3 sm:p-4 lg:p-6 space-y-5 lg:space-y-6 transition-all ${bg}`}>
-      
-      {/* ================= HEADER ================= */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight flex items-center gap-2">
-            <CreditCard className="text-blue-500 flex-shrink-0" size={28} />
-            <span>Gestion des Paiements</span>
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">Suivi intelligent des transactions médicales</p>
-        </div>
-      </div>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className={`w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden
+        ${darkMode ? "bg-slate-900 text-white" : "bg-white text-gray-800"}`}>
 
-      {/* ================= KPI ================= */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { title: "Total transactions", value: stats.total, icon: Hash, color: "blue", sub: "Paiements enregistrés" },
-          { title: "Payés", value: `${stats.paid} • ${formatAmount(stats.paidAmount)} FCFA`, icon: CheckCircle2, color: "green", sub: "Validés" },
-          { title: "En attente", value: stats.pending, icon: Clock, color: "yellow", sub: "À valider" },
-          { title: "Échoués", value: stats.failed, icon: AlertCircle, color: "red", sub: "À revoir" },
-        ].map((item, i) => {
-          const Icon = item.icon;
-          const colorClasses = {
-            blue: "bg-blue-500/10 text-blue-500",
-            green: "bg-green-500/10 text-green-500",
-            yellow: "bg-yellow-500/10 text-yellow-500",
-            red: "bg-red-500/10 text-red-500",
-          };
-          return (
-            <div key={i} className={`rounded-2xl p-4 sm:p-5 border transition hover:shadow-lg ${
-              darkMode ? "bg-slate-900 border-slate-800 hover:border-slate-700" : "bg-white border-gray-200 hover:border-gray-300"
-            }`}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm text-gray-400 truncate">{item.title}</p>
-                  <h2 className="text-2xl sm:text-3xl font-bold mt-1">{item.value}</h2>
-                  <p className="text-xs text-gray-500 mt-1 truncate">{item.sub}</p>
-                </div>
-                <div className={`p-2.5 md:p-3 rounded-xl flex-shrink-0 ${colorClasses[item.color]}`}>
-                  <Icon size={20} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ================= FILTERS ================= */}
-      <div className={`rounded-2xl border p-4 space-y-4 ${card}`}>
-        {/* Search */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700">
-          <Search size={18} className="text-gray-400 flex-shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="Rechercher patient, médecin, référence..."
-            className="w-full bg-transparent outline-none text-sm"
-          />
-        </div>
-
-        {/* Filter buttons */}
-        <div className="flex flex-wrap gap-2">
-          {["Tous", "Payé", "En attente", "Échoué"].map((status) => (
-            <button
-              key={status}
-              onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
-                statusFilter === status
-                  ? "bg-blue-600 text-white"
-                  : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-          {["Tous", "Mobile Money", "Carte bancaire", "Espèces"].map((method) => (
-            <button
-              key={method}
-              onClick={() => { setMethodFilter(method); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
-                methodFilter === method
-                  ? "bg-blue-600 text-white"
-                  : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {method}
-            </button>
-          ))}
-          <button 
-            onClick={resetFilters}
-            className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5 transition ${
-              darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
-            }`}
-            title="Réinitialiser"
-          >
-            <RefreshCw size={14} />
+        <div className={`flex items-center justify-between px-6 py-4 border-b
+          ${darkMode ? "border-slate-700" : "border-gray-100"}`}>
+          <h2 className="font-bold text-lg">Détail du paiement</h2>
+          <button onClick={onClose} className={`p-2 rounded-lg ${darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"}`}>
+            <X size={20} />
           </button>
         </div>
-      </div>
 
-      {/* ================= MOBILE CARDS ================= */}
-      <div className="lg:hidden space-y-4">
-        {paginatedPayments.length > 0 ? (
-          paginatedPayments.map((p) => (
-            <div key={p.id} className={`rounded-2xl border p-4 space-y-4 ${card}`}>
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                    {p.patient.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold truncate" title={p.patient}>{p.patient}</h3>
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
-                      <Hash size={12} className="flex-shrink-0" />
-                      <span className="truncate">{p.reference}</span>
-                    </p>
-                  </div>
-                </div>
-                {getStatusBadge(p.status)}
-              </div>
-
-              {/* Amount & Method */}
-              <div className="flex items-center justify-between">
-                <p className="text-xl font-bold text-green-500">{formatAmount(p.amount)} FCFA</p>
-                <span className="text-sm flex items-center gap-1">
-                  {getMethodIcon(p.method)} {p.method}
-                </span>
-              </div>
-
-              {/* Details */}
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-400">
-                  <User size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.professional}>{p.professional}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Building2 size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.structure}>{p.structure}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <FileText size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.reason}>{p.reason}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Calendar size={14} className="flex-shrink-0" />
-                  <span>{formatDate(p.date)} • {p.time}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="grid grid-cols-4 gap-2 pt-2 border-t dark:border-slate-800">
-                <button
-                  onClick={() => handleViewDetails(p)}
-                  className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-blue-500/10 text-blue-500"
-                  title="Voir détails"
-                >
-                  <Eye size={16} className="flex-shrink-0" />
-                  <span className="text-xs">Voir</span>
-                </button>
-                
-                {p.status === "En attente" && (
-                  <>
-                    <button
-                      onClick={() => handleMarkPaid(p.id)}
-                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-green-500/10 text-green-500"
-                      title="Marquer payé"
-                    >
-                      <CheckCircle2 size={16} className="flex-shrink-0" />
-                      <span className="text-xs">Payé</span>
-                    </button>
-                    <button
-                      onClick={() => handleMarkFailed(p.id)}
-                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-red-500/10 text-red-500"
-                      title="Marquer échoué"
-                    >
-                      <XCircle size={16} className="flex-shrink-0" />
-                      <span className="text-xs">Échec</span>
-                    </button>
-                  </>
-                )}
-                
-                <button
-                  onClick={() => handleDownloadReceipt(p)}
-                  className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-purple-500/10 text-purple-500"
-                  title="Télécharger reçu"
-                >
-                  <Download size={16} className="flex-shrink-0" />
-                  <span className="text-xs">Reçu</span>
-                </button>
-              </div>
+        <div className="p-6 space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
-          ))
-        ) : (
-          <div className={`rounded-2xl border p-10 text-center ${card}`}>
-            <div className="flex flex-col items-center gap-3">
-              <AlertCircle size={40} className="opacity-50" />
-              <p className="text-gray-400">Aucun paiement trouvé</p>
-              <button onClick={resetFilters} className="text-blue-500 hover:underline text-sm">
-                Réinitialiser les filtres
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ================= DESKTOP LIST ================= */}
-      <div className={`hidden lg:block rounded-2xl border overflow-hidden ${card}`}>
-        <div className="space-y-4 p-4">
-          {paginatedPayments.length > 0 ? (
-            paginatedPayments.map((p) => (
-              <div
-                key={p.id}
-                className={`p-5 rounded-3xl border flex flex-col lg:flex-row justify-between gap-4 transition hover:shadow-lg ${
-                  darkMode ? "hover:border-slate-700" : "hover:border-gray-300"
-                }`}
-              >
-                {/* LEFT: Payment Info */}
-                <div className="space-y-2 min-w-[200px]">
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Hash size={12} /> #{p.reference}
-                  </div>
-                  <h2 className="font-bold text-lg truncate" title={p.patient}>{p.patient}</h2>
-                  <p className="text-sm">
-                    <span className="font-semibold text-green-500">{formatAmount(p.amount)} FCFA</span>
-                    <span className="text-gray-400 mx-2">•</span>
-                    <span className="flex items-center gap-1 inline">
-                      {getMethodIcon(p.method)} {p.method}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <Calendar size={12} /> {formatDate(p.date)} • {p.time}
-                  </p>
+          ) : detail ? (
+            <>
+              {erreur && (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm">
+                  <AlertCircle size={14} /> {erreur}
                 </div>
+              )}
 
-                {/* CENTER: Details */}
-                <div className="text-sm space-y-2 text-gray-400 flex-1 min-w-[250px]">
-                  <div className="flex items-center gap-2">
-                    <User size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.professional}>{p.professional}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Building2 size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.structure}>{p.structure}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FileText size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.reason}>{p.reason}</span>
-                  </div>
-                </div>
-
-                {/* RIGHT: Status & Actions */}
-                <div className="flex flex-col items-end gap-3 min-w-[150px]">
-                  {getStatusBadge(p.status)}
-                  
-                  <div className="flex gap-1.5">
-                    <button 
-                      onClick={() => handleViewDetails(p)}
-                      className="p-2 rounded-xl hover:bg-blue-500/10 text-blue-500 transition" 
-                      title="Voir détails"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    
-                    {p.status === "En attente" && (
-                      <>
-                        <button 
-                          onClick={() => handleMarkPaid(p.id)}
-                          className="p-2 rounded-xl hover:bg-green-500/10 text-green-500 transition" 
-                          title="Marquer payé"
-                        >
-                          <CheckCircle2 size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleMarkFailed(p.id)}
-                          className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition" 
-                          title="Marquer échoué"
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </>
-                    )}
-                    
-                    <button
-                      onClick={() => handleDownloadReceipt(p)}
-                      className="p-2 rounded-xl hover:bg-purple-500/10 text-purple-500 transition" 
-                      title="Télécharger reçu"
-                    >
-                      <Download size={16} />
-                    </button>
-                  </div>
-                </div>
+              <div className={`p-4 rounded-xl grid grid-cols-2 gap-3 text-sm ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}>
+                <div><p className="text-xs text-gray-400">Référence</p><p className="font-mono font-medium">{detail.reference}</p></div>
+                <div><p className="text-xs text-gray-400">Statut</p><BadgeStatut statut={detail.statut} /></div>
+                <div><p className="text-xs text-gray-400">Patient</p><p className="font-medium">{detail.patient_nom}</p></div>
+                <div><p className="text-xs text-gray-400">Médecin</p><p className="font-medium">{detail.medecin_nom}</p></div>
+                <div><p className="text-xs text-gray-400">Montant total</p><p className="font-semibold">{detail.montant_total?.toLocaleString()} {detail.devise}</p></div>
+                <div><p className="text-xs text-gray-400">Commission</p><p className="font-semibold text-orange-500">{detail.frais_plateforme?.toLocaleString()} {detail.devise}</p></div>
+                <div><p className="text-xs text-gray-400">Méthode</p><p className="font-medium">{detail.methode}</p></div>
+                <div><p className="text-xs text-gray-400">Fournisseur</p><p className="font-medium">{detail.fournisseur}</p></div>
+                <div className="col-span-2"><p className="text-xs text-gray-400">Date</p><p className="font-medium">{detail.date_creation}</p></div>
               </div>
-            ))
-          ) : (
-            <div className="p-12 text-center text-gray-400">
-              <div className="flex flex-col items-center gap-3">
-                <AlertCircle size={40} className="opacity-50" />
-                <p>Aucun paiement trouvé</p>
-                <button onClick={resetFilters} className="text-blue-500 hover:underline text-sm">
-                  Réinitialiser les filtres
-                </button>
-              </div>
-            </div>
-          )}
+
+              {detail.rdv && (
+                <div className={`p-4 rounded-xl text-sm ${darkMode ? "bg-slate-800" : "bg-blue-50"}`}>
+                  <p className="font-semibold mb-1">Rendez-vous associé</p>
+                  <p>Réf : {detail.rdv.numero_rdv}</p>
+                  <p>Motif : {detail.rdv.motif}</p>
+                  <p>Date : {detail.rdv.date}</p>
+                </div>
+              )}
+
+              {detail.statut === "confirme" && (
+                <div>
+                  <label className="text-xs font-semibold mb-1 block">Motif de remboursement (si applicable)</label>
+                  <input
+                    value={motif}
+                    onChange={(e) => setMotif(e.target.value)}
+                    placeholder="Ex: Consultation annulée par le patient"
+                    className={`w-full px-3 py-2 rounded-xl border text-sm outline-none
+                      ${darkMode ? "bg-slate-800 border-slate-600 text-white" : "bg-white border-gray-300"}`}
+                  />
+                </div>
+              )}
+            </>
+          ) : null}
         </div>
 
-        {/* Desktop Pagination */}
-        {totalPages > 1 && (
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            darkMode ? "border-slate-800" : "border-gray-200"
-          }`}>
-            <p className="text-sm text-gray-400 text-center sm:text-left">
-              Page {currentPage} sur {totalPages} • {filteredPayments.length} résultats
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                  darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-                }`}
-              >
-                <ChevronLeft size={16} />
+        {detail && (
+          <div className={`flex flex-wrap gap-2 px-6 py-4 border-t ${darkMode ? "border-slate-700" : "border-gray-100"}`}>
+            {detail.statut === "confirme" && (
+              <button onClick={() => handleStatut("rembourse")} disabled={saving}
+                className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-50">
+                Rembourser
               </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                  darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-                }`}
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+            )}
+            {["initie", "en_attente"].includes(detail.statut) && (
+              <>
+                <button onClick={() => handleStatut("confirme")} disabled={saving}
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50">
+                  Forcer confirmation
+                </button>
+                <button onClick={() => handleStatut("echoue")} disabled={saving}
+                  className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50">
+                  Marquer échoué
+                </button>
+              </>
+            )}
+            <button onClick={onClose}
+              className={`ml-auto px-4 py-2 rounded-xl text-sm font-semibold transition
+                ${darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+              Fermer
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Payment({ darkMode }) {
+  const [paiements, setPaiements] = useState([]);
+  const [stats,     setStats]     = useState(null);
+  const [total,     setTotal]     = useState(0);
+  const [loading,   setLoading]   = useState(true);
+  const [erreur,    setErreur]    = useState(null);
+  const [search,    setSearch]    = useState("");
+  const [filtreStatut, setFiltreStatut] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+
+  const charger = useCallback(async () => {
+    try {
+      setLoading(true);
+      setErreur(null);
+      const [paiementsData, statsData] = await Promise.all([
+        fetchAdminPaiements({ search, statut: filtreStatut }),
+        fetchAdminPaiementsStats(),
+      ]);
+      setPaiements(paiementsData?.paiements ?? []);
+      setTotal(paiementsData?.total ?? 0);
+      setStats(statsData);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, filtreStatut]);
+
+  useEffect(() => {
+    const delay = setTimeout(charger, 300);
+    return () => clearTimeout(delay);
+  }, [charger]);
+
+  const handleUpdateStatut = async (id, statut, motif) => {
+    await updatePaiementStatut(id, statut, motif);
+    await charger();
+  };
+
+  const STATS_ITEMS = stats ? [
+    { label: "Volume total",  value: `${Math.round(stats.volume_total).toLocaleString()} XAF`, icon: TrendingUp,  color: "green"  },
+    { label: "Commissions",   value: `${Math.round(stats.commissions_total).toLocaleString()} XAF`, icon: CreditCard, color: "blue"   },
+    { label: "En attente",    value: stats.en_attente,  icon: Clock,       color: "orange" },
+    { label: "Échoués",       value: stats.echoues,     icon: XCircle,     color: "red"    },
+  ] : [];
+
+  const colorMap = {
+    green:  "bg-green-600/10 text-green-500",
+    blue:   "bg-blue-600/10 text-blue-500",
+    orange: "bg-orange-600/10 text-orange-500",
+    red:    "bg-red-600/10 text-red-500",
+  };
+
+  const inputClass = `px-4 py-2.5 rounded-xl border outline-none text-sm transition
+    ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-200 text-gray-900"}`;
+
+  return (
+    <div className={`min-h-screen p-4 sm:p-6 space-y-6 ${darkMode ? "bg-slate-950 text-white" : "bg-gray-50 text-gray-900"}`}>
+
+      <div>
+        <h1 className="text-2xl font-bold text-blue-500">Gestion des paiements</h1>
+        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+          {total} transaction{total > 1 ? "s" : ""}
+        </p>
+      </div>
+
+      {erreur && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+          <AlertCircle size={16} /> {erreur}
+        </div>
+      )}
+
+      {stats && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          {STATS_ITEMS.map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div key={i} className={`rounded-2xl p-5 border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400">{item.label}</p>
+                    <h2 className="text-xl font-bold mt-1">{item.value}</h2>
+                  </div>
+                  <div className={`p-3 rounded-xl ${colorMap[item.color]}`}>
+                    <Icon size={20} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className={`rounded-2xl p-4 border space-y-3 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"}`}>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher par référence, patient..."
+              className={`${inputClass} pl-9 w-full`} />
+          </div>
+          <button onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition
+              ${showFilters ? "bg-blue-600 text-white border-blue-600" : darkMode ? "bg-slate-800 border-slate-700 text-gray-300" : "bg-white border-gray-200 text-gray-700"}`}>
+            <Filter size={15} /> Filtres
+            <ChevronDown size={14} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-inherit">
+            <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} className={inputClass}>
+              <option value="">Statut — Tous</option>
+              <option value="confirme">Confirmé</option>
+              <option value="initie">Initié</option>
+              <option value="en_attente">En attente</option>
+              <option value="echoue">Échoué</option>
+              <option value="rembourse">Remboursé</option>
+              <option value="annule">Annulé</option>
+            </select>
+            <button onClick={() => { setSearch(""); setFiltreStatut(""); }}
+              className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
+              Réinitialiser
+            </button>
           </div>
         )}
       </div>
 
-      {/* ================= MOBILE PAGINATION ================= */}
-      {totalPages > 1 && (
-        <div className="lg:hidden flex flex-col items-center gap-3">
-          <p className="text-sm text-gray-400 text-center">Page {currentPage} sur {totalPages}</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronRight size={16} />
-            </button>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : paiements.length === 0 ? (
+        <div className={`text-center py-16 rounded-2xl border-2 border-dashed ${darkMode ? "border-slate-700 text-gray-400" : "border-gray-200 text-gray-500"}`}>
+          <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-40" />
+          <p className="font-semibold">Aucun paiement trouvé</p>
+        </div>
+      ) : (
+        <div className={`rounded-2xl border overflow-hidden ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className={darkMode ? "bg-slate-800" : "bg-gray-50"}>
+                <tr>
+                  {["Référence", "Patient", "Médecin", "Montant", "Commission", "Méthode", "Statut", "Date", ""].map((h) => (
+                    <th key={h} className={`text-left px-5 py-3 text-xs font-semibold ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {paiements.map((p) => (
+                  <tr key={p.id} className={`border-t transition ${darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-100 hover:bg-gray-50"}`}>
+                    <td className="px-5 py-4 font-mono text-xs">{p.reference}</td>
+                    <td className="px-5 py-4">{p.patient_nom}</td>
+                    <td className="px-5 py-4">{p.medecin_nom}</td>
+                    <td className="px-5 py-4 font-semibold">{p.montant_total.toLocaleString()} {p.devise}</td>
+                    <td className="px-5 py-4 text-orange-500">{p.frais_plateforme.toLocaleString()} {p.devise}</td>
+                    <td className="px-5 py-4 text-xs">{p.methode}</td>
+                    <td className="px-5 py-4"><BadgeStatut statut={p.statut} /></td>
+                    <td className={`px-5 py-4 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{p.date}</td>
+                    <td className="px-5 py-4">
+                      <button onClick={() => setSelectedId(p.id)}
+                        className={`p-1.5 rounded-lg transition ${darkMode ? "bg-slate-700 hover:bg-slate-600 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-600"}`}>
+                        <Eye size={15} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* ================= DETAILS MODAL (Responsive) ================= */}
-      {showDetailsModal && selectedPayment && (
-        <PaymentDetailsModal
+      {selectedId && (
+        <PaiementDetailModal
+          paiementId={selectedId}
+          onClose={() => setSelectedId(null)}
+          onUpdateStatut={handleUpdateStatut}
           darkMode={darkMode}
-          payment={selectedPayment}
-          onClose={closeModal}
-          onMarkPaid={() => handleMarkPaid(selectedPayment.id)}
-          onMarkFailed={() => handleMarkFailed(selectedPayment.id)}
-          onDownload={() => handleDownloadReceipt(selectedPayment)}
-          onCopyReference={() => handleCopyReference(selectedPayment.reference)}
-          getStatusBadge={getStatusBadge}
-          formatDate={formatDate}
-          formatAmount={formatAmount}
         />
       )}
-    </div>
-  );
-}
-
-/* ================= PAYMENT DETAILS MODAL (Responsive) ================= */
-function PaymentDetailsModal({ 
-  darkMode, payment, onClose, onMarkPaid, onMarkFailed, onDownload, onCopyReference,
-  getStatusBadge, formatDate, formatAmount 
-}) {
-  const isPending = payment.status === "En attente";
-  
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className={`w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col ${
-        darkMode ? "bg-slate-900 text-white" : "bg-white text-gray-900"
-      }`}>
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b dark:border-slate-700 flex-shrink-0">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg sm:text-xl font-bold flex-shrink-0">
-              <CreditCard size={20} className="sm:size-24" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-lg sm:text-xl font-bold truncate" title="Détails du paiement">Détails du paiement</h2>
-              <p className="text-xs sm:text-sm text-gray-400 truncate" title={`Référence: #${payment.reference}`}>
-                Réf: #{payment.reference}
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition flex-shrink-0">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content - Scrollable */}
-        <div className="p-4 sm:p-5 space-y-5 sm:space-y-6 overflow-y-auto flex-1">
-          
-          {/* Amount & Status */}
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p className="text-sm text-gray-400">Montant</p>
-              <p className="text-2xl sm:text-3xl font-bold text-green-500">{formatAmount(payment.amount)} FCFA</p>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {getStatusBadge(payment.status)}
-              <button 
-                onClick={onCopyReference}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition ${
-                  darkMode ? "bg-slate-800 hover:bg-slate-700" : "bg-gray-100 hover:bg-gray-200"
-                }`}
-              >
-                <Copy size={12} /> <span className="hidden xs:inline">Copier réf.</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Patient Info */}
-          <Section title="Informations Patient" icon={User} darkMode={darkMode}>
-            <DetailRow label="Nom" value={payment.patient} darkMode={darkMode} />
-            <DetailRow label="Email" value={payment.patientEmail} icon={Mail} darkMode={darkMode} />
-            <DetailRow label="Téléphone" value={payment.patientPhone} icon={Phone} darkMode={darkMode} />
-          </Section>
-
-          {/* Consultation Info */}
-          <Section title="Consultation" icon={FileText} darkMode={darkMode}>
-            <DetailRow label="Professionnel" value={payment.professional} darkMode={darkMode} />
-            <DetailRow label="Structure" value={payment.structure} icon={Building2} darkMode={darkMode} />
-            <DetailRow label="Motif" value={payment.reason} darkMode={darkMode} />
-          </Section>
-
-          {/* Payment Info */}
-          <Section title="Transaction" icon={CreditCard} darkMode={darkMode}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <DetailRow label="Méthode" value={`${payment.method} (${payment.provider})`} darkMode={darkMode} />
-              <DetailRow label="Date & Heure" value={`${formatDate(payment.date)} à ${payment.time}`} icon={Clock} darkMode={darkMode} />
-              <DetailRow label="Référence" value={payment.reference} darkMode={darkMode} highlight />
-              <DetailRow label="Statut" value={payment.status} darkMode={darkMode} />
-            </div>
-            {payment.notes && (
-              <div className={`mt-4 p-4 rounded-xl ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}>
-                <p className="text-xs text-gray-400 mb-1">Notes</p>
-                <p className="text-sm">{payment.notes}</p>
-              </div>
-            )}
-          </Section>
-        </div>
-
-        {/* Actions - Fixed at bottom */}
-        <div className={`p-4 sm:p-5 border-t dark:border-slate-700 space-y-3 sm:space-y-4 flex-shrink-0 ${
-          darkMode ? "bg-slate-900/50" : "bg-gray-50"
-        }`}>
-          
-          {/* Status Actions */}
-          {isPending && (
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <button onClick={onMarkPaid}
-                className="w-full sm:flex-1 py-2.5 sm:py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-medium transition flex items-center justify-center gap-2">
-                <CheckCircle2 size={18} /> <span className="hidden xs:inline">Marquer comme payé</span><span className="xs:hidden">Payé</span>
-              </button>
-              <button onClick={onMarkFailed}
-                className="w-full sm:flex-1 py-2.5 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition flex items-center justify-center gap-2">
-                <XCircle size={18} /> <span className="hidden xs:inline">Marquer comme échoué</span><span className="xs:hidden">Échec</span>
-              </button>
-            </div>
-          )}
-
-          {/* Other Actions */}
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button onClick={onDownload}
-              className={`w-full sm:flex-1 py-2.5 rounded-xl border font-medium transition flex items-center justify-center gap-2 ${
-                darkMode ? "border-slate-600 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}>
-              <Download size={16} /> <span className="hidden xs:inline">Télécharger reçu</span><span className="xs:hidden">Reçu</span>
-            </button>
-            <a 
-              href={`https://wa.me/?text=Bonjour, je confirme le paiement ${payment.reference} de ${formatAmount(payment.amount)} FCFA`}
-              target="_blank" rel="noopener noreferrer"
-              className={`w-full sm:w-auto p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
-                darkMode ? "border-slate-600 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}
-              title="Partager par WhatsApp"
-            >
-              <ExternalLink size={16} /> <span className="hidden xs:inline">WhatsApp</span>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ================= HELPER COMPONENTS ================= */
-function Section({ title, icon: Icon, children, darkMode }) {
-  return (
-    <div>
-      <h3 className="font-semibold mb-3 flex items-center gap-2">
-        {Icon && <Icon size={16} className="text-blue-500 flex-shrink-0" />}
-        {title}
-      </h3>
-      <div className="space-y-3">{children}</div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value, icon: Icon, darkMode, highlight = false }) {
-  return (
-    <div className={`p-3 rounded-xl ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}>
-      <p className="text-xs text-gray-400 mb-1 flex items-center gap-2">
-        {Icon && <Icon size={12} className="flex-shrink-0" />}
-        {label}
-      </p>
-      <p className={`font-medium text-sm truncate ${highlight ? "text-blue-500 font-mono" : ""}`} title={value}>
-        {value || "—"}
-      </p>
     </div>
   );
 }

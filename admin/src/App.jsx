@@ -17,6 +17,8 @@ import Payments from "./pages/Payment";
 import Conversations from "./pages/Conversation";
 import Observator from "./pages/Observator";
 
+import Notifications from "./pages/NotificationPage";
+
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -73,6 +75,8 @@ export default function App() {
             
             {/* ✅ 6. Le Dashboard est déplacé sur "/dashboard" (ou tu peux garder "/" si tu préfères) */}
             <Route path="/dashboard" element={<Dashboard darkMode={darkMode} />} />
+
+            <Route path="/admin/notifications" element={<Notifications darkMode={darkMode}/>} />
             
             <Route path="/patients" element={<Patients darkMode={darkMode} />} />
             <Route path="/doctors" element={<Doctors darkMode={darkMode} />} />

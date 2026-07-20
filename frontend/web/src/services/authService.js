@@ -20,7 +20,24 @@ export async function login(email, password) {
 
   if (!response.ok) {
     console.error("❌ LOGIN ERROR:", data);
-    throw new Error(data.detail || "Login failed");
+    
+    // 🛠️ Extraction intelligente du message d'erreur de FastAPI
+    let errorMessage = "Login failed";
+    
+    if (data && data.detail) {
+      if (typeof data.detail === "string") {
+        // Cas classique : FastAPI renvoie une chaîne directe
+        errorMessage = data.detail;
+      } else if (Array.isArray(data.detail) && data.detail[0]?.msg) {
+        // Cas de validation Pydantic : liste d'erreurs (ex: [{msg: "...", loc: ...}])
+        errorMessage = data.detail[0].msg;
+      } else if (typeof data.detail === "object") {
+        // Au cas où le detail est un dictionnaire complexe
+        errorMessage = data.detail.message || JSON.stringify(data.detail);
+      }
+    }
+    
+    throw new Error(errorMessage);
   }
 
   console.log("✅ LOGIN SUCCESS:", data);

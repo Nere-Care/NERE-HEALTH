@@ -15,10 +15,12 @@ import PatientEditModal from "../components/patients/PatientEditModal";
 import PatientAddModal from "../components/patients/PatientAddModal";
 
 // Services
+// Services
 import {
   fetchAdminPatients,
   fetchAdminPatientsStats,
   fetchAdminPatientsActivite,
+  fetchAdminPatient, // ✅ AJOUTE CETTE LIGNE ICI
   updateAdminPatient,
   deleteAdminPatient,
 } from "../services/PatientService";
@@ -85,15 +87,58 @@ export default function Patients({ darkMode }) {
   }, [charger]);
 
   // ✅ Handlers pour les actions du tableau
-  const handleView = (patient) => {
-    setSelectedPatient(patient);
-    setIsViewOpen(true);
-  };
+   const handleView = useCallback(async (patientFromList) => {
+    try {
+      // 1. On ouvre le modal avec les données de base (pour un affichage immédiat)
+      setSelectedPatient(patientFromList);
+      setIsViewOpen(true);
 
-  const handleEdit = (patient) => {
-    setSelectedPatient(patient);
+      // 2. On récupère les détails complets depuis le backend en arrière-plan
+      const details = await fetchAdminPatient(patientFromList.id);
+      
+      if (details) {
+        // 3. On met à jour le patient sélectionné avec les nouvelles données (médecin et dernière connexion)
+        setSelectedPatient(prev => ({
+          ...prev,
+          ...details,
+          // On s'assure que le frontend utilise bien les bons noms de clés
+          medecin: details.medecin_traitant || prev.medecin || "Non assigné",
+          derniereConnexion: details.derniereConnexion || "Jamais",
+        }));
+      }
+    } catch (err) {
+      toast.error("❌ Erreur lors du chargement des détails du patient");
+      console.error(err);
+    }
+  }, []);
+
+ const handleEdit = async (patientFromList) => {
+  try {
+    const details = await fetchAdminPatient(patientFromList.id);
+
+    setSelectedPatient({
+      ...patientFromList,
+
+      nom: `${details.prenom} ${details.nom}`.trim(),
+      email: details.email,
+      telephone: details.telephone,
+      adresse: details.ville,
+      groupe: details.groupe_sanguin,
+      assurance: details.couverture_assurance,
+      allergies: Array.isArray(details.allergies)
+        ? details.allergies.join(", ")
+        : details.allergies || "",
+      antecedents: details.antecedents_medicaux || "",
+      statut: details.statut,
+      sexe: details.sexe,
+    });
+
     setIsEditOpen(true);
-  };
+  } catch (err) {
+    toast.error("Erreur lors du chargement du patient");
+    console.error(err);
+  }
+};
 
   const handleDelete = async (patient) => {
     if (window.confirm(`Êtes-vous sûr de vouloir désactiver le patient ${patient.nom} ?`)) {
@@ -107,19 +152,23 @@ export default function Patients({ darkMode }) {
     }
   };
 
-  const handleSaveEdit = async (updatedData) => {
-    try {
-      // Note : Ton backend actuel ne met à jour que : statut, telephone, groupe_sanguin et allergies.
-      // Les autres champs seront ignorés jusqu'à ce que tu étendes la route PUT du backend.
-      await updateAdminPatient(updatedData.id, updatedData);
-      toast.success("✅ Patient mis à jour avec succès");
-      setIsEditOpen(false);
-      setSelectedPatient(null);
-      charger();
-    } catch (err) {
-      toast.error("❌ Erreur lors de la mise à jour");
-    }
-  };
+const handleSaveEdit = async (updatedData) => {
+  try {
+    console.log("Payload envoyé :", updatedData);
+
+    await updateAdminPatient(updatedData.id, updatedData);
+
+    toast.success("✅ Patient mis à jour avec succès");
+
+    setIsEditOpen(false);
+    setSelectedPatient(null);
+
+    charger();
+  } catch (err) {
+    toast.error(err.message || "❌ Erreur lors de la mise à jour");
+    console.error(err);
+  }
+};
 
   const handleAdd = async (newPatientData) => {
     // Ici, tu pourras appeler ton futur service createAdminPatient(newPatientData)

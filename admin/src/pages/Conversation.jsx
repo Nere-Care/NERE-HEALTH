@@ -24,113 +24,29 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-/* ================= MOCK DATA ================= */
-const initialConversations = [
-  {
-    id: 1,
-    patient: "Marie Ndzi",
-    patientEmail: "marie.ndzi@email.cm",
-    professional: "Dr. Martin Nkono",
-    professionalEmail: "martin.nkono@hopital.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Suivi cardiologique",
-    reportReason: null,
-    status: "Normal",
-    riskLevel: "Faible",
-    createdAt: "2026-05-18",
-    lastMessage: "2026-05-18T09:13:00",
-    messages: [
-      { id: 1, from: "patient", text: "Bonjour docteur, j'espère que vous allez bien", time: "09:12", flagged: false },
-      { id: 2, from: "doctor", text: "Bonjour Marie, oui merci. Comment vous sentez-vous aujourd'hui ?", time: "09:13", flagged: false },
-      { id: 3, from: "patient", text: "Un peu mieux, mais j'ai encore des palpitations", time: "09:14", flagged: false },
-    ],
-    adminMessages: [],
-  },
-  {
-    id: 2,
-    patient: "Paul Tchoumi",
-    patientEmail: "paul.tchoumi@email.cm",
-    professional: "Dr. Sarah Ngono",
-    professionalEmail: "sarah.ngono@chu.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Plainte sur consultation",
-    reportReason: "Patient signale absence de compte rendu médical",
-    status: "Signalé",
-    riskLevel: "Moyen",
-    createdAt: "2026-05-17",
-    lastMessage: "2026-05-17T09:15:00",
-    messages: [
-      { id: 1, from: "patient", text: "Je n'ai pas reçu mon compte rendu", time: "09:14", flagged: false },
-      { id: 2, from: "patient", text: "C'est vraiment inacceptable !!", time: "09:15", flagged: true, flagReason: "Ton agressif détecté" },
-      { id: 3, from: "doctor", text: "Je comprends votre frustration, je vais vérifier", time: "09:16", flagged: false },
-    ],
-    adminMessages: [
-      { id: 1, from: "admin", text: "Bonjour, votre signalement a été pris en compte", time: "09:20" },
-    ],
-  },
-  {
-    id: 3,
-    patient: "Brigitte Essomba",
-    patientEmail: "brigitte.essomba@email.cm",
-    professional: "Dr. Paul Mbe",
-    professionalEmail: "paul.mbe@hgdouala.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Demande de deuxième avis",
-    reportReason: null,
-    status: "Résolu",
-    riskLevel: "Faible",
-    createdAt: "2026-05-16",
-    lastMessage: "2026-05-16T16:45:00",
-    messages: [
-      { id: 1, from: "patient", text: "Bonjour, puis-je avoir un deuxième avis ?", time: "16:30", flagged: false },
-      { id: 2, from: "doctor", text: "Bien sûr, je vous recommande le Dr. Nkono", time: "16:35", flagged: false },
-      { id: 3, from: "patient", text: "Merci beaucoup docteur !", time: "16:45", flagged: false },
-    ],
-    adminMessages: [],
-  },
-];
-
-/* ================= DETECTION INTELLIGENTE ================= */
-const detectionRules = {
-  aggressive: ["inacceptable", "inadmissible", "honteux", "scandaleux", "arnaque"],
-  insult: ["idiot", "nul", "incompétent", "incapable", "imbécile", "fou"],
-  threat: ["menace", "porter plainte", "avocat", "justice", "signaler"],
-  spam: ["www.", "http", "cliquez ici", "gagnez", "gratuit"],
-  personal: ["adresse", "téléphone", "email", "domicile"],
-};
-
-const analyzeMessage = (text) => {
-  const lower = text.toLowerCase();
-  const flags = [];
-  
-  Object.entries(detectionRules).forEach(([type, words]) => {
-    if (words.some(w => lower.includes(w))) {
-      flags.push({ type, severity: type === "threat" ? "high" : type === "insult" ? "medium" : "low" });
-    }
-  });
-  
-  return {
-    isSuspicious: flags.length > 0,
-    flags,
-    riskLevel: flags.some(f => f.severity === "high") ? "Élevé" : flags.some(f => f.severity === "medium") ? "Moyen" : "Faible",
-  };
-};
+// ✅ Import des fonctions du service API
+import {
+  fetchConversations,
+  fetchConversationDetails,
+  sendAdminMessage,
+  updateConversationStatus,
+  banUser,
+} from "../services/ConversationService";
 
 /* ================= UTILS ================= */
-
 export const getMessageStyle = (msg, darkMode) => {
   if (msg?.flagged) return "border-l-4 border-red-500 pl-3 bg-red-500/5";
   if (msg?.from === "admin") return "border-l-4 border-purple-500 pl-3 bg-purple-500/5";
-  if (msg?.from === "doctor") return "border-l-4 border-blue-500 pl-3 bg-blue-500/5";
+  if (msg?.from === "doctor" || msg?.from === "medecin") return "border-l-4 border-blue-500 pl-3 bg-blue-500/5";
   return darkMode ? "bg-slate-800/50" : "bg-gray-50";
 };
 
 export const getSenderLabel = (from) => {
-  const labels = { patient: "👤 Patient", doctor: "🩺 Médecin", admin: "🛡️ Admin" };
+  const labels = { patient: "👤 Patient", doctor: "🩺 Médecin", medecin: "🩺 Médecin", admin: "🛡️ Admin" };
   return labels[from] || from;
 };
 
-export const getStatusBadge = (status, darkMode = false) => {
+export const getStatusBadge = (status) => {
   const styles = {
     "Normal": "bg-blue-500/10 text-blue-500 border-blue-500/20",
     "Signalé": "bg-red-500/10 text-red-500 border-red-500/20",
@@ -167,9 +83,11 @@ export const formatDateTime = (isoString) => {
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 };
 
-/* ================= COMPONENT ================= */
+/* ================= COMPONENT PRINCIPAL ================= */
 export default function ConversationsPage({ darkMode }) {
-  const [conversations, setConversations] = useState(initialConversations);
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tous");
   const [riskFilter, setRiskFilter] = useState("Tous");
@@ -187,24 +105,60 @@ export default function ConversationsPage({ darkMode }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  const filteredConversations = useMemo(() => {
-    return conversations.filter((c) => {
-      const matchSearch = 
-        c.patient.toLowerCase().includes(search.toLowerCase()) ||
-        c.professional.toLowerCase().includes(search.toLowerCase()) ||
-        c.reason.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "Tous" || c.status === statusFilter;
-      const matchRisk = riskFilter === "Tous" || c.riskLevel === riskFilter;
-      return matchSearch && matchStatus && matchRisk;
-    });
-  }, [conversations, search, statusFilter, riskFilter]);
+  /* ================= CHARGEMENT DES DONNÉES ================= */
+  const loadConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetchConversations({ 
+        search, 
+        status: statusFilter === "Tous" ? null : statusFilter,
+        risk: riskFilter === "Tous" ? null : riskFilter
+      });
+      
+      const rawList = Array.isArray(response) ? response : (response?.conversations || response?.data || []);
+      
+      const mapped = rawList.map(c => ({
+        id: c.id,
+        patient_id: c.patient_id, // Nécessaire pour la fonction de ban
+        medecin_id: c.medecin_id, // Nécessaire pour la fonction de ban
+        patient: c.patient_nom || "Patient",
+        patientEmail: c.patient_email || "",
+        professional: c.medecin_nom || "Médecin",
+        professionalEmail: c.medecin_email || "",
+        role: "Patient ↔ Médecin",
+        reason: c.motif || "Consultation",
+        reportReason: c.motif_signalement || null,
+        status: c.statut || "Normal",
+        riskLevel: c.niveau_risque || "Faible",
+        createdAt: c.created_at || "",
+        lastMessage: c.last_message_at || "",
+        messages: c.messages || [],
+        adminMessages: c.admin_messages || [],
+      }));
+      
+      setConversations(mapped);
+    } catch (err) {
+      toast.error("❌ Erreur lors du chargement des conversations");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter, riskFilter]);
+
+  useEffect(() => {
+    const delay = setTimeout(loadConversations, 300);
+    return () => clearTimeout(delay);
+  }, [loadConversations]);
+
+  /* ================= FILTRES & PAGINATION ================= */
+  const filteredConversations = useMemo(() => conversations, [conversations]);
 
   const paginatedConversations = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredConversations.slice(start, start + itemsPerPage);
   }, [filteredConversations, currentPage]);
 
-  const totalPages = Math.ceil(filteredConversations.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredConversations.length / itemsPerPage) || 1;
 
   const stats = useMemo(() => ({
     total: conversations.length,
@@ -213,9 +167,24 @@ export default function ConversationsPage({ darkMode }) {
     highRisk: conversations.filter(c => c.riskLevel === "Élevé").length,
   }), [conversations]);
 
-  const handleViewDetails = useCallback((conversation) => {
+  /* ================= ACTIONS API ================= */
+  const handleViewDetails = useCallback(async (conversation) => {
     setSelectedConversation(conversation);
     setShowDetailsModal(true);
+    
+    try {
+      const details = await fetchConversationDetails(conversation.id);
+      if (details) {
+        setSelectedConversation(prev => ({
+          ...prev,
+          messages: details.messages || prev.messages,
+          adminMessages: details.admin_messages || prev.adminMessages,
+        }));
+      }
+    } catch (err) {
+      console.error("Erreur détail conversation", err);
+    }
+    
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }, []);
 
@@ -224,7 +193,7 @@ export default function ConversationsPage({ darkMode }) {
     
     setIsSending(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await sendAdminMessage(selectedConversation.id, adminMessage.trim());
       
       const newMsg = {
         id: Date.now(),
@@ -232,12 +201,6 @@ export default function ConversationsPage({ darkMode }) {
         text: adminMessage.trim(),
         time: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
       };
-      
-      setConversations(prev => prev.map(c => 
-        c.id === selectedConversation.id
-          ? { ...c, adminMessages: [...c.adminMessages, newMsg], lastMessage: new Date().toISOString() }
-          : c
-      ));
       
       setSelectedConversation(prev => prev ? {
         ...prev,
@@ -247,60 +210,58 @@ export default function ConversationsPage({ darkMode }) {
       
       setAdminMessage("");
       toast.success("✅ Message envoyé");
-    } catch {
-      toast.error("❌ Erreur lors de l'envoi");
+      loadConversations();
+    } catch (err) {
+      toast.error(err.message || "❌ Erreur lors de l'envoi");
     } finally {
       setIsSending(false);
     }
-  }, [adminMessage, selectedConversation]);
+  }, [adminMessage, selectedConversation, loadConversations]);
 
-  const handleFlagConversation = useCallback((id, reason = "Signalé par l'administration") => {
-    setConversations(prev => prev.map(c => 
-      c.id === id 
-        ? { ...c, status: "Signalé", reportReason: c.reportReason || reason, riskLevel: "Moyen" }
-        : c
-    ));
-    toast.info("🚩 Conversation signalée");
-  }, []);
-
-  const handleResolveConversation = useCallback((id) => {
-    setConversations(prev => prev.map(c => 
-      c.id === id ? { ...c, status: "Résolu" } : c
-    ));
-    toast.success("✅ Conversation marquée comme résolue");
-  }, []);
-
-  const handleBanUser = useCallback((userId, userType, reason) => {
-    toast.success(`🔒 ${userType === "patient" ? "Patient" : "Professionnel"} suspendu: ${reason}`);
-    setShowBanModal(false);
-    setBanTarget(null);
-  }, []);
-
-  const handleExportReport = useCallback((conversation) => {
+  const handleFlagConversation = useCallback(async (id) => {
     try {
-      const report = {
-        conversationId: conversation.id,
-        generatedAt: new Date().toISOString(),
-      };
-      
-      const data = JSON.stringify(report, null, 2);
-      const blob = new Blob([data], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `rapport_conversation_${conversation.id}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success("📥 Rapport exporté");
-    } catch {
-      toast.error("❌ Erreur lors de l'export");
+      await updateConversationStatus(id, "Signalé");
+      toast.info("🚩 Conversation signalée");
+      loadConversations();
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(prev => prev ? { ...prev, status: "Signalé", riskLevel: "Moyen" } : null);
+      }
+    } catch (err) {
+      toast.error("❌ Erreur lors du signalement");
+    }
+  }, [selectedConversation, loadConversations]);
+
+  const handleResolveConversation = useCallback(async (id) => {
+    try {
+      await updateConversationStatus(id, "Résolu");
+      toast.success("✅ Conversation marquée comme résolue");
+      loadConversations();
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(prev => prev ? { ...prev, status: "Résolu" } : null);
+      }
+    } catch (err) {
+      toast.error("❌ Erreur lors de la résolution");
+    }
+  }, [selectedConversation, loadConversations]);
+
+  const handleBanUser = useCallback(async (userId, userType, reason) => {
+    if (!userId) {
+      toast.error("❌ ID utilisateur introuvable");
+      return;
+    }
+    try {
+      await banUser(userId, userType, reason);
+      toast.success(`🔒 ${userType === "patient" ? "Patient" : "Professionnel"} suspendu`);
+      setShowBanModal(false);
+      setBanTarget(null);
+    } catch (err) {
+      toast.error("❌ Erreur lors de la suspension");
     }
   }, []);
 
   const handleCopyConversation = useCallback((conversation) => {
-    const text = conversation.messages.map(m => `[${m.time}] ${m.from}: ${m.text}`).join("\n");
+    const allMsgs = [...conversation.messages, ...conversation.adminMessages.map(m => ({ ...m, from: "admin" }))];
+    const text = allMsgs.map(m => `[${m.time}] ${getSenderLabel(m.from)}: ${m.text}`).join("\n");
     navigator.clipboard.writeText(text);
     toast.success("📋 Conversation copiée");
   }, []);
@@ -365,149 +326,158 @@ export default function ConversationsPage({ darkMode }) {
         </div>
       </div>
 
-      {/* ================= STATS ================= */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {[
-          { title: "Total conversations", value: stats.total, icon: MessageSquare, color: "blue" },
-          { title: "Signalées", value: stats.flagged, icon: Flag, color: "red" },
-          { title: "Résolues", value: stats.resolved, icon: CheckCircle2, color: "green" },
-          { title: "Risque élevé", value: stats.highRisk, icon: AlertTriangle, color: "orange" },
-        ].map((item, i) => {
-          const Icon = item.icon;
-          const colorClasses = {
-            blue: "bg-blue-500/10 text-blue-500",
-            red: "bg-red-500/10 text-red-500",
-            green: "bg-green-500/10 text-green-500",
-            orange: "bg-orange-500/10 text-orange-500",
-          };
+      {/* ================= LOADING STATE ================= */}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* ================= STATS ================= */}
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {[
+              { title: "Total conversations", value: stats.total, icon: MessageSquare, color: "blue" },
+              { title: "Signalées", value: stats.flagged, icon: Flag, color: "red" },
+              { title: "Résolues", value: stats.resolved, icon: CheckCircle2, color: "green" },
+              { title: "Risque élevé", value: stats.highRisk, icon: AlertTriangle, color: "orange" },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              const colorClasses = {
+                blue: "bg-blue-500/10 text-blue-500",
+                red: "bg-red-500/10 text-red-500",
+                green: "bg-green-500/10 text-green-500",
+                orange: "bg-orange-500/10 text-orange-500",
+              };
 
-          return (
-            <div
-              key={i}
-              className={`rounded-2xl p-4 md:p-5 border transition hover:shadow-lg min-w-0 ${
-                darkMode ? "bg-slate-900 border-slate-800 hover:border-slate-700" : "bg-white border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-gray-400 truncate">{item.title}</p>
-                  <h2 className="text-2xl md:text-3xl font-bold mt-1">{item.value}</h2>
-                </div>
+              return (
+                <div
+                  key={i}
+                  className={`rounded-2xl p-4 md:p-5 border transition hover:shadow-lg min-w-0 ${
+                    darkMode ? "bg-slate-900 border-slate-800 hover:border-slate-700" : "bg-white border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs md:text-sm text-gray-400 truncate">{item.title}</p>
+                      <h2 className="text-2xl md:text-3xl font-bold mt-1">{item.value}</h2>
+                    </div>
 
-                <div className={`p-2.5 md:p-3 rounded-xl flex-shrink-0 ${colorClasses[item.color]}`}>
-                  <Icon size={20} />
+                    <div className={`p-2.5 md:p-3 rounded-xl flex-shrink-0 ${colorClasses[item.color]}`}>
+                      <Icon size={20} />
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* ================= FILTERS ================= */}
+          <div className={`p-3 sm:p-4 rounded-2xl border flex flex-col xl:flex-row gap-3 ${card}`}>
+            <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border bg-transparent min-w-0 overflow-hidden">
+              <Search size={18} className="text-gray-400 flex-shrink-0" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                placeholder="Rechercher patient, médecin, motif..."
+                className="w-full min-w-0 bg-transparent outline-none text-sm"
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full xl:w-auto">
+              <select 
+                value={statusFilter} 
+                onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm border bg-transparent outline-none ${
+                  darkMode ? "border-slate-700" : "border-gray-300"
+                }`}
+              >
+                <option value="Tous">Tous statuts</option>
+                <option value="Normal">Normal</option>
+                <option value="Signalé">Signalé</option>
+                <option value="Résolu">Résolu</option>
+              </select>
+              
+              <select 
+                value={riskFilter} 
+                onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
+                className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm border bg-transparent outline-none ${
+                  darkMode ? "border-slate-700" : "border-gray-300"
+                }`}
+              >
+                <option value="Tous">Tous risques</option>
+                <option value="Faible">Faible</option>
+                <option value="Moyen">Moyen</option>
+                <option value="Élevé">Élevé</option>
+              </select>
+              
+              <button 
+                onClick={resetFilters}
+                className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition ${
+                  darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
+                }`}
+                title="Réinitialiser"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+          </div>
+
+          {/* ================= CONVERSATIONS GRID ================= */}
+          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
+            {paginatedConversations.length > 0 ? (
+              paginatedConversations.map((c) => (
+                <ConversationCard
+                  key={c.id}
+                  conversation={c}
+                  darkMode={darkMode}
+                  cardClass={card}
+                  onView={() => handleViewDetails(c)}
+                  onFlag={() => handleFlagConversation(c.id)}
+                  onResolve={() => handleResolveConversation(c.id)}
+                />
+              ))
+            ) : (
+              <div className={`col-span-full p-8 sm:p-12 rounded-2xl border text-center ${card}`}>
+                <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
+                <p className="text-gray-400 text-sm sm:text-base">Aucune conversation trouvée</p>
+                <button onClick={resetFilters} className="mt-3 text-blue-500 hover:underline text-sm">
+                  Réinitialiser les filtres
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ================= PAGINATION ================= */}
+          {totalPages > 1 && (
+            <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 rounded-xl border ${card}`}>
+              <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
+                Page {currentPage} sur {totalPages} • {filteredConversations.length} résultats
+              </p>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
+                    darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
+                    darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* ================= FILTERS ================= */}
-      <div className={`p-3 sm:p-4 rounded-2xl border flex flex-col xl:flex-row gap-3 ${card}`}>
-        <div className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border bg-transparent min-w-0 overflow-hidden">
-          <Search size={18} className="text-gray-400 flex-shrink-0" />
-          <input
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="Rechercher patient, médecin, motif..."
-            className="w-full min-w-0 bg-transparent outline-none text-sm"
-          />
-        </div>
-        
-        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full xl:w-auto">
-          <select 
-            value={statusFilter} 
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-            className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm border bg-transparent outline-none ${
-              darkMode ? "border-slate-700" : "border-gray-300"
-            }`}
-          >
-            <option value="Tous">Tous statuts</option>
-            <option value="Normal">Normal</option>
-            <option value="Signalé">Signalé</option>
-            <option value="Résolu">Résolu</option>
-          </select>
-          
-          <select 
-            value={riskFilter} 
-            onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
-            className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm border bg-transparent outline-none ${
-              darkMode ? "border-slate-700" : "border-gray-300"
-            }`}
-          >
-            <option value="Tous">Tous risques</option>
-            <option value="Faible">Faible</option>
-            <option value="Moyen">Moyen</option>
-            <option value="Élevé">Élevé</option>
-          </select>
-          
-          <button 
-            onClick={resetFilters}
-            className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 transition ${
-              darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
-            }`}
-            title="Réinitialiser"
-          >
-            <RefreshCw size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* ================= CONVERSATIONS GRID ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
-        {paginatedConversations.length > 0 ? (
-          paginatedConversations.map((c) => (
-            <ConversationCard
-              key={c.id}
-              conversation={c}
-              darkMode={darkMode}
-              cardClass={card}
-              onView={() => handleViewDetails(c)}
-              onFlag={() => handleFlagConversation(c.id)}
-              onResolve={() => handleResolveConversation(c.id)}
-            />
-          ))
-        ) : (
-          <div className={`col-span-full p-8 sm:p-12 rounded-2xl border text-center ${card}`}>
-            <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
-            <p className="text-gray-400 text-sm sm:text-base">Aucune conversation trouvée</p>
-            <button onClick={resetFilters} className="mt-3 text-blue-500 hover:underline text-sm">
-              Réinitialiser les filtres
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 rounded-xl border ${card}`}>
-          <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
-            Page {currentPage} sur {totalPages} • {filteredConversations.length} résultats
-          </p>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronLeft size={16} />
-            </button>
-
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg border disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+          )}
+        </>
       )}
 
       {/* ================= DETAILS MODAL ================= */}
@@ -522,8 +492,11 @@ export default function ConversationsPage({ darkMode }) {
           isSending={isSending}
           onFlag={() => handleFlagConversation(selectedConversation.id)}
           onResolve={() => handleResolveConversation(selectedConversation.id)}
-          onBan={(userType) => { setBanTarget({ id: selectedConversation.id, userType }); setShowBanModal(true); }}
-          onExport={() => handleExportReport(selectedConversation)}
+          onBan={(userType) => { 
+            const targetId = userType === "patient" ? selectedConversation.patient_id : selectedConversation.medecin_id;
+            setBanTarget({ id: targetId, userType }); 
+            setShowBanModal(true); 
+          }}
           onCopy={() => handleCopyConversation(selectedConversation)}
           messagesEndRef={messagesEndRef}
           handleKeyDown={handleKeyDown}
@@ -543,7 +516,7 @@ export default function ConversationsPage({ darkMode }) {
   );
 }
 
-/* ================= CONVERSATION CARD ================= */
+/* ================= SOUS-COMPOSANT : CONVERSATION CARD ================= */
 function ConversationCard({ conversation, darkMode, cardClass, onView, onFlag, onResolve }) {
   const lastMsg = conversation.messages[conversation.messages.length - 1];
   const hasFlagged = conversation.messages.some(m => m.flagged);
@@ -638,10 +611,10 @@ function ConversationCard({ conversation, darkMode, cardClass, onView, onFlag, o
   );
 }
 
-/* ================= CONVERSATION DETAILS MODAL ================= */
+/* ================= SOUS-COMPOSANT : CONVERSATION DETAILS MODAL ================= */
 function ConversationDetailsModal({ 
   darkMode, conversation, onClose, onSendMessage, adminMessage, setAdminMessage, isSending,
-  onFlag, onResolve, onBan, onExport, onCopy, messagesEndRef, handleKeyDown 
+  onFlag, onResolve, onBan, onCopy, messagesEndRef, handleKeyDown 
 }) {
   const allMessages = [...conversation.messages, ...conversation.adminMessages.map(m => ({ ...m, from: "admin" }))];
   
@@ -764,7 +737,20 @@ function ConversationDetailsModal({
               </button>
 
               <button
-                onClick={onExport}
+                onClick={() => {
+                   const report = { conversationId: conversation.id, generatedAt: new Date().toISOString() };
+                   const data = JSON.stringify(report, null, 2);
+                   const blob = new Blob([data], { type: "application/json" });
+                   const url = URL.createObjectURL(blob);
+                   const a = document.createElement("a");
+                   a.href = url;
+                   a.download = `rapport_conversation_${conversation.id}.json`;
+                   document.body.appendChild(a);
+                   a.click();
+                   document.body.removeChild(a);
+                   URL.revokeObjectURL(url);
+                   toast.success("📥 Rapport exporté");
+                }}
                 className={`w-full py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2 ${
                   darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
                 }`}
@@ -815,7 +801,7 @@ function ConversationDetailsModal({
   );
 }
 
-/* ================= BAN CONFIRMATION MODAL ================= */
+/* ================= SOUS-COMPOSANT : BAN CONFIRMATION MODAL ================= */
 function BanConfirmModal({ darkMode, userType, onConfirm, onCancel }) {
   const [reason, setReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -827,9 +813,14 @@ function BanConfirmModal({ darkMode, userType, onConfirm, onCancel }) {
     }
 
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    onConfirm(reason);
-    setIsSubmitting(false);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      onConfirm(reason);
+    } catch (err) {
+      toast.error("❌ Erreur lors de la suspension");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const userLabel = userType === "patient" ? "le patient" : "le professionnel";

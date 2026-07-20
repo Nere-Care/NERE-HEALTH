@@ -20,7 +20,7 @@ export default function Auth() {
   const [globalError, setGlobalError] = useState(null);
   const [globalSuccess, setGlobalSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
-
+  const [inscriptionEnAttente, setInscriptionEnAttente] = useState(false);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -148,67 +148,88 @@ const handleLogin = async () => {
 // ============================================
 // SIGNUP FINAL (CORRIGÉ)
 // ============================================
+const encoderFichiers = async (files) => {
+  if (!files || files.length === 0) return [];
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () =>
+            resolve({
+              nom_fichier: file.name,
+              mime_type: file.type,
+              contenu_base64: reader.result.split(",")[1],
+            });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        })
+    )
+  );
+};
+
 const handleSubmit = async () => {
-  let validationErrors = {};
-  if (formData.role === "patient") {
-    validationErrors = validateSignupStep2(formData);
-  } else {
-    validationErrors = validateSignupStep3(formData);
-  }
+  const validationErrors = stepThree
+    ? validateSignupStep3(formData)
+    : validateSignupStep2(formData);
 
   if (Object.keys(validationErrors).length > 0) {
     setErrors(validationErrors);
     return;
   }
 
-  setLoading(true);
-  setGlobalError(null);
-  setGlobalSuccess(null);
-
   try {
+    setLoading(true);
+    setGlobalError(null);   // ← corrigé, plus de setServerError
+
+    localStorage.setItem("role", formData.role);
+
+    const documentsEncodes =
+      formData.role !== "patient" && formData.files?.length > 0
+        ? await encoderFichiers(formData.files)
+        : [];
+
     const payload = {
-      email: formData.email,
+      email: formData.email.trim(),
       password: formData.password,
-      prenom: formData.firstName,
-      nom: formData.lastName,
+      prenom: formData.firstName.trim(),
+      nom: formData.lastName.trim(),
       telephone: formData.telephone || null,
-      role: formData.role === "doctor" ? "medecin" : formData.role,
+      role: formData.role,
       city: formData.city || null,
       district: formData.district || null,
       dob: formData.dob || null,
-      experience: formData.experience || 0,
+      experience: Number(formData.experience) || 0,
       hospital: formData.hospital || null,
       registration_number: formData.registrationNumber || null,
+      speciality: formData.speciality || null,
+      documents: documentsEncodes,
     };
 
-    // 1️⃣ Créer le compte
-    const registerResponse = await register(payload);
-    setGlobalSuccess("Compte créé avec succès ! Connexion en cours...");
+    const user = await register(payload);
 
-    // 2️⃣ Se connecter pour obtenir le token
-    const loginResponse = await login(formData.email, formData.password);
-    localStorage.setItem("token", loginResponse.access_token);
+    // Medecin/infirmier : pas de connexion automatique
+    if (formData.role === "doctor" || formData.role === "nurse") {
+      setInscriptionEnAttente(true);
+      return;
+    }
 
-    // 3️⃣ ✅ Récupérer les infos COMPLÈTES de l'utilisateur
-    const user = await getCurrentUser(loginResponse.access_token);
-    console.log("✅ USER COMPLET après inscription:", user);
-
-    // 4️⃣ Sauvegarder les infos complètes
+    // Patient : connexion immediate
     saveUser(user);
+    const authData = await login(formData.email.trim(), formData.password).catch(() => null);
+    if (authData?.access_token) {
+      localStorage.setItem("token", authData.access_token);
+      const me = await getCurrentUser(authData.access_token).catch(() => null);
+      if (me) saveUser(me);
+    }
+    navigate(redirectByRole(formData.role));   // ← corrigé, navigate() ajouté
 
-    // 5️⃣ Redirection
-    setTimeout(() => {
-      navigate(redirectByRole(user.role || formData.role));
-    }, 1000);
-
-  } catch (error) {
-    console.error("❌ Signup error:", error);
-    setGlobalError(error.message || "Erreur lors de l'inscription");
+  } catch (err) {
+    setGlobalError(err.message || "Erreur lors de l'inscription. Veuillez réessayer.");
   } finally {
     setLoading(false);
   }
 };
-
   return (
     <div className="min-h-screen flex bg-[#F4F9FF] overflow-hidden">
       {/* LEFT SIDE */}
@@ -283,7 +304,26 @@ const handleSubmit = async () => {
           )}
 
           {/* LOGIN */}
-          {isLogin ? (
+          {inscriptionEnAttente ? (
+  <div className="text-center py-8">
+    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+      <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <h2 className="text-xl font-bold text-gray-800 mb-2">Inscription enregistrée !</h2>
+    <p className="text-gray-500 text-sm max-w-sm mx-auto">
+      Votre dossier est en cours de vérification par notre équipe. Vous recevrez un email
+      dès que votre compte sera activé. Cela peut prendre jusqu'à 48h.
+    </p>
+    <button
+      onClick={resetToLogin}
+      className="mt-6 text-[#2F80ED] font-medium hover:underline text-sm"
+    >
+      Retour à la connexion
+    </button>
+  </div>
+) :isLogin ? (
             <LoginStep
               email={formData.email}
               password={formData.password}

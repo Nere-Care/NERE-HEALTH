@@ -21,33 +21,38 @@ import AddDoctorModal from "../components/doctors/AddDoctorModal";
 import DocumentsModal from "../components/doctors/DocumentsModal";
 import DeleteConfirmModal from "../components/doctors/DeleteConfirmModal";
 
-// ✅ Import des services API (assure-toi que ce fichier existe avec les fonctions ci-dessous)
 import {
   fetchAdminDoctors,
   createAdminDoctor,
   updateDoctorStatus,
   deleteAdminDoctor,
+  fetchDoctorDocuments,
 } from "../services/DoctorService";
 
 /* ================= COMPONENT ================= */
 export default function DoctorsPage({ darkMode }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  
-  // ✅ États de données (plus de mock data)
+
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showDocModal, setShowDocModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // ── Flux "Documents" unifié ──────────────────────────────────────────
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [medecinDetail, setMedecinDetail] = useState(null);
+  const [docsActuels, setDocsActuels] = useState([]);
+  const [docLoading, setDocLoading] = useState(false);
+
+   const [isVerifying, setIsVerifying] = useState(false);
 
   // Selected items
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
-  // ✅ Form state aligné avec le backend
   const [formData, setFormData] = useState({
     prenom: "",
     nom: "",
@@ -65,37 +70,37 @@ export default function DoctorsPage({ darkMode }) {
   const itemsPerPage = 5;
 
   /* ================= CHARGEMENT DES DONNÉES ================= */
-    /* ================= CHARGEMENT DES DONNÉES ================= */
   const loadDoctors = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetchAdminDoctors();
-      
-      // ✅ CORRECTION : Le backend renvoie { medecins: [...], total: X }
-      // On extrait le tableau 'medecins' en toute sécurité
-      const doctorsList = Array.isArray(response) 
-        ? response 
+
+      const doctorsList = Array.isArray(response)
+        ? response
         : (response?.medecins || response?.data || []);
-      
-      // ✅ MAPPING : Adapter les données du backend au format attendu par l'UI
+
+      // ✅ Mapping corrigé : statuts backend réels "verifie" / "rejete" / "en_attente"
       const mappedDoctors = doctorsList.map((d) => ({
         id: d.id,
+        prenom: d.prenom || "",
+        nom: d.nom || "",
         name: `Dr. ${d.prenom || ""} ${d.nom || ""}`.trim(),
-        specialty: d.specialites?.[0]?.libelle || d.specialite || "Non renseigné",
-        hospital: d.structure_nom || d.hospital || "Indépendant",
+        specialty: d.specialite_principale || d.specialites?.[0] || "Non renseigné",
+        hospital: d.structure || "Indépendant",
         phone: d.telephone || "N/A",
         email: d.email || "N/A",
-        address: d.ville || d.adresse || "Non renseigné",
-        status: d.statut_verification === "valide" ? "Vérifié" 
-              : d.statut_verification === "rejeté" ? "Rejeté" 
-              : "En attente",
-        documents: d.documents || [],
-        createdAt: d.created_at ? d.created_at.split("T")[0] : "N/A",
+        address: d.ville || "Non renseigné",
+        status:
+          d.statut_verification === "verifie" ? "Vérifié"
+          : d.statut_verification === "rejete" ? "Rejeté"
+          : "En attente",
+        statutVerificationRaw: d.statut_verification,
+        createdAt: d.created_at || "N/A",
       }));
 
       setDoctors(mappedDoctors);
     } catch (err) {
-      toast.error("❌ Erreur lors du chargement des médecins");
+      toast.error("Erreur lors du chargement des médecins");
       console.error("Détail de l'erreur:", err);
     } finally {
       setLoading(false);
@@ -105,6 +110,32 @@ export default function DoctorsPage({ darkMode }) {
   useEffect(() => {
     loadDoctors();
   }, [loadDoctors]);
+
+
+  
+  // ✅ Fonction de validation corrigée pour utiliser medecinDetail au lieu de selectedDoctor
+  const handleValidateDoctor = useCallback(async () => {
+    if (!medecinDetail) return; // On vérifie medecinDetail, pas selectedDoctor
+    
+    setIsVerifying(true);
+    try {
+      // Appel à l'API avec l'ID du médecin actuellement affiché dans le modal
+      await updateDoctorStatus(medecinDetail.id, "verifie");
+      
+      toast.success("✅ Profil du médecin validé avec succès !");
+      
+      // On ferme le bon modal et on réinitialise le bon état
+      setShowDocuments(false);
+      setMedecinDetail(null);
+      
+      // On recharge la liste pour mettre à jour le statut
+      loadDoctors(); 
+    } catch (err) {
+      toast.error(err.message || "❌ Erreur lors de la validation");
+    } finally {
+      setIsVerifying(false);
+    }
+  }, [medecinDetail, loadDoctors]); // Les dépendances sont mises à jour
 
   /* ================= FILTERING ================= */
   const filteredDoctors = useMemo(() => {
@@ -140,19 +171,18 @@ export default function DoctorsPage({ darkMode }) {
   /* ================= ACTIONS API ================= */
   const handleAddDoctor = useCallback(async () => {
     if (!formData.prenom || !formData.nom || !formData.email) {
-      toast.error("❌ Prénom, nom et email sont requis");
+      toast.error("Prénom, nom et email sont requis");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // ⚠️ Adapte ce payload aux champs exacts attendus par ta route POST /admin/medecins
       const payload = {
         prenom: formData.prenom,
         nom: formData.nom,
         email: formData.email,
         telephone: formData.telephone,
-        password: "Temporaire123!", // À remplacer par ta logique d'invitation réelle
+        password: "Temporaire123!",
         role: "medecin",
         specialite: formData.specialite,
         structure_nom: formData.structure,
@@ -160,33 +190,32 @@ export default function DoctorsPage({ darkMode }) {
       };
 
       await createAdminDoctor(payload);
-      toast.success("✅ Médecin ajouté avec succès");
-      
-      // Reset du formulaire
+      toast.success("Médecin ajouté avec succès");
+
       setFormData({ prenom: "", nom: "", email: "", telephone: "", specialite: "", structure: "", adresse: "" });
       setShowAddModal(false);
-      loadDoctors(); // Recharger la liste
+      loadDoctors();
     } catch (err) {
-      toast.error(err.message || "❌ Erreur lors de l'ajout");
+      toast.error(err.message || "Erreur lors de l'ajout");
     } finally {
       setIsSubmitting(false);
     }
   }, [formData, loadDoctors]);
 
+  // ✅ Statuts alignés avec le backend : "verifie" / "rejete"
   const handleStatusChange = useCallback(async (newStatus) => {
     if (!selectedDoctor) return;
-    
-    // Mapper le statut de l'UI vers le statut du backend
-    const backendStatus = newStatus === "Vérifié" ? "valide" : "rejeté";
+
+    const backendStatus = newStatus === "Vérifié" ? "verifie" : "rejete";
 
     try {
       await updateDoctorStatus(selectedDoctor.id, backendStatus);
-      toast.success(newStatus === "Vérifié" ? "✅ Médecin vérifié" : "🚫 Médecin rejeté");
+      toast.success(newStatus === "Vérifié" ? "Médecin vérifié — email envoyé" : "Médecin rejeté — email envoyé");
       setShowViewModal(false);
       setSelectedDoctor(null);
       loadDoctors();
     } catch (err) {
-      toast.error("❌ Erreur lors de la mise à jour du statut");
+      toast.error(err.message || "Erreur lors de la mise à jour du statut");
     }
   }, [selectedDoctor, loadDoctors]);
 
@@ -194,15 +223,31 @@ export default function DoctorsPage({ darkMode }) {
     if (!selectedDoctor) return;
     try {
       await deleteAdminDoctor(selectedDoctor.id);
-      toast.success("🗑️ Médecin supprimé/désactivé");
+      toast.success("Médecin désactivé");
       setShowDeleteConfirm(false);
       setSelectedDoctor(null);
       setShowViewModal(false);
       loadDoctors();
     } catch (err) {
-      toast.error("❌ Erreur lors de la suppression");
+      toast.error(err.message || "Erreur lors de la suppression");
     }
   }, [selectedDoctor, loadDoctors]);
+
+  // ✅ Seule et unique fonction pour ouvrir les documents — bien connectée au backend
+  const ouvrirDocuments = useCallback(async (medecin) => {
+    try {
+      setDocLoading(true);
+      setMedecinDetail(medecin);
+      setShowDocuments(true); // ouvrir tout de suite avec loading interne si besoin
+      const docs = await fetchDoctorDocuments(medecin.id);
+      setDocsActuels(docs ?? []);
+    } catch (err) {
+      toast.error(err.message || "Erreur lors du chargement des documents");
+      setShowDocuments(false);
+    } finally {
+      setDocLoading(false);
+    }
+  }, []);
 
   /* ================= UI HANDLERS ================= */
   const handleViewDoctor = useCallback((doctor) => {
@@ -210,28 +255,14 @@ export default function DoctorsPage({ darkMode }) {
     setShowViewModal(true);
   }, []);
 
-  const handleViewDocuments = useCallback((doctor) => {
-    setSelectedDoctor(doctor);
-    setShowDocModal(true);
-  }, []);
-
   const handleDelete = useCallback((doctor) => {
     setSelectedDoctor(doctor);
     setShowDeleteConfirm(true);
   }, []);
 
-  const handleDownload = useCallback((doc) => {
-    toast.success(`📥 Téléchargement: ${doc.name}`);
-  }, []);
-
-  const handlePreview = useCallback((doc) => {
-    toast.info(`👁️ Aperçu: ${doc.name}`);
-  }, []);
-
   const closeModal = useCallback(() => {
     setShowAddModal(false);
     setShowViewModal(false);
-    setShowDocModal(false);
     setShowDeleteConfirm(false);
     setSelectedDoctor(null);
   }, []);
@@ -255,10 +286,12 @@ export default function DoctorsPage({ darkMode }) {
     );
   };
 
+
+
   /* ================= RENDER ================= */
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 space-y-5 lg:space-y-6 transition-all ${darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900"}`}>
-      
+
       {/* ================= HEADER ================= */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="min-w-0">
@@ -371,16 +404,13 @@ export default function DoctorsPage({ darkMode }) {
                     <div className="flex items-center gap-2 text-gray-400">
                       <Phone size={15} /> <span>{d.phone}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-blue-500">
-                      <FileText size={15} /> <span>{d.documents?.length || 0} document(s)</span>
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
                     <button onClick={() => handleViewDoctor(d)} className="flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-500/10 text-blue-500">
                       <Eye size={16} /> <span className="text-sm">Voir</span>
                     </button>
-                    <button onClick={() => handleViewDocuments(d)} className="flex items-center justify-center gap-2 py-2 rounded-xl bg-purple-500/10 text-purple-500">
+                    <button onClick={() => ouvrirDocuments(d)} className="flex items-center justify-center gap-2 py-2 rounded-xl bg-purple-500/10 text-purple-500">
                       <FileText size={16} /> <span className="text-sm">Docs</span>
                     </button>
                     <button onClick={() => handleDelete(d)} className="flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 text-red-500">
@@ -442,8 +472,8 @@ export default function DoctorsPage({ darkMode }) {
                           </div>
                         </td>
                         <td className="p-4">
-                          <button onClick={() => handleViewDocuments(d)} className="text-blue-500 hover:text-blue-400 flex items-center gap-1.5 text-sm font-medium transition">
-                            <FileText size={14} /> {d.documents?.length || 0}
+                          <button onClick={() => ouvrirDocuments(d)} className="text-blue-500 hover:text-blue-400 flex items-center gap-1.5 text-sm font-medium transition">
+                            <FileText size={14} /> Voir
                           </button>
                         </td>
                         <td className="p-4">{getStatusBadge(d.status)}</td>
@@ -452,7 +482,7 @@ export default function DoctorsPage({ darkMode }) {
                             <button onClick={() => handleViewDoctor(d)} className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-500 transition" title="Voir détails">
                               <Eye size={16} />
                             </button>
-                            <button onClick={() => handleViewDocuments(d)} className="p-2 rounded-lg hover:bg-purple-500/10 text-purple-500 transition" title="Voir documents">
+                            <button onClick={() => ouvrirDocuments(d)} className="p-2 rounded-lg hover:bg-purple-500/10 text-purple-500 transition" title="Voir documents">
                               <FileText size={16} />
                             </button>
                             <button onClick={() => handleDelete(d)} className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition" title="Supprimer">
@@ -530,20 +560,20 @@ export default function DoctorsPage({ darkMode }) {
           doctor={selectedDoctor}
           onClose={closeModal}
           onStatusChange={handleStatusChange}
-          onViewDocs={() => { setShowViewModal(false); handleViewDocuments(selectedDoctor); }}
-          onEdit={() => toast.info("✏️ Fonctionnalité à venir")}
+          onViewDocs={() => { setShowViewModal(false); ouvrirDocuments(selectedDoctor); }}
+          onEdit={() => toast("Fonctionnalité à venir")}
           onDelete={() => { setShowViewModal(false); handleDelete(selectedDoctor); }}
         />
       )}
 
-      {showDocModal && selectedDoctor && (
+      {showDocuments && medecinDetail && (
         <DocumentsModal
           darkMode={darkMode}
-          doctor={selectedDoctor}
-          documents={selectedDoctor.documents || []}
-          onPreview={handlePreview}
-          onDownload={handleDownload}
-          onClose={closeModal}
+          doctor={medecinDetail}
+          documents={docsActuels}
+          onClose={() => { setShowDocuments(false); setMedecinDetail(null); }}
+          onValidate={handleValidateDoctor}
+          isSubmitting={isVerifying}
         />
       )}
 

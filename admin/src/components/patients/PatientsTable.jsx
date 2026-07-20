@@ -4,6 +4,15 @@ import {
   Trash2,
 } from "lucide-react";
 
+
+
+// ✅ APRÈS (ajoute fetchAdminPatient à la liste)
+import { 
+  fetchAdminPatients, 
+  fetchAdminPatientsStats, 
+  fetchAdminPatient // <-- AJOUTE CECI
+} from "../../services/PatientService";
+
 export default function PatientsTable({
   patients,
   darkMode,

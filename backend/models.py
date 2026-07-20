@@ -614,7 +614,7 @@ class DocumentMedical(Base):
     )
     nom_fichier_original = Column(String(500), nullable=False)
     nom_fichier_stockage = Column(String(500), nullable=False)
-    url_stockage = Column(String(2000), nullable=False)
+    url_stockage = Column(Text, nullable=False) # ✅ Changé en Text pour accepter les longues chaînes (ou les chemins)
     checksum_sha256 = Column(String(64), nullable=False)
     taille_octets = Column(BigInteger, nullable=False)
     mime_type = Column(String(100), nullable=False)

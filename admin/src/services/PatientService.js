@@ -26,6 +26,8 @@ export async function fetchAdminPatient(patientId) {
 }
 
 export async function updateAdminPatient(patientId, payload) {
+  console.log("PUT PATIENT =", payload);
+
   return adminFetch(`${API_URL}/admin/patients/${patientId}`, {
     method: "PUT",
     body: JSON.stringify(payload),

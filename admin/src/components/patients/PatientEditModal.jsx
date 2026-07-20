@@ -8,8 +8,15 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSave, dar
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (patient) setForm(patient);
-  }, [patient]);
+  if (!patient) return;
+
+  setForm({
+    ...patient,
+    allergies: Array.isArray(patient.allergies)
+      ? patient.allergies.join(", ")
+      : patient.allergies || "",
+  });
+}, [patient]);
 
   if (!isOpen) return null;
 
@@ -154,14 +161,16 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSave, dar
 
             <div>
               <label className="text-sm font-medium">Statut</label>
-              <select name="statut" value={form.statut || "Actif"} onChange={handleChange} 
-                className={`mt-2 w-full border rounded-2xl px-4 py-3 bg-transparent outline-none ${
-                  darkMode ? "border-slate-700" : "border-gray-300"
-                }`}>
-                <option value="Actif">Actif</option>
-                <option value="Inactif">Inactif</option>
-                <option value="En attente">En attente</option>
-              </select>
+              <select
+  name="statut"
+  value={form.statut || "actif"}
+  onChange={handleChange}
+>
+  <option value="actif">Actif</option>
+  <option value="inactif">Inactif</option>
+  <option value="en_attente">En attente</option>
+  <option value="suspendu">Suspendu</option>
+</select>
             </div>
           </div>
 

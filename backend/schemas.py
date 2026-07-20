@@ -19,6 +19,11 @@ class UserBase(BaseModel):
     email: EmailStr
 
 
+class DocumentInscription(BaseModel):
+    nom_fichier: str
+    mime_type: str
+    contenu_base64: str
+
 class UserCreate(UserBase):
     password: str
     prenom: str
@@ -31,6 +36,8 @@ class UserCreate(UserBase):
     experience: Optional[int] = None
     hospital: Optional[str] = None
     registration_number: Optional[str] = None
+    speciality: Optional[str] = None
+    documents: Optional[List[DocumentInscription]] = None  # plusieurs fichiers
 
 
 class UserRead(UserBase):

@@ -58,6 +58,14 @@ class Settings:
     SECRET_KEY: str = os.getenv('SECRET_KEY', '').strip()
     ALLOWED_HOSTS = parse_comma_list(os.getenv('ALLOWED_HOSTS'), '')
 
+    # Dans config.py, classe Settings
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "maevaewolo749@gmail.com"  # ton email d'envoi
+    SMTP_PASSWORD: str = "mpejzrykhqxhmpvl"  # mot de passe d'application (pas le mot de passe normal)
+    SMTP_FROM_NAME: str = "NERE Health"
+    SMTP_FROM_EMAIL: str = "maevaewolo749@gmail.com"  # meme que SMTP_USER generalement
+
     if ENVIRONMENT not in ('development', 'staging', 'production'):
         raise ValueError("ENVIRONMENT must be one of 'development', 'staging', or 'production'")
 
