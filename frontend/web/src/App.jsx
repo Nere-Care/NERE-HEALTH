@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import "./style.css";
+
+
+import SymptomCheckerModal from "./components/patient/SymptomCheckerModal";
+
 
 /* LAYOUT */
 import Sidebar from "./components/sidebar";
@@ -55,6 +59,26 @@ import ParametresStructure from "./pages/structure/ParametresStructure";
 
 function App() {
   const [darkMode, setDarkMode] = useState(false);
+
+  const [symptomCheckerOpen, setSymptomCheckerOpen] = useState(false);
+
+useEffect(() => {
+  const handleOpen = () => setSymptomCheckerOpen(true);
+  window.addEventListener("open-symptom-checker", handleOpen);
+  return () => window.removeEventListener("open-symptom-checker", handleOpen);
+}, []);
+
+// Verifier a chaque montage si le patient n'a jamais vu le popup
+useEffect(() => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.role === "patient" && user.id) {
+    const key = `symptom_checker_vu_${user.id}`;
+    if (!localStorage.getItem(key)) {
+      setSymptomCheckerOpen(true);
+      localStorage.setItem(key, "true");
+    }
+  }
+}, []);
 
   /* SIDEBAR COLLAPSE */
   const [collapsed, setCollapsed] = useState(false);
@@ -247,6 +271,12 @@ function App() {
                     />
                   </Routes>
                 </main>
+
+                <SymptomCheckerModal
+  darkMode={darkMode}
+  open={symptomCheckerOpen}
+  onClose={() => setSymptomCheckerOpen(false)}
+/>
               </div>
             </div>
           }

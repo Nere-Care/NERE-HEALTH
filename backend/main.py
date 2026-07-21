@@ -31,6 +31,7 @@ from routers.specialites import router as specialites_router
 from routers.structures import router as structures_router
 from routers.audit import router as audit_router
 from routers.tables import router as tables_router
+from routers import symptomes
 
 
 class HostValidationMiddleware(BaseHTTPMiddleware):
@@ -91,6 +92,8 @@ app.include_router(specialites_router, prefix=settings.API_PREFIX)
 app.include_router(structures_router, prefix=settings.API_PREFIX)
 app.include_router(audit_router, prefix=settings.API_PREFIX)
 app.include_router(tables_router, prefix=settings.API_PREFIX)
+app.include_router(symptomes.router, prefix=settings.API_PREFIX)
+
 
 
 

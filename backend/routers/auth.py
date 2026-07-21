@@ -123,8 +123,12 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
     db.flush()
 
     if db_role == "patient":
+        # Génération du numéro de patient unique requis par la base de données
+        numero_patient = f"NER-{datetime.utcnow().year}-{str(user.id)[:8].upper()}"
+
         patient = Patient(
             id=user.id,
+            numero_patient=numero_patient,
             ville=user_create.city,
             region=user_create.district,
             pays="CM",

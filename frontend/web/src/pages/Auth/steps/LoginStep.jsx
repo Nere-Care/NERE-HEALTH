@@ -61,7 +61,7 @@ export default function LoginStep({
 
       const user = await getCurrentUser(authData.access_token);
       saveUser(user);
-      redirectByRole(user.role);
+      navigate(redirectByRole(user.role));
     } catch (error) {
       console.error("❌ Google login error:", error);
       setGoogleError(error.message || "Erreur de connexion Google");
@@ -196,7 +196,10 @@ if (validateForm && typeof validateForm === "function") {
     );
 
     // Redirection
-    redirectByRole(user.role);
+    console.log("Sur le point de naviguer vers:", redirectByRole(user.role));
+console.log("typeof navigate:", typeof navigate);
+navigate(redirectByRole(user.role));
+console.log("Navigate appelé");
 
   } catch (err) {
     console.error("Login error:", err);
