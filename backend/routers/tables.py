@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 
@@ -60,7 +60,7 @@ async def count_table_rows(
     except NoSuchTableError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
-    stmt = select(model.__table__.count())
+    stmt = select(func.count()).select_from(model.__table__)
     try:
         count = db.execute(stmt).scalar_one()
     except Exception as exc:

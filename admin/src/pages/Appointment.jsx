@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import {
   Calendar,
@@ -22,58 +22,26 @@ import {
   Download,
   Edit,
   Eye,
+  Loader2,
 } from "lucide-react";
 
-/* ================= MOCK DATA ================= */
-const initialAppointments = [
-  {
-    id: 1,
-    patient: "Marie Ndzi",
-    professional: "Dr. Martin Nkono",
-    structure: "Hôpital Laquintinie",
-    reason: "Consultation cardiologique",
-    mode: "Présentiel",
-    location: "Salle 203 - Bloc A",
-    date: "2026-05-20",
-    time: "09:00",
-    status: "En attente",
-    createdAt: "2026-05-15",
-  },
-  {
-    id: 2,
-    patient: "Paul Tchoumi",
-    professional: "Dr. Sarah Ngono",
-    structure: "CHU Yaoundé",
-    reason: "Suivi pédiatrique",
-    mode: "En ligne",
-    location: "https://meet.google.com/abc-123",
-    date: "2026-05-21",
-    time: "14:30",
-    status: "Confirmé",
-    createdAt: "2026-05-14",
-  },
-  {
-    id: 3,
-    patient: "Brigitte Essomba",
-    professional: "Dr. Paul Mbe",
-    structure: "Hôpital Général Douala",
-    reason: "Bilan annuel",
-    mode: "Présentiel",
-    location: "Consultation 12",
-    date: "2026-05-22",
-    time: "11:00",
-    status: "Annulé",
-    createdAt: "2026-05-13",
-  },
-];
-
+import API from "../services/api";
 import ViewAppointmentModal from "../components/appointments/ViewAppointmentModal";
 import DeleteConfirmModal from "../components/appointments/DeleteConfirmModal";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
+const STATUS_MAP = {
+  planifie: "En attente",
+  confirme: "Confirmé",
+  en_cours: "En cours",
+  termine: "Terminé",
+  annule: "Annulé",
+};
+
 /* ================= COMPONENT ================= */
 export default function AppointmentsPage({ darkMode }) {
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
@@ -97,6 +65,75 @@ export default function AppointmentsPage({ darkMode }) {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAppointments = async () => {
+      try {
+        setLoading(true);
+        const { data } = await API.get("/rendez_vous");
+        const items = Array.isArray(data) ? data : data?.data ?? [];
+
+        const uniquePatientIds = [...new Set(items.map(i => i.patient_id).filter(Boolean))];
+        const uniqueMedecinIds = [...new Set(items.map(i => i.medecin_id).filter(Boolean))];
+
+        const patientsMap = {};
+        const medecinsMap = {};
+        const medecinsStructureMap = {};
+
+        await Promise.all([
+          ...uniquePatientIds.map(async (pid) => {
+            try {
+              const { data: p } = await API.get(`/users/${pid}`);
+              patientsMap[pid] = `${p.prenom || ""} ${p.nom || ""}`.trim() || pid;
+            } catch { patientsMap[pid] = pid; }
+          }),
+          ...uniqueMedecinIds.map(async (mid) => {
+            try {
+              const { data: m } = await API.get(`/users/${mid}`);
+              medecinsMap[mid] = `Dr. ${[m.prenom, m.nom].filter(Boolean).join(" ")}` || mid;
+            } catch { medecinsMap[mid] = mid; }
+            try {
+              const { data: mp } = await API.get(`/medecins/${mid}`);
+              medecinsStructureMap[mid] = mp.structure_id || null;
+            } catch { medecinsStructureMap[mid] = null; }
+          }),
+        ]);
+
+        const uniqueStructureIds = [...new Set(Object.values(medecinsStructureMap).filter(Boolean))];
+        const structuresMap = {};
+        await Promise.all(
+          uniqueStructureIds.map(async (sid) => {
+            try {
+              const { data: s } = await API.get(`/structures/${sid}`);
+              structuresMap[sid] = s.nom_etablissement || sid;
+            } catch { structuresMap[sid] = sid; }
+          })
+        );
+
+        const mapped = items.map((item) => ({
+          id: item.id,
+          patient: patientsMap[item.patient_id] || item.patient_id || "",
+          professional: medecinsMap[item.medecin_id] || item.medecin_id || "",
+          structure: structuresMap[medecinsStructureMap[item.medecin_id]] || "—",
+          reason: item.motif_consultation ?? item.motif ?? "",
+          mode: item.type === "video" ? "En ligne" : "Présentiel",
+          location: "",
+          date: item.date_heure_debut ? item.date_heure_debut.split("T")[0] : item.created_at ?? "",
+          time: item.date_heure_debut ? item.date_heure_debut.split("T")[1].slice(0, 5) : "",
+          status: STATUS_MAP[item.statut] ?? item.statut ?? "En attente",
+          createdAt: item.created_at ?? "",
+        }));
+        if (!cancelled) setAppointments(mapped);
+      } catch {
+        if (!cancelled) toast.error("Erreur lors du chargement des rendez-vous");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchAppointments();
+    return () => { cancelled = true; };
+  }, []);
 
   /* ================= FILTERING ================= */
   const filteredAppointments = useMemo(() => {
@@ -278,6 +315,16 @@ export default function AppointmentsPage({ darkMode }) {
 
   const bg = darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900";
   const card = darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200";
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen p-3 sm:p-4 md:p-6 transition-all ${bg}`}>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="animate-spin text-blue-500" size={40} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 md:p-6 space-y-5 md:space-y-6 transition-all ${bg}`}>

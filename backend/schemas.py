@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class Token(BaseModel):
@@ -24,6 +24,55 @@ class UserCreate(UserBase):
     prenom: str
     nom: str
     telephone: Optional[str] = None
+    role: Optional[str] = "patient"
+
+
+class UserUpdate(BaseModel):
+    prenom: Optional[str] = None
+    nom: Optional[str] = None
+    telephone: Optional[str] = None
+    photo_url: Optional[str] = None
+    timezone: Optional[str] = None
+    adresse: Optional[str] = None
+    date_naissance: Optional[date] = None
+
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class PatientRegister(UserCreate):
+    date_naissance: Optional[date] = None
+    sexe: Optional[str] = None
+    adresse: Optional[str] = None
+    ville: Optional[str] = None
+    region: Optional[str] = None
+    pays: Optional[str] = "CM"
+    profession: Optional[str] = None
+    statut_matrimonial: Optional[str] = None
+    contact_urgence_nom: Optional[str] = None
+    contact_urgence_tel: Optional[str] = None
+    contact_urgence2_nom: Optional[str] = None
+    contact_urgence2_tel: Optional[str] = None
+    proche_nom: Optional[str] = None
+    proche_prenom: Optional[str] = None
+    proche_age: Optional[int] = None
+    consentement_donnees: Optional[bool] = False
+
+
+class MedecinRegister(UserCreate):
+    numero_ordre: str
+    annees_experience: Optional[int] = 0
+    biographie: Optional[str] = None
+    date_naissance: Optional[date] = None
+    adresse: Optional[str] = None
+    ville: Optional[str] = None
+    district: Optional[str] = None
+    langues_parlees: Optional[List[str]] = ["fr"]
+    tarif_consultation: Optional[Decimal] = Decimal("5000.00")
+    specialites: Optional[List[str]] = None
+    structure_nom: Optional[str] = None
 
 
 class UserRead(UserBase):
@@ -32,57 +81,126 @@ class UserRead(UserBase):
     prenom: Optional[str] = None
     nom: Optional[str] = None
     telephone: Optional[str] = None
+    photo_url: Optional[str] = None
     statut: Optional[str] = None
     full_name: Optional[str] = None
     is_active: bool
+    timezone: Optional[str] = None
+    adresse: Optional[str] = None
+    date_naissance: Optional[date] = None
 
     model_config = {"from_attributes": True}
 
 
 class PatientBase(BaseModel):
-    numero_patient: str
-    date_naissance: Optional[date] = None
+    code_patient: Optional[str] = None
+    nss: Optional[str] = None
     sexe: Optional[str] = None
     groupe_sanguin: Optional[str] = None
-    adresse: Optional[str] = None
-    ville: Optional[str] = None
     region: Optional[str] = None
     pays: Optional[str] = None
     code_postal: Optional[str] = None
     latitude: Optional[Decimal] = None
     longitude: Optional[Decimal] = None
-    taille_cm: Optional[Decimal] = None
-    poids_kg: Optional[Decimal] = None
-    allergies: Optional[List[str]] = None
-    antecedents_medicaux: Optional[str] = None
-    medicaments_en_cours: Optional[str] = None
     couverture_assurance: Optional[str] = None
     numero_assurance: Optional[str] = None
+    profession: Optional[str] = None
+    statut_matrimonial: Optional[str] = None
     organisme_assurance: Optional[str] = None
     contact_urgence_nom: Optional[str] = None
     contact_urgence_tel: Optional[str] = None
     contact_urgence_lien: Optional[str] = None
+    contact_urgence2_nom: Optional[str] = None
+    contact_urgence2_tel: Optional[str] = None
+    contact_urgence2_lien: Optional[str] = None
+    proche_nom: Optional[str] = None
+    proche_prenom: Optional[str] = None
+    proche_age: Optional[int] = None
     consentement_donnees: Optional[bool] = False
     date_consentement: Optional[datetime] = None
     consentement_marketing: Optional[bool] = False
+    acces_dossier: Optional[str] = "standard"
+    partage_anonyme: Optional[bool] = True
 
 
 class PatientCreate(PatientBase):
     pass
 
 
+class PatientUpdate(BaseModel):
+    code_patient: Optional[str] = None
+    nss: Optional[str] = None
+    date_naissance: Optional[date] = None
+    sexe: Optional[str] = None
+    groupe_sanguin: Optional[str] = None
+    taille_cm: Optional[float] = None
+    poids_kg: Optional[float] = None
+    adresse: Optional[str] = None
+    region: Optional[str] = None
+    pays: Optional[str] = None
+    code_postal: Optional[str] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    couverture_assurance: Optional[str] = None
+    numero_assurance: Optional[str] = None
+    profession: Optional[str] = None
+    statut_matrimonial: Optional[str] = None
+    organisme_assurance: Optional[str] = None
+    contact_urgence_nom: Optional[str] = None
+    contact_urgence_tel: Optional[str] = None
+    contact_urgence_lien: Optional[str] = None
+    contact_urgence2_nom: Optional[str] = None
+    contact_urgence2_tel: Optional[str] = None
+    contact_urgence2_lien: Optional[str] = None
+    proche_nom: Optional[str] = None
+    proche_prenom: Optional[str] = None
+    proche_age: Optional[int] = None
+    consentement_donnees: Optional[bool] = None
+    date_consentement: Optional[datetime] = None
+    consentement_marketing: Optional[bool] = None
+    acces_dossier: Optional[str] = None
+    partage_anonyme: Optional[bool] = None
+
+
 class PatientRead(PatientBase):
     id: UUID
+    nom: Optional[str] = None
+    prenom: Optional[str] = None
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    photo_url: Optional[str] = None
+    date_naissance: Optional[date] = None
+    adresse: Optional[str] = None
+    taille_cm: Optional[float] = None
+    poids_kg: Optional[float] = None
+    acces_dossier: Optional[str] = "standard"
+    acces_restricted: Optional[bool] = None
+    partage_anonyme: Optional[bool] = True
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
+class ProfessionnelAutoriseRead(BaseModel):
+    id: UUID
+    patient_id: UUID
+    medecin_id: UUID
+    medecin_nom: Optional[str] = None
+    medecin_prenom: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ProfessionnelAutoriseCreate(BaseModel):
+    medecin_id: UUID
+
+
 class ConsultationBase(BaseModel):
-    numero_consultation: str
+    numero_consultation: Optional[str] = None
     rdv_id: UUID
-    dossier_id: UUID
+    dossier_id: Optional[UUID] = None
     medecin_id: UUID
     patient_id: UUID
     date_heure_debut: Optional[datetime] = None
@@ -95,6 +213,9 @@ class ConsultationBase(BaseModel):
     code_cim10: Optional[str] = None
     diagnostics_secondaires: Optional[List[str]] = None
     plan_traitement: Optional[str] = None
+    prescription_nom: Optional[str] = None
+    prescription_posologie: Optional[str] = None
+    demandes_labo: Optional[str] = None
     observations: Optional[str] = None
     suivi_necessaire: Optional[bool] = False
     date_prochain_rdv: Optional[date] = None
@@ -110,6 +231,7 @@ class ConsultationCreate(ConsultationBase):
 
 class ConsultationRead(ConsultationBase):
     id: UUID
+    medecin: Optional["UserRead"] = None
     created_at: datetime
     updated_at: datetime
 
@@ -121,12 +243,12 @@ class OrdonnanceLigneBase(BaseModel):
     medicament_nom: str
     dci: Optional[str] = None
     classe_therapeutique: Optional[str] = None
-    dosage: str
-    forme: str
-    posologie: str
+    dosage: Optional[str] = None
+    forme: Optional[str] = None
+    posologie: Optional[str] = None
     frequence_par_jour: Optional[int] = 1
-    duree_jours: int
-    quantite: int
+    duree_jours: Optional[int] = None
+    quantite: Optional[int] = None
     avant_repas: Optional[bool] = None
     heure_prise: Optional[List[str]] = None
     instructions_speciales: Optional[str] = None
@@ -146,11 +268,17 @@ class OrdonnanceLigneRead(OrdonnanceLigneBase):
 
 class OrdonnanceBase(BaseModel):
     numero: str
-    consultation_id: UUID
-    medecin_id: UUID
+    consultation_id: Optional[UUID] = None
+    medecin_id: Optional[UUID] = None
+    medecin_nom_libre: Optional[str] = None
     patient_id: UUID
+    motif: Optional[str] = None
+    type_consultation: Optional[str] = None
+    type_ordonnance: Optional[str] = None
+    structure_nom: Optional[str] = None
+    adresse_structure: Optional[str] = None
     date_emission: Optional[date] = None
-    date_expiration: date
+    date_expiration: Optional[date] = None
     statut: Optional[str] = "active"
     date_utilisation: Optional[datetime] = None
     pharmacie_utilisee: Optional[str] = None
@@ -158,12 +286,16 @@ class OrdonnanceBase(BaseModel):
     qr_code_url: Optional[str] = None
     code_pharmacie: Optional[str] = None
     signature_numerique: Optional[str] = None
-    hash_integritet: Optional[str] = None
+    hash_integrite: Optional[str] = None
     pdf_url: Optional[str] = None
     notes_medecin: Optional[str] = None
     renouvelable: Optional[bool] = False
     nb_renouvellements_max: Optional[int] = 0
     nb_renouvellements: Optional[int] = 0
+    date_debut_traitement: Optional[date] = None
+    statut_traitement: Optional[str] = None
+    date_arret_traitement: Optional[date] = None
+    motif_arret_traitement: Optional[str] = None
     lignes: Optional[List[OrdonnanceLigneCreate]] = None
 
 
@@ -171,11 +303,52 @@ class OrdonnanceCreate(OrdonnanceBase):
     pass
 
 
+class StatutTraitementUpdate(BaseModel):
+    statut_traitement: str
+    date_debut_traitement: Optional[date] = None
+    date_arret_traitement: Optional[date] = None
+    motif_arret_traitement: Optional[str] = None
+
+
 class OrdonnanceRead(OrdonnanceBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
     lignes: Optional[List[OrdonnanceLigneRead]] = None
+
+    model_config = {"from_attributes": True}
+
+
+class PriseMedicamentBase(BaseModel):
+    ordonnance_id: UUID
+    medicament_nom: str
+    date_prise_prevue: date
+    heure_prise_prevue: Optional[str] = None
+    moment_journee: str
+
+    @field_validator("heure_prise_prevue", mode="before")
+    @classmethod
+    def _fmt_heure(cls, val):
+        if hasattr(val, "strftime"):
+            return val.strftime("%H:%M")
+        return val
+
+
+class PriseMedicamentCreate(PriseMedicamentBase):
+    pass
+
+
+class PriseMedicamentUpdate(BaseModel):
+    statut: str
+    date_prise_effective: Optional[datetime] = None
+
+
+class PriseMedicamentRead(PriseMedicamentBase):
+    id: UUID
+    statut: str
+    date_prise_effective: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -207,6 +380,8 @@ class PaiementBase(BaseModel):
     reference_reversement: Optional[str] = None
     ip_paiement: Optional[str] = None
     user_agent_paiement: Optional[str] = None
+    telephone_paiement: Optional[str] = None
+    derniers_4_chiffres: Optional[str] = None
     date_expiration: Optional[datetime] = None
 
 
@@ -220,6 +395,18 @@ class PaiementRead(PaiementBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaiementInitierRequest(BaseModel):
+    methode: str  # mtn_momo | orange_money | carte_visa | carte_mastercard
+    telephone: Optional[str] = None
+    email: Optional[str] = None
+    derniers_4_chiffres: Optional[str] = None
+
+
+class PaiementValiderRequest(BaseModel):
+    statut: str  # valide_manuellement | echoue
+    motif: Optional[str] = None
 
 
 class NotificationBase(BaseModel):
@@ -272,19 +459,40 @@ class DossierMedicalBase(BaseModel):
 
 
 class DossierMedicalCreate(DossierMedicalBase):
-    pass
+    numero_dossier: Optional[str] = None
+
+class DossierMedicalUpdate(BaseModel):
+    numero_dossier: Optional[str] = None
+    patient_id: Optional[UUID] = None
+    medecin_traitant_id: Optional[UUID] = None
+    antecedents_familiaux: Optional[str] = None
+    antecedents_personnels: Optional[str] = None
+    antecedents_chirurgicaux: Optional[str] = None
+    antecedents_allergiques: Optional[str] = None
+    antecedents_gyneco: Optional[str] = None
+    habitudes_vie: Optional[dict] = None
+    taille_cm: Optional[Decimal] = None
+    poids_kg: Optional[Decimal] = None
+    imc: Optional[Decimal] = None
+    tension_arterielle: Optional[str] = None
+    glycemie_a_jeun: Optional[Decimal] = None
+    vaccinations: Optional[list[dict]] = None
+    traitements_chroniques: Optional[list[dict]] = None
+    code_partage: Optional[str] = None
+    code_partage_expires: Optional[datetime] = None
 
 
 class DossierMedicalRead(DossierMedicalBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    acces_restricted: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 
 
 class RendezVousBase(BaseModel):
-    numero_rdv: str
+    numero_rdv: Optional[str] = None
     patient_id: UUID
     medecin_id: UUID
     structure_id: Optional[UUID] = None
@@ -317,6 +525,7 @@ class RendezVousCreate(RendezVousBase):
 
 class RendezVousRead(RendezVousBase):
     id: UUID
+    code_verification: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -345,6 +554,8 @@ class AvisRead(AvisBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    patient_prenom: Optional[str] = None
+    patient_nom: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -379,6 +590,7 @@ class ConversationBase(BaseModel):
     patient_id: Optional[UUID] = None
     medecin_id: Optional[UUID] = None
     rdv_id: Optional[UUID] = None
+    demande_avis_id: Optional[UUID] = None
     statut: Optional[str] = "active"
     nb_messages_non_lus_patient: Optional[int] = 0
     nb_messages_non_lus_medecin: Optional[int] = 0
@@ -394,6 +606,19 @@ class ConversationRead(ConversationBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    medecin_nom: Optional[str] = None
+    patient_nom: Optional[str] = None
+    other_medecin_nom: Optional[str] = None
+    demande_medecin_demandeur_nom: Optional[str] = None
+    demande_medecin_cible_nom: Optional[str] = None
+    demande_medecin_demandeur_id: Optional[UUID] = None
+    demande_medecin_cible_id: Optional[UUID] = None
+    demande_dossier_medical_id: Optional[UUID] = None
+    demande_consultation_id: Optional[UUID] = None
+    demande_motif: Optional[str] = None
+    demande_specialite: Optional[str] = None
+    demande_patient_nom: Optional[str] = None
+    demande_statut: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -443,6 +668,7 @@ class DocumentMedicalBase(BaseModel):
     description: Optional[str] = None
     date_document: Optional[date] = None
     laboratoire_nom: Optional[str] = None
+    adresse_structure: Optional[str] = None
     prescripteur_nom: Optional[str] = None
 
 
@@ -480,14 +706,20 @@ class MedecinSpecialiteRead(MedecinSpecialiteBase):
 
 class MedecinBase(BaseModel):
     id: UUID
+    code_medecin: Optional[str] = None
     numero_ordre: str
     statut_verification: Optional[str] = "en_attente"
     date_verification: Optional[datetime] = None
     verifie_par_admin_id: Optional[UUID] = None
     annees_experience: Optional[int] = 0
     biographie: Optional[str] = None
+    presentation: Optional[str] = None
+    expertises: Optional[List[Dict[str, object]]] = None
+    actes: Optional[List[Dict[str, object]]] = None
     diplomes: Optional[List[Dict[str, object]]] = None
     certifications: Optional[List[Dict[str, object]]] = None
+    experience_history: Optional[List[Dict[str, object]]] = None
+    documents: Optional[List[Dict[str, object]]] = None
     langues_parlees: Optional[List[str]] = None
     tarif_consultation: Optional[Decimal] = Decimal("5000.00")
     devise: Optional[str] = "XAF"
@@ -503,9 +735,69 @@ class MedecinCreate(MedecinBase):
     pass
 
 
+class MedecinUpdate(BaseModel):
+    numero_ordre: Optional[str] = None
+    statut_verification: Optional[str] = None
+    date_verification: Optional[datetime] = None
+    verifie_par_admin_id: Optional[UUID] = None
+    annees_experience: Optional[int] = None
+    biographie: Optional[str] = None
+    presentation: Optional[str] = None
+    expertises: Optional[List[Dict[str, object]]] = None
+    actes: Optional[List[Dict[str, object]]] = None
+    diplomes: Optional[List[Dict[str, object]]] = None
+    certifications: Optional[List[Dict[str, object]]] = None
+    experience_history: Optional[List[Dict[str, object]]] = None
+    documents: Optional[List[Dict[str, object]]] = None
+    langues_parlees: Optional[List[str]] = None
+    tarif_consultation: Optional[Decimal] = None
+    devise: Optional[str] = None
+    teleconsultation_active: Optional[bool] = None
+    note_moyenne: Optional[Decimal] = None
+    nombre_avis: Optional[int] = None
+    nombre_consultations: Optional[int] = None
+    structure_id: Optional[UUID] = None
+    disponible_maintenant: Optional[bool] = None
+    specialite: Optional[str] = None
+    hopital: Optional[str] = None
+    address: Optional[str] = None
+    telephone: Optional[str] = None
+    email: Optional[str] = None
+
+
 class MedecinRead(MedecinBase):
+    prenom: Optional[str] = None
+    nom: Optional[str] = None
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    photo_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AdminMedecinCreate(BaseModel):
+    name: str
+    email: EmailStr
+    phone: Optional[str] = None
+    specialty: Optional[str] = None
+    hospital: Optional[str] = None
+    address: Optional[str] = None
+    numero_ordre: Optional[str] = None
+    role: Optional[str] = "medecin"
+    annees_experience: Optional[int] = 0
+
+
+class AdminMedecinRead(BaseModel):
+    id: UUID
+    email: str
+    prenom: Optional[str] = None
+    nom: Optional[str] = None
+    telephone: Optional[str] = None
+    mot_de_passe_genere: str
+    medecin_id: UUID
+    numero_ordre: str
 
     model_config = {"from_attributes": True}
 
@@ -530,6 +822,7 @@ class MessageCreate(MessageBase):
 
 class MessageRead(MessageBase):
     id: UUID
+    expediteur_id: UUID
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -604,16 +897,53 @@ class StructureBase(BaseModel):
     logo_url: Optional[str] = None
     horaires_ouverture: Optional[Dict[str, object]] = None
     services_offerts: Optional[List[str]] = None
+    equipements: Optional[List[str]] = None
+    langues_parlees: Optional[List[str]] = None
+    assurances: Optional[List[str]] = None
+    responsable: Optional[str] = None
+    nombre_professionnels: Optional[int] = None
     capacite_lits: Optional[int] = None
+    documents: Optional[List[Dict[str, object]]] = None
 
 
 class StructureCreate(StructureBase):
     pass
 
 
+class StructureUpdate(BaseModel):
+    nom_etablissement: Optional[str] = None
+    type: Optional[str] = None
+    statut_verification: Optional[str] = None
+    numero_autorisation: Optional[str] = None
+    numero_contribuable: Optional[str] = None
+    date_creation: Optional[date] = None
+    adresse: Optional[str] = None
+    ville: Optional[str] = None
+    region: Optional[str] = None
+    pays: Optional[str] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    telephone_pro: Optional[str] = None
+    email_pro: Optional[str] = None
+    site_web: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    horaires_ouverture: Optional[Dict[str, object]] = None
+    services_offerts: Optional[List[str]] = None
+    equipements: Optional[List[str]] = None
+    langues_parlees: Optional[List[str]] = None
+    assurances: Optional[List[str]] = None
+    responsable: Optional[str] = None
+    nombre_professionnels: Optional[int] = None
+    capacite_lits: Optional[int] = None
+    documents: Optional[List[Dict[str, object]]] = None
+
+
 class StructureRead(StructureBase):
     created_at: datetime
     updated_at: datetime
+    note_moyenne: Optional[float] = None
+    total_avis: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -637,5 +967,272 @@ class AuditLogRead(BaseModel):
     message_erreur: Optional[str] = None
     duree_ms: Optional[int] = None
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AvisStructureCreate(BaseModel):
+    structure_id: UUID
+    note: int = Field(ge=1, le=5)
+    commentaire: Optional[str] = None
+
+
+class AvisStructureRead(BaseModel):
+    id: UUID
+    patient_id: UUID
+    structure_id: UUID
+    note: int
+    commentaire: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DemandeAvisMedicalCreate(BaseModel):
+    patient_id: UUID
+    specialite_id: UUID
+    portee: str = Field(pattern=r"^(cameroun|diaspora)$")
+    consultation_id: Optional[UUID] = None
+    dossier_medical_id: Optional[UUID] = None
+    motif: str
+    message: Optional[str] = None
+    confidentiel: bool = True
+    medecin_cible_id: Optional[UUID] = None
+
+
+class DemandeAvisMedicalRead(BaseModel):
+    id: UUID
+    medecin_demandeur_id: UUID
+    patient_id: UUID
+    specialite_id: UUID
+    portee: str
+    consultation_id: Optional[UUID] = None
+    dossier_medical_id: Optional[UUID] = None
+    motif: str
+    message: Optional[str] = None
+    statut: str
+    medecin_accepteur_id: Optional[UUID] = None
+    medecin_cible_id: Optional[UUID] = None
+    reponse: Optional[str] = None
+    date_reponse: Optional[datetime] = None
+    confidentiel: bool
+    created_at: datetime
+    updated_at: datetime
+    demandeur_prenom: Optional[str] = None
+    demandeur_nom: Optional[str] = None
+    specialite_libelle: Optional[str] = None
+    patient_prenom: Optional[str] = None
+    patient_nom: Optional[str] = None
+    cible_prenom: Optional[str] = None
+    cible_nom: Optional[str] = None
+    dossier_numero: Optional[str] = None
+    consultation_numero: Optional[str] = None
+    consultation_motif: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class DocumentStructureCreate(BaseModel):
+    nom: str
+    type: Optional[str] = None
+    taille: Optional[str] = None
+    url: Optional[str] = None
+
+
+class ExceptionDisponibiliteBase(BaseModel):
+    medecin_id: Optional[UUID] = None
+    date: date
+    type: str  # "indisponible" | "horaires_personnalises"
+    creneaux: Optional[List[dict]] = None  # [{start: "HH:MM", end: "HH:MM"}]
+
+
+class ExceptionDisponibiliteCreate(ExceptionDisponibiliteBase):
+    pass
+
+
+class ExceptionDisponibiliteUpdate(BaseModel):
+    type: Optional[str] = None
+    creneaux: Optional[List[dict]] = None
+    date: Optional[str] = None
+    actif: Optional[bool] = None
+
+
+class ExceptionDisponibiliteRead(ExceptionDisponibiliteBase):
+    id: UUID
+    actif: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class MedicamentBase(BaseModel):
+    nom_commercial: str
+    dci: str
+    dosage: str
+    forme: str
+    classe_therapeutique: str
+
+
+class MedicamentCreate(MedicamentBase):
+    pass
+
+
+class MedicamentRead(MedicamentBase):
+    id: UUID
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TraitementProgression(BaseModel):
+    ordonnance_id: UUID
+    numero: str
+    jours_effectues: int
+    jours_restants: int
+    duree_totale: int
+    pourcentage: float
+    statut: str
+    couleur: str
+    total_prises_prevues: int
+    total_prises_effectuees: int
+    total_prises_oubliees: int
+    prochaine_prise: Optional[PriseMedicamentRead] = None
+
+    model_config = {"from_attributes": True}
+
+
+class CategorieTicketRead(BaseModel):
+    id: UUID
+    nom: str
+    description: Optional[str] = None
+    module: str
+    icone: Optional[str] = None
+    actif: bool
+
+    model_config = {"from_attributes": True}
+
+
+class TicketCreate(BaseModel):
+    categorie_id: UUID
+    sujet: str = Field(min_length=3, max_length=300)
+    description: str = Field(min_length=10)
+    piece_jointe_url: Optional[str] = None
+
+
+class TicketUpdate(BaseModel):
+    statut: Optional[str] = None
+    priorite: Optional[str] = None
+    assigne_a: Optional[UUID] = None
+
+
+class TicketRead(BaseModel):
+    id: UUID
+    numero: str
+    patient_id: UUID
+    categorie_id: UUID
+    sujet: str
+    description: str
+    statut: str
+    priorite: str
+    assigne_a: Optional[UUID] = None
+    piece_jointe_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    categorie_nom: Optional[str] = None
+    patient_prenom: Optional[str] = None
+    patient_nom: Optional[str] = None
+    numero_patient: Optional[str] = None
+    assigne_prenom: Optional[str] = None
+    assigne_nom: Optional[str] = None
+    nb_reponses: Optional[int] = 0
+
+    model_config = {"from_attributes": True}
+
+
+class TicketReponseCreate(BaseModel):
+    contenu: str = Field(min_length=1)
+    piece_jointe_url: Optional[str] = None
+
+
+class TicketReponseRead(BaseModel):
+    id: UUID
+    ticket_id: UUID
+    auteur_id: UUID
+    contenu: str
+    piece_jointe_url: Optional[str] = None
+    created_at: datetime
+    auteur_prenom: Optional[str] = None
+    auteur_nom: Optional[str] = None
+    auteur_role: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class MiseAJourBase(BaseModel):
+    titre: str
+    contenu: str
+    lien: Optional[str] = None
+    icon: Optional[str] = "🔔"
+    est_active: Optional[bool] = True
+    est_visible_medecin: Optional[bool] = False
+
+
+class MiseAJourCreate(MiseAJourBase):
+    pass
+
+
+class MiseAJourUpdate(BaseModel):
+    titre: Optional[str] = None
+    contenu: Optional[str] = None
+    lien: Optional[str] = None
+    icon: Optional[str] = None
+    est_active: Optional[bool] = None
+    est_visible_medecin: Optional[bool] = None
+
+
+class MiseAJourRead(MiseAJourBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ActualiteBase(BaseModel):
+    titre: str
+    description: str
+    lien: Optional[str] = None
+    couleur: Optional[str] = "bg-blue-500"
+    icon: Optional[str] = "📢"
+    est_active: Optional[bool] = True
+    ordre: Optional[int] = 0
+
+
+class ActualiteCreate(ActualiteBase):
+    pass
+
+
+class ActualiteUpdate(BaseModel):
+    titre: Optional[str] = None
+    description: Optional[str] = None
+    lien: Optional[str] = None
+    couleur: Optional[str] = None
+    icon: Optional[str] = None
+    est_active: Optional[bool] = None
+    ordre: Optional[int] = None
+
+
+class ActualiteRead(ActualiteBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class AnalyseBiologiqueRead(BaseModel):
+    id: UUID
+    nom: str
+    categorie: str
+    description: Optional[str] = None
 
     model_config = {"from_attributes": True}

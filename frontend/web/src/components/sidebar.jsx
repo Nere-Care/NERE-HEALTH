@@ -1,18 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { get } from "../services/apiClient";
 import {
   LayoutDashboard, Users, Building2, MessageSquare, Bell,
   FolderOpen, Video, Settings, HelpCircle, Sparkles, Menu, X,
   CreditCard, ChevronLeft, ChevronRight, Calendar, FileText, Receipt,
+  Stethoscope, LogOut, User as UserIcon,
 } from "lucide-react";
-import logo from "../assets/Logo.png";
+import logo from "../assets/logo.png";
 
 const menuByRole = {
   patient: [
     { icon: LayoutDashboard, label: "Tableau de Bord", path: "/Patient-dashboard" },
     { icon: Users, label: "Annuaire Médecins", path: "/annuaire" },
     { icon: Building2, label: "Structures de Santé", path: "/structures" },
-    { icon: FolderOpen, label: "Dossiers Patient", path: "/dossiers" },
+    { icon: FolderOpen, label: "Ma Santé", path: "/dossiers" },
+    { icon: Calendar, label: "Rendez-vous", path: "/rendez-vous" },
     { icon: FileText, label: "Prescriptions", path: "/prescriptions" },
     { icon: Receipt, label: "Factures", path: "/factures" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },
@@ -22,7 +25,7 @@ const menuByRole = {
     { icon: Users, label: "Avis", path: "/doctors" },
     { icon: Building2, label: "Structures de Santé", path: "/structures" },
     { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: MessageSquare, label: "Messages", path: "/doctor-messages" },
     { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
     { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
     { icon: CreditCard, label: "Paiements", path: "/payments" },
@@ -31,7 +34,7 @@ const menuByRole = {
     { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
     { icon: Users, label: "Avis", path: "/doctors" },
     { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
+    { icon: MessageSquare, label: "Messages", path: "/doctor-messages" },
     { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
     { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
     { icon: CreditCard, label: "Paiements", path: "/payments" },
@@ -52,6 +55,13 @@ const menuByRole = {
     { icon: Users, label: "Professionnel", path: "/observer/doctor" },
     { icon: Building2, label: "Structures de Santé", path: "/observer/structure" },
   ],
+  admin: [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
+    { icon: Users, label: "Patients", path: "/patients" },
+    { icon: Stethoscope, label: "Médecins", path: "/doctors" },
+    { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
+    { icon: CreditCard, label: "Paiements", path: "/payments" },
+  ],
 };
 
 const typeCouleurs = {
@@ -63,6 +73,23 @@ const typeCouleurs = {
 
 export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructure, typeStructure }) {
   const [open, setOpen] = useState(false);
+  const [specialiteLabel, setSpecialiteLabel] = useState('');
+
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user"));
+      if (u?.role === 'doctor' && u?.id) {
+        Promise.all([
+          get(`/api/medecin_specialites?medecin_id=${u.id}`),
+          get('/api/specialites'),
+        ]).then(([ms, allSpecs]) => {
+          const specIds = (ms || []).map(m => m.specialite_id);
+          const matched = (allSpecs || []).filter(s => specIds.includes(s.id));
+          if (matched.length > 0) setSpecialiteLabel(matched.map(s => s.libelle_fr).join(', '));
+        }).catch(() => {});
+      }
+    } catch {}
+  }, []);
 
   // Lecture du rôle directement depuis localStorage (pas de useEffect)
   const role = (() => {
@@ -172,15 +199,50 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
           </nav>
         </div>
 
-        {/* NERE IA */}
-        {role === "patient" && (
-          <button className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl
-            ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}
-            ${collapsed ? "justify-center" : ""}`}>
-            <Sparkles size={18} />
-            {!collapsed && "NERE IA"}
+        {/* UTILISATEUR */}
+        <div className={`border-t pt-3 ${darkMode ? "border-gray-700" : "border-gray-200"}`}>
+          <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? "justify-center" : ""}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden text-xs font-bold ${darkMode ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-600"}`}>
+              {(() => {
+                try {
+                  const u = JSON.parse(localStorage.getItem("user"));
+                  if (u?.photo_url) {
+                    return <img src={u.photo_url} alt="" className="w-full h-full object-cover" />;
+                  }
+                  return u?.prenom?.[0]?.toUpperCase() || u?.nom?.[0]?.toUpperCase() || 'U';
+                } catch { return 'U'; }
+              })()}
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold truncate ${darkMode ? "text-white" : "text-gray-800"}`}>
+                  {(() => {
+                    try {
+                      const u = JSON.parse(localStorage.getItem("user"));
+                      return [u?.prenom, u?.nom].filter(Boolean).join(' ');
+                    } catch { return 'Utilisateur'; }
+                  })()}
+                </p>
+                <p className={`text-[10px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  {(() => {
+                    try {
+                      const u = JSON.parse(localStorage.getItem("user"));
+                      if (u?.role === 'doctor' && specialiteLabel) return specialiteLabel;
+                      return u?.role || '';
+                    } catch { return ''; }
+                  })()}
+                </p>
+              </div>
+            )}
+          </div>
+          <button onClick={() => { localStorage.removeItem('user'); localStorage.removeItem('token'); window.location.href = '/'; }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl mt-1 transition-all
+              ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-500 hover:bg-red-50"}
+              ${collapsed ? "justify-center" : ""}`}>
+            <LogOut size={18} />
+            {!collapsed && "Déconnexion"}
           </button>
-        )}
+        </div>
       </div>
     </>
   );

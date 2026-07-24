@@ -1,23 +1,48 @@
+import { useState } from "react";
 import { Mail } from "lucide-react";
 import Input from "../../../components/form/Input";
 import PasswordInput from "../../../components/form/PasswordInput";
 import { FcGoogle } from "react-icons/fc";
+import { login } from "../../../services/auth";
 
 export default function LoginStep({
   email,
   password,
   setEmail,
   setPassword,
-  errors = {},   // ✅ important (fallback)
+  errors = {},
   navigate,
   saveUser,
   redirectByRole,
   validateForm,
   setIsLogin,
 }) {
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+
+  const handleLogin = async () => {
+    if (!validateForm()) return;
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const user = await login(email, password);
+      saveUser(user);
+      const redirectPath = redirectByRole(user.role);
+      if (redirectPath.startsWith("http")) {
+        window.location.href = redirectPath;
+      } else {
+        navigate(redirectPath);
+      }
+    } catch (err) {
+      setApiError("Email ou mot de passe incorrect");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
-      {/* FORM CARD */}
       <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
 
         <div className="space-y-5">
@@ -46,23 +71,20 @@ export default function LoginStep({
               {errors.password}
             </p>
           )}
+
+          {apiError && (
+            <p className="text-red-500 text-sm mt-2 text-center">
+              {apiError}
+            </p>
+          )}
         </div>
 
         <button
-          className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"
-          onClick={() => {
-            if (!validateForm()) return;
-
-            const user = {
-              email,
-              role: "observer", // For demo purposes, we assign the "observer" role directly. In a real app, this would come from the backend after authentication. 
-            };
-
-            saveUser(user);
-            navigate(redirectByRole(user.role));
-          }}
+          className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50"
+          onClick={handleLogin}
+          disabled={loading}
         >
-          Login
+          {loading ? "Connexion..." : "Login"}
         </button>
 
         <div className="flex items-center my-8">
@@ -78,7 +100,7 @@ export default function LoginStep({
       </div>
 
       <p className="text-sm mt-8 text-center text-gray-600">
-        Don’t have an account yet?{" "}
+        Don't have an account yet?{" "}
         <span
           onClick={() => setIsLogin(false)}
           className="text-[#2F80ED] cursor-pointer font-medium hover:underline"

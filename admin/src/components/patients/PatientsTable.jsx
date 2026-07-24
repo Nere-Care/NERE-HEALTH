@@ -89,7 +89,7 @@ export default function PatientsTable({
                   </h3>
 
                   <p className="text-sm text-gray-400">
-                    {patient.sexe} • {patient.age} ans
+                    {patient.code_patient || '—'} • {patient.sexe} • {patient.age} ans
                   </p>
                 </div>
               </div>
@@ -172,6 +172,7 @@ export default function PatientsTable({
             <tr>
               {[
                 "Patient",
+                "Code",
                 "Téléphone",
                 "Médecin",
                 "Groupe",
@@ -221,6 +222,10 @@ export default function PatientsTable({
                       </p>
                     </div>
                   </div>
+                </td>
+
+                <td className="p-4 text-sm whitespace-nowrap text-gray-400">
+                  {patient.code_patient || '—'}
                 </td>
 
                 <td className="p-4 text-sm whitespace-nowrap">

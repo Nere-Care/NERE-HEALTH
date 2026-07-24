@@ -1,25 +1,72 @@
-// ================================
-// DoctorsDirectory.jsx (FINAL)
-// ================================
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, Stethoscope } from "lucide-react";
 
-import { useState } from "react";
-import { Search } from "lucide-react";
-
-import { doctors } from "../../constants/doctors/doctorData";
+import { get } from "../../services/apiClient";
+import { getStoredUser } from "../../services/auth";
 
 import AskOpinionModal from "../../components/doctors/AskOpinionModal";
-
+import DemandeAvisModal from "../../components/doctors/DemandeAvisModal";
 import DoctorCard from "../../components/doctors/doctorCard";
 import DoctorDetails from "../../components/doctors/DoctorDetails";
 
 export default function DoctorsDirectory({ darkMode }) {
+  const navigate = useNavigate();
+  const currentUser = getStoredUser();
 
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [showMore, setShowMore] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [showOpinionModal, setShowOpinionModal] = useState(false);
   const [selectedOpinionDoctor, setSelectedOpinionDoctor] = useState(null);
+  const [showDemandeAvisModal, setShowDemandeAvisModal] = useState(false);
 
+  const [doctors, setDoctors] = useState([]);
+
+  // ================= FETCH DOCTORS FROM API =================
+  useEffect(() => {
+    setLoading(true);
+    get('/api/medecins')
+      .then(async (medecinsData) => {
+        const enriched = await Promise.all(medecinsData.map(async (m) => {
+          let user = null, structure = null, specialiteNom = "", specialiteId = null;
+          try {
+            user = await get(`/api/users/${m.id}`);
+          } catch { /* ignore */ }
+          if (m.structure_id) {
+            try {
+              structure = await get(`/api/structures/${m.structure_id}`);
+            } catch { /* ignore */ }
+          }
+          try {
+            const specs = await get(`/api/medecin_specialites?medecin_id=${m.id}`);
+            if (specs.length > 0) {
+              const s = await get(`/api/specialites/${specs[0].specialite_id}`);
+              specialiteNom = s.libelle_fr || "";
+              specialiteId = specs[0].specialite_id;
+            }
+          } catch { /* ignore */ }
+          return {
+            id: m.id,
+            name: user ? `Dr. ${user.prenom || ""} ${user.nom || ""}`.trim() : "Médecin",
+            speciality: specialiteNom,
+            specialty: specialiteNom,
+            specialiteId,
+            city: structure?.ville || "",
+            hospital: structure?.nom_etablissement || "",
+            experience: m.annees_experience || 0,
+            rating: parseFloat(m.note_moyenne || 0),
+            image: user?.photo_url || "",
+            description: m.biographie || "",
+            available: m.disponible_maintenant || false,
+          };
+        }));
+        setDoctors(enriched);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   // ================= SEARCH STATES =================
   const [doctorName, setDoctorName] = useState("");
@@ -34,7 +81,7 @@ export default function DoctorsDirectory({ darkMode }) {
   const specialties = [
     "All",
     ...new Set(
-      doctors.map((doctor) => doctor.specialty)
+      doctors.map((doctor) => doctor.specialty).filter(Boolean)
     ),
   ];
 
@@ -50,7 +97,6 @@ const handleAskOpinion = (doctor) => {
 
 const handleSendOpinion = (data) => {
   console.log("Opinion request:", data);
-
   setShowOpinionModal(false);
   setSelectedOpinionDoctor(null);
 };
@@ -120,6 +166,14 @@ const handleSendOpinion = (data) => {
                 Browse and consult healthcare professionals
               </p>
             </div>
+
+            <button
+              onClick={() => setShowDemandeAvisModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition whitespace-nowrap"
+            >
+              <Stethoscope size={18} />
+              Demander un avis médical
+            </button>
 
           </div>
 
@@ -289,11 +343,19 @@ const handleSendOpinion = (data) => {
 
           </div>
 
+          {/* ================= LOADING ================= */}
+
+          {loading && (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            </div>
+          )}
+
           {/* ================= MOBILE + TABLET ================= */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:hidden gap-6">
 
-            {filteredDoctors.map((doctor) => (
+            {!loading && filteredDoctors.map((doctor) => (
 
               <div
                 key={doctor.id}
@@ -304,6 +366,7 @@ const handleSendOpinion = (data) => {
   doctor={doctor}
   darkMode={darkMode}
   onAskOpinion={handleAskOpinion}
+  currentUserId={currentUser?.id}
 />
               </div>
 
@@ -325,7 +388,7 @@ const handleSendOpinion = (data) => {
               }`}
             >
 
-              {filteredDoctors.map((doctor) => (
+              {!loading && filteredDoctors.map((doctor) => (
 
                 <div
                   key={doctor.id}
@@ -336,6 +399,7 @@ const handleSendOpinion = (data) => {
                     doctor={doctor}
                     darkMode={darkMode}
                     onAskOpinion={handleAskOpinion}
+                    currentUserId={currentUser?.id}
                   />
                 </div>
 
@@ -363,6 +427,7 @@ const handleSendOpinion = (data) => {
                   showMore={showMore}
                   setShowMore={setShowMore}
                   darkMode={darkMode}
+                  currentUserId={currentUser?.id}
                 />
 
               </div>
@@ -412,7 +477,13 @@ const handleSendOpinion = (data) => {
       setShowOpinionModal(false);
       setSelectedOpinionDoctor(null);
     }}
-    onSend={handleSendOpinion}
+  />
+)}
+
+{showDemandeAvisModal && (
+  <DemandeAvisModal
+    darkMode={darkMode}
+    onClose={() => setShowDemandeAvisModal(false)}
   />
 )}
 

@@ -1,6 +1,4 @@
-import { patients } from "../../../constants/doctors/DasboardData";
-
-export default function RecentPatients({ darkMode }) {
+export default function RecentPatients({ patients = [], darkMode }) {
   return (
     <div
       className={`rounded-2xl p-4 sm:p-5 border transition
@@ -36,6 +34,11 @@ export default function RecentPatients({ darkMode }) {
           scrollbar-track-transparent
         "
       >
+        {patients.length === 0 && (
+          <div className="flex items-center justify-center h-[200px]">
+            <p className="text-sm text-gray-400">Aucun patient récent</p>
+          </div>
+        )}
         {patients.map((p, i) => (
           <div
             key={i}
@@ -67,8 +70,8 @@ export default function RecentPatients({ darkMode }) {
                   {p.name}
                 </p>
 
-                <p className="text-xs text-gray-400">
-                  Patient
+                <p className={`text-xs ${p.consultation_effective ? "text-green-500" : "text-orange-400"}`}>
+                  {p.consultation_effective ? "Consultation effectuée" : "RDV sans consultation"}
                 </p>
               </div>
             </div>

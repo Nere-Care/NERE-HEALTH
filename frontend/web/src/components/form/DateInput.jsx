@@ -1,19 +1,27 @@
 import { CalendarDays } from "lucide-react";
 
-export default function DateInput() {
+export default function DateInput({ value, onChange, error, label }) {
   return (
-    <div className="
-      relative
-      border border-gray-200
-      rounded-2xl
-      bg-white
-      overflow-hidden
-      shadow-sm
-      hover:border-[#2F80ED]
-      transition-all
-    ">
+    <div>
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} <span className="text-red-500">*</span>
+        </label>
+      )}
+      <div className={`
+        relative
+        border ${error ? 'border-red-400' : 'border-gray-200'}
+        rounded-2xl
+        bg-white
+        overflow-hidden
+        shadow-sm
+        hover:border-[#2F80ED]
+        transition-all
+      `}>
       <input
         type="date"
+        value={value}
+        onChange={onChange}
         className="
           w-full
           px-4
@@ -47,6 +55,8 @@ export default function DateInput() {
       ">
         <CalendarDays className="w-5 h-5 text-white" />
       </div>
+      </div>
+      {error && <p className="text-red-500 text-xs mt-1 ml-2">{error}</p>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Download,
   X,
@@ -9,6 +9,7 @@ import {
   CreditCard,
   Smartphone,
   Building2,
+  Loader,
 } from "lucide-react";
 
 import PaymentSetupModal from "../../components/doctors/Payment/PaymentSetupModal";
@@ -16,21 +17,95 @@ import StatsCards from "../../components/doctors/Payment/StatsCards";
 import PatientsPaymentsTable from "../../components/doctors/Payment/PatientsPaymentTable";
 import DoctorPaymentsHistory from "../../components/doctors/Payment/DoctorsPaymentsHistory";
 import WithdrawModal from "../../components/doctors/Payment/WithdrawModal";
+import { get } from "../../services/apiClient";
+import { getUserTimezone } from "../../utils/timezone";
 
-import {
-  doctorPayments,
-  patientPayments,
-  paymentStats,
-} from "../../constants/doctors/PaymentsData";
+const METHOD_LABELS = {
+  mtn_momo: "MTN MoMo",
+  orange_money: "Orange Money",
+  carte_visa: "Visa",
+  carte_mastercard: "Mastercard",
+  virement_bancaire: "Virement bancaire",
+  notchpay: "Notchpay",
+  stripe: "Stripe",
+  portefeuille_nere: "Portefeuille Nere",
+};
+
+const STATUS_LABELS = {
+  initie: "Pending",
+  en_cours: "Pending",
+  paye: "Paid",
+  echoue: "Failed",
+  annule: "Refunded",
+  rembourse: "Refunded",
+};
+
+function transformPaiement(p, patientCodeMap) {
+  return {
+    id: p.id,
+    matricule: p.reference,
+    patient: (patientCodeMap[p.patient_id] || `Patient ${String(p.patient_id).slice(0, 8)}`),
+    patient_id: p.patient_id,
+    medecin_id: p.medecin_id,
+    service: METHOD_LABELS[p.methode] || p.fournisseur || "Consultation",
+    amount: `${Number(p.montant_medecin || p.montant_total).toLocaleString()} ${p.devise || "XAF"}`,
+    method: METHOD_LABELS[p.methode] || p.methode || "-",
+    date: p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() }) : "-",
+    status: STATUS_LABELS[p.statut] || p.statut || "Pending",
+    raw_status: p.statut,
+    receipt: null,
+  };
+}
 
 export default function Payments({ darkMode }) {
-  // ✅ Tableau de méthodes configurées (plusieurs possibles)
   const [configuredMethods, setConfiguredMethods] = useState([]);
   const [showSetup, setShowSetup] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
+
+  const [patientPayments, setPatientPayments] = useState([]);
+  const [doctorPayments, setDoctorPayments] = useState([]);
+  const [paymentStats, setPaymentStats] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(true);
+
+  const fetchPayments = useCallback(async () => {
+    setLoadingPayments(true);
+    try {
+      const [data, patientsData] = await Promise.all([
+        get("/api/paiements", { limit: 200 }),
+        get("/api/patients", { limit: 200 }),
+      ]);
+      const patientCodeMap = {};
+      for (const p of (patientsData || [])) patientCodeMap[p.id] = p.code_patient || "";
+      const list = (data || []).map((p) => transformPaiement(p, patientCodeMap));
+      setPatientPayments(list);
+      setDoctorPayments(list);
+
+      const totalPaid = list
+        .filter((p) => p.raw_status === "paye")
+        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
+      const totalPending = list
+        .filter((p) => p.raw_status === "initie" || p.raw_status === "en_cours")
+        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
+      const totalFailed = list
+        .filter((p) => p.raw_status === "echoue")
+        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
+
+      setPaymentStats([
+        { id: 1, title: "Withdrawn Amount", amount: `${totalPaid.toLocaleString()} XAF` },
+        { id: 2, title: "Ready To Withdraw", amount: `${totalPending.toLocaleString()} XAF` },
+        { id: 3, title: "Settlements", amount: `${totalFailed.toLocaleString()} XAF` },
+      ]);
+    } catch (err) {
+      console.error("Erreur chargement paiements:", err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchPayments(); }, [fetchPayments]);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -207,6 +282,11 @@ export default function Payments({ darkMode }) {
       )}
 
       {/* MAIN CONTENT */}
+      {loadingPayments ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader className="animate-spin text-blue-500" size={32} />
+        </div>
+      ) : (
       <div className={`rounded-2xl border p-4 sm:p-6 space-y-6 transition
         ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
 
@@ -322,6 +402,7 @@ export default function Payments({ darkMode }) {
           )}
         </div>
       </div>
+      )}
 
       <style>{`
         @keyframes slide-in {

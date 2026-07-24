@@ -1,24 +1,28 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-export default function SelectInput({ placeholder, options = [] }) {
-  const [value, setValue] = useState("");
+export default function SelectInput({ placeholder, options = [], value, onChange, error }) {
+  const isControlled = value !== undefined && onChange !== undefined;
+  const [internalValue, setInternalValue] = useState("");
+  const selectedValue = isControlled ? value : internalValue;
+  const handleChange = isControlled ? onChange : (e) => setInternalValue(e.target.value);
 
   return (
-    <div className="
-      relative
-      border border-gray-200
-      rounded-2xl
-      bg-white
-      overflow-hidden
-      shadow-sm
-      hover:border-[#2F80ED]
-      focus-within:border-[#2F80ED]
-      transition-all
-    ">
+    <div>
+      <div className={`
+        relative
+        border ${error ? 'border-red-400' : 'border-gray-200'}
+        rounded-2xl
+        bg-white
+        overflow-hidden
+        shadow-sm
+        hover:border-[#2F80ED]
+        focus-within:border-[#2F80ED]
+        transition-all
+      `}>
       <select
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
+        value={selectedValue}
+        onChange={handleChange}
         className="
           w-full
           px-4 py-4
@@ -50,6 +54,8 @@ export default function SelectInput({ placeholder, options = [] }) {
       ">
         <ChevronDown className="w-5 h-5 text-white" />
       </div>
+      </div>
+      {error && <p className="text-red-500 text-xs mt-1 ml-2">{error}</p>}
     </div>
   );
 }

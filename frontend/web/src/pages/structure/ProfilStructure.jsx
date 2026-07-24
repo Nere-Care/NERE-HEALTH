@@ -122,7 +122,8 @@ export default function ProfilStructure({ darkMode }) {
                 <div className="relative">
                   <Phone className="absolute left-3 top-3 text-gray-400" size={18} />
                   <input
-                    type="text" name="telephone" value={formData.telephone} onChange={handleChange}
+                    type="tel" name="telephone" value={formData.telephone} onChange={handleChange}
+                    maxLength={9} pattern="6[0-9]{8}" placeholder="6XX XXX XXX"
                     className={`w-full pl-10 p-3 rounded-xl border ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-800"}`}
                   />
                 </div>

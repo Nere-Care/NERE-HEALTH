@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { CreditCard, Smartphone, ArrowLeft } from 'lucide-react';
 
 import { useState } from 'react';
+import { toXAF, formatXAF } from '../../utils/currency';
 
 export default function Paiement({ darkMode }) {
   const location = useLocation();
@@ -69,7 +70,7 @@ export default function Paiement({ darkMode }) {
           <div className="flex justify-between">
             <span className="text-gray-500">Montant</span>
             <span className="text-xl font-bold text-green-500">
-              {facture.montant.toLocaleString()} FCFA
+              {formatXAF(toXAF(facture.montant, facture.devise))}
             </span>
           </div>
         </div>
@@ -178,7 +179,7 @@ export default function Paiement({ darkMode }) {
         <div className="flex justify-between mb-2">
           <span>Montant</span>
           <span className="font-bold text-green-500">
-            {facture.montant.toLocaleString()} FCFA
+            {formatXAF(toXAF(facture.montant, facture.devise))}
           </span>
         </div>
 

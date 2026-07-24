@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import {
   CreditCard,
@@ -24,66 +24,37 @@ import {
   Clock,
   Copy,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 
-/* ================= MOCK DATA ================= */
-const initialPayments = [
-  {
-    id: 1001,
-    patient: "Marie Ndzi",
-    patientEmail: "marie.ndzi@email.cm",
-    patientPhone: "+237 690 111 222",
-    professional: "Dr. Martin Nkono",
-    structure: "Hôpital Laquintinie",
-    reason: "Consultation cardiologique",
-    amount: 25000,
-    method: "Mobile Money",
-    provider: "MTN Mobile Money",
-    reference: "TXN-2026-001001",
-    status: "Payé",
-    date: "2026-05-18",
-    time: "14:32",
-    notes: "Paiement reçu et vérifié",
-  },
-  {
-    id: 1002,
-    patient: "Paul Tchoumi",
-    patientEmail: "paul.tchoumi@email.cm",
-    patientPhone: "+237 670 333 444",
-    professional: "Dr. Sarah Ngono",
-    structure: "CHU Yaoundé",
-    reason: "Suivi pédiatrique",
-    amount: 15000,
-    method: "Carte bancaire",
-    provider: "Visa **** 4532",
-    reference: "TXN-2026-001002",
-    status: "En attente",
-    date: "2026-05-17",
-    time: "09:15",
-    notes: "En cours de validation bancaire",
-  },
-  {
-    id: 1003,
-    patient: "Brigitte Essomba",
-    patientEmail: "brigitte.essomba@email.cm",
-    patientPhone: "+237 655 555 666",
-    professional: "Dr. Paul Mbe",
-    structure: "Hôpital Général Douala",
-    reason: "Bilan annuel complet",
-    amount: 45000,
-    method: "Mobile Money",
-    provider: "Orange Money",
-    reference: "TXN-2026-001003",
-    status: "Échoué",
-    date: "2026-05-16",
-    time: "16:45",
-    notes: "Solde insuffisant - réessayez",
-  },
-];
+import API from "../services/api";
+
+const STATUS_MAP = {
+  valide_manuellement: "Payé",
+  confirme: "Payé",
+  en_attente_validation: "En attente",
+  echoue: "Échoué",
+  rembourse: "Remboursé",
+  initie: "Initié",
+  annule: "Annulé",
+  expire: "Expiré",
+};
+
+const METHOD_LABELS = {
+  mtn_momo: "MTN MoMo",
+  orange_money: "Orange Money",
+  carte_visa: "Carte Visa",
+  carte_mastercard: "Carte Mastercard",
+  virement_bancaire: "Virement",
+  notchpay: "Notchpay",
+  stripe: "Stripe",
+  portefeuille_nere: "Portefeuille NERE",
+};
 
 /* ================= COMPONENT ================= */
 export default function PaymentsPage({ darkMode }) {
-  const [payments, setPayments] = useState(initialPayments);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tous");
   const [methodFilter, setMethodFilter] = useState("Tous");
@@ -95,6 +66,62 @@ export default function PaymentsPage({ darkMode }) {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPayments = async () => {
+      try {
+        setLoading(true);
+        const [paiRes, usersRes, patientsRes, medecinsRes] = await Promise.all([
+          API.get("/paiements"),
+          API.get("/users"),
+          API.get("/patients"),
+          API.get("/medecins"),
+        ]);
+        const items = Array.isArray(paiRes.data) ? paiRes.data : paiRes.data?.data ?? [];
+        const users = Array.isArray(usersRes.data) ? usersRes.data : usersRes.data?.data ?? [];
+        const patients = Array.isArray(patientsRes.data) ? patientsRes.data : patientsRes.data?.data ?? [];
+        const medecins = Array.isArray(medecinsRes.data) ? medecinsRes.data : medecinsRes.data?.data ?? [];
+        const userMap = {};
+        for (const u of users) userMap[u.id] = u;
+        const patientCodeMap = {};
+        for (const p of patients) patientCodeMap[p.id] = p.code_patient || "";
+        const medecinCodeMap = {};
+        for (const m of medecins) medecinCodeMap[m.id] = m.code_medecin || "";
+        const mapped = items.map((item) => {
+          const pat = userMap[item.patient_id];
+          const med = userMap[item.medecin_id];
+          return {
+            id: item.id,
+            patientId: (patientCodeMap[item.patient_id] || item.patient_id) ?? "",
+            medecinId: (medecinCodeMap[item.medecin_id] || item.medecin_id) ?? "",
+            patient: pat ? `${pat.prenom || ""} ${pat.nom || ""}`.trim() : "",
+            professional: med ? `Dr. ${med.prenom || ""} ${med.nom || ""}`.trim() : "",
+            rdvId: item.rdv_id ?? "",
+            amount: Number(item.montant_medecin) || Number(item.montant_total) || 0,
+            method: (METHOD_LABELS[item.methode] || item.methode) ?? "",
+            methodKey: item.methode ?? "",
+            provider: item.fournisseur ?? "",
+            reference: item.reference ?? "",
+            referenceFournisseur: item.reference_fournisseur ?? "",
+            statut: item.statut ?? "",
+            status: STATUS_MAP[item.statut] ?? item.statut ?? "En attente",
+            date: item.created_at ?? "",
+            fraisPlateforme: Number(item.frais_plateforme) || 0,
+            montantMedecin: Number(item.montant_medecin) || 0,
+            devise: item.devise ?? "XAF",
+          };
+        });
+        if (!cancelled) setPayments(mapped);
+      } catch {
+        if (!cancelled) toast.error("Erreur lors du chargement des paiements");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchPayments();
+    return () => { cancelled = true; };
+  }, []);
 
   /* ================= KPI ================= */
   const stats = useMemo(() => {
@@ -115,9 +142,9 @@ export default function PaymentsPage({ darkMode }) {
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
       const matchSearch =
-        p.patient.toLowerCase().includes(search.toLowerCase()) ||
-        p.professional.toLowerCase().includes(search.toLowerCase()) ||
-        p.reference.toLowerCase().includes(search.toLowerCase());
+        (p.patient || "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.professional || "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.reference || "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "Tous" || p.status === statusFilter;
       const matchMethod = methodFilter === "Tous" || p.method === methodFilter;
       return matchSearch && matchStatus && matchMethod;
@@ -137,23 +164,33 @@ export default function PaymentsPage({ darkMode }) {
     setShowDetailsModal(true);
   }, []);
 
-  const handleMarkPaid = useCallback((id) => {
-    setPayments(prev => prev.map(p => 
-      p.id === id ? { ...p, status: "Payé", notes: "Marqué comme payé manuellement" } : p
-    ));
-    toast.success("✅ Paiement marqué comme payé");
-    if (selectedPayment?.id === id) {
-      setSelectedPayment(prev => prev ? { ...prev, status: "Payé" } : null);
+  const handleMarkPaid = useCallback(async (id) => {
+    try {
+      await API.put(`/paiements/${id}/valider`, { statut: "valide_manuellement" });
+      setPayments(prev => prev.map(p =>
+        p.id === id ? { ...p, status: "Payé", statut: "valide_manuellement" } : p
+      ));
+      toast.success("✅ Paiement validé");
+      if (selectedPayment?.id === id) {
+        setSelectedPayment(prev => prev ? { ...prev, status: "Payé", statut: "valide_manuellement" } : null);
+      }
+    } catch (err) {
+      toast.error(err?.message || "Erreur lors de la validation");
     }
   }, [selectedPayment]);
 
-  const handleMarkFailed = useCallback((id) => {
-    setPayments(prev => prev.map(p => 
-      p.id === id ? { ...p, status: "Échoué", notes: "Échec confirmé" } : p
-    ));
-    toast.error("🚫 Paiement marqué comme échoué");
-    if (selectedPayment?.id === id) {
-      setSelectedPayment(prev => prev ? { ...prev, status: "Échoué" } : null);
+  const handleMarkFailed = useCallback(async (id) => {
+    try {
+      await API.put(`/paiements/${id}/valider`, { statut: "echoue" });
+      setPayments(prev => prev.map(p =>
+        p.id === id ? { ...p, status: "Échoué", statut: "echoue" } : p
+      ));
+      toast.error("🚫 Paiement rejeté");
+      if (selectedPayment?.id === id) {
+        setSelectedPayment(prev => prev ? { ...prev, status: "Échoué", statut: "echoue" } : null);
+      }
+    } catch (err) {
+      toast.error(err?.message || "Erreur lors du rejet");
     }
   }, [selectedPayment]);
 
@@ -240,6 +277,16 @@ export default function PaymentsPage({ darkMode }) {
   const bg = darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900";
   const card = darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200";
 
+  if (loading) {
+    return (
+      <div className={`min-h-screen p-3 sm:p-4 lg:p-6 transition-all ${bg}`}>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="animate-spin text-blue-500" size={40} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 space-y-5 lg:space-y-6 transition-all ${bg}`}>
       
@@ -303,7 +350,7 @@ export default function PaymentsPage({ darkMode }) {
 
         {/* Filter buttons */}
         <div className="flex flex-wrap gap-2">
-          {["Tous", "Payé", "En attente", "Échoué"].map((status) => (
+          {["Tous", "Payé", "En attente", "Échoué", "Annulé"].map((status) => (
             <button
               key={status}
               onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
@@ -350,13 +397,13 @@ export default function PaymentsPage({ darkMode }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                    {p.patient.charAt(0)}
+                    {getMethodIcon(p.method)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold truncate" title={p.patient}>{p.patient}</h3>
+                    <h3 className="font-semibold truncate" title={p.reference}>{p.reference}</h3>
                     <p className="text-xs text-gray-400 flex items-center gap-1">
                       <Hash size={12} className="flex-shrink-0" />
-                      <span className="truncate">{p.reference}</span>
+                      <span className="truncate">{p.method}</span>
                     </p>
                   </div>
                 </div>
@@ -365,63 +412,57 @@ export default function PaymentsPage({ darkMode }) {
 
               {/* Amount & Method */}
               <div className="flex items-center justify-between">
-                <p className="text-xl font-bold text-green-500">{formatAmount(p.amount)} FCFA</p>
+                <p className="text-xl font-bold text-green-500">{formatAmount(p.amount)} {p.devise}</p>
                 <span className="text-sm flex items-center gap-1">
-                  {getMethodIcon(p.method)} {p.method}
+                  {p.provider}
                 </span>
               </div>
 
               {/* Details */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-gray-400">
-                  <User size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.professional}>{p.professional}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Building2 size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.structure}>{p.structure}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <FileText size={14} className="flex-shrink-0" />
-                  <span className="truncate" title={p.reason}>{p.reason}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400">
                   <Calendar size={14} className="flex-shrink-0" />
-                  <span>{formatDate(p.date)} • {p.time}</span>
+                  <span>{formatDate(p.date)}</span>
                 </div>
+                {p.fraisPlateforme > 0 && (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <FileText size={14} className="flex-shrink-0" />
+                    <span>Frais plateforme: {formatAmount(p.fraisPlateforme)} {p.devise}</span>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
-              <div className="grid grid-cols-4 gap-2 pt-2 border-t dark:border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <button
+              onClick={() => handleViewDetails(p)}
+              className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-blue-500/10 text-blue-500"
+              title="Voir détails"
+            >
+              <Eye size={16} className="flex-shrink-0" />
+              <span className="text-xs">Voir</span>
+            </button>
+            
+            {p.status === "En attente" && (
+              <>
                 <button
-                  onClick={() => handleViewDetails(p)}
-                  className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-blue-500/10 text-blue-500"
-                  title="Voir détails"
+                  onClick={() => handleMarkPaid(p.id)}
+                  className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-green-500/10 text-green-500"
+                  title="Valider le paiement"
                 >
-                  <Eye size={16} className="flex-shrink-0" />
-                  <span className="text-xs">Voir</span>
+                  <CheckCircle2 size={16} className="flex-shrink-0" />
+                  <span className="text-xs">Valider</span>
                 </button>
-                
-                {p.status === "En attente" && (
-                  <>
-                    <button
-                      onClick={() => handleMarkPaid(p.id)}
-                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-green-500/10 text-green-500"
-                      title="Marquer payé"
-                    >
-                      <CheckCircle2 size={16} className="flex-shrink-0" />
-                      <span className="text-xs">Payé</span>
-                    </button>
-                    <button
-                      onClick={() => handleMarkFailed(p.id)}
-                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-red-500/10 text-red-500"
-                      title="Marquer échoué"
-                    >
-                      <XCircle size={16} className="flex-shrink-0" />
-                      <span className="text-xs">Échec</span>
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => handleMarkFailed(p.id)}
+                  className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-red-500/10 text-red-500"
+                  title="Rejeter le paiement"
+                >
+                  <XCircle size={16} className="flex-shrink-0" />
+                  <span className="text-xs">Rejeter</span>
+                </button>
+              </>
+            )}
                 
                 <button
                   onClick={() => handleDownloadReceipt(p)}
@@ -463,33 +504,37 @@ export default function PaymentsPage({ darkMode }) {
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <Hash size={12} /> #{p.reference}
                   </div>
-                  <h2 className="font-bold text-lg truncate" title={p.patient}>{p.patient}</h2>
+                  <h2 className="font-bold text-lg">{p.method}</h2>
                   <p className="text-sm">
-                    <span className="font-semibold text-green-500">{formatAmount(p.amount)} FCFA</span>
+                    <span className="font-semibold text-green-500">{formatAmount(p.amount)} {p.devise}</span>
                     <span className="text-gray-400 mx-2">•</span>
-                    <span className="flex items-center gap-1 inline">
-                      {getMethodIcon(p.method)} {p.method}
-                    </span>
+                    <span>{p.provider}</span>
                   </p>
                   <p className="text-xs text-gray-500 flex items-center gap-1">
-                    <Calendar size={12} /> {formatDate(p.date)} • {p.time}
+                    <Calendar size={12} /> {formatDate(p.date)}
                   </p>
                 </div>
 
                 {/* CENTER: Details */}
                 <div className="text-sm space-y-2 text-gray-400 flex-1 min-w-[250px]">
-                  <div className="flex items-center gap-2">
-                    <User size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.professional}>{p.professional}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Building2 size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.structure}>{p.structure}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <FileText size={14} className="flex-shrink-0" /> 
-                    <span className="truncate" title={p.reason}>{p.reason}</span>
-                  </div>
+                  {p.fraisPlateforme > 0 && (
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="flex-shrink-0" />
+                      <span>Frais plateforme: {formatAmount(p.fraisPlateforme)} {p.devise}</span>
+                    </div>
+                  )}
+                  {p.montantMedecin > 0 && (
+                    <div className="flex items-center gap-2">
+                      <User size={14} className="flex-shrink-0" />
+                      <span>Montant médecin: {formatAmount(p.montantMedecin)} {p.devise}</span>
+                    </div>
+                  )}
+                  {p.referenceFournisseur && (
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={14} className="flex-shrink-0" />
+                      <span>Réf. externe: {p.referenceFournisseur}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* RIGHT: Status & Actions */}
@@ -510,14 +555,14 @@ export default function PaymentsPage({ darkMode }) {
                         <button 
                           onClick={() => handleMarkPaid(p.id)}
                           className="p-2 rounded-xl hover:bg-green-500/10 text-green-500 transition" 
-                          title="Marquer payé"
+                          title="Valider le paiement"
                         >
                           <CheckCircle2 size={16} />
                         </button>
                         <button 
                           onClick={() => handleMarkFailed(p.id)}
                           className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition" 
-                          title="Marquer échoué"
+                          title="Rejeter le paiement"
                         >
                           <XCircle size={16} />
                         </button>
@@ -664,7 +709,7 @@ function PaymentDetailsModal({
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-sm text-gray-400">Montant</p>
-              <p className="text-2xl sm:text-3xl font-bold text-green-500">{formatAmount(payment.amount)} FCFA</p>
+              <p className="text-2xl sm:text-3xl font-bold text-green-500">{formatAmount(payment.montantMedecin)} {payment.devise}</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {getStatusBadge(payment.status)}
@@ -679,34 +724,38 @@ function PaymentDetailsModal({
             </div>
           </div>
 
-          {/* Patient Info */}
-          <Section title="Informations Patient" icon={User} darkMode={darkMode}>
-            <DetailRow label="Nom" value={payment.patient} darkMode={darkMode} />
-            <DetailRow label="Email" value={payment.patientEmail} icon={Mail} darkMode={darkMode} />
-            <DetailRow label="Téléphone" value={payment.patientPhone} icon={Phone} darkMode={darkMode} />
-          </Section>
-
-          {/* Consultation Info */}
-          <Section title="Consultation" icon={FileText} darkMode={darkMode}>
-            <DetailRow label="Professionnel" value={payment.professional} darkMode={darkMode} />
-            <DetailRow label="Structure" value={payment.structure} icon={Building2} darkMode={darkMode} />
-            <DetailRow label="Motif" value={payment.reason} darkMode={darkMode} />
+          {/* RDV Info */}
+          <Section title="Rendez-vous" icon={FileText} darkMode={darkMode}>
+            <div className={`flex items-start gap-2 py-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <User size={14} className="mt-0.5 shrink-0 opacity-50" />
+              <div className="min-w-0">
+                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Patient</span>
+                <p className="text-sm font-semibold truncate">{payment.patient || "—"}</p>
+              </div>
+            </div>
+            <div className={`flex items-start gap-2 py-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <div className={`w-[14px] h-[14px] mt-0.5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold ${darkMode ? "bg-gray-600 text-gray-300" : "bg-gray-200 text-gray-500"}`}>M</div>
+              <div className="min-w-0">
+                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Médecin</span>
+                <p className="text-sm font-semibold truncate">{payment.professional || "—"}</p>
+              </div>
+            </div>
           </Section>
 
           {/* Payment Info */}
           <Section title="Transaction" icon={CreditCard} darkMode={darkMode}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <DetailRow label="Méthode" value={`${payment.method} (${payment.provider})`} darkMode={darkMode} />
-              <DetailRow label="Date & Heure" value={`${formatDate(payment.date)} à ${payment.time}`} icon={Clock} darkMode={darkMode} />
-              <DetailRow label="Référence" value={payment.reference} darkMode={darkMode} highlight />
+              <DetailRow label="Méthode" value={payment.method} darkMode={darkMode} />
+              <DetailRow label="Fournisseur" value={payment.provider} icon={Building2} darkMode={darkMode} />
+              <DetailRow label="Date" value={formatDate(payment.date)} icon={Clock} darkMode={darkMode} />
               <DetailRow label="Statut" value={payment.status} darkMode={darkMode} />
+              <DetailRow label="Référence" value={payment.reference} darkMode={darkMode} highlight />
+              {payment.referenceFournisseur && (
+                <DetailRow label="Réf. externe" value={payment.referenceFournisseur} darkMode={darkMode} />
+              )}
+              <DetailRow label="Frais plateforme" value={`${formatAmount(payment.fraisPlateforme)} ${payment.devise}`} darkMode={darkMode} />
+              <DetailRow label="Montant médecin" value={`${formatAmount(payment.montantMedecin)} ${payment.devise}`} darkMode={darkMode} />
             </div>
-            {payment.notes && (
-              <div className={`mt-4 p-4 rounded-xl ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}>
-                <p className="text-xs text-gray-400 mb-1">Notes</p>
-                <p className="text-sm">{payment.notes}</p>
-              </div>
-            )}
           </Section>
         </div>
 
@@ -720,11 +769,11 @@ function PaymentDetailsModal({
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button onClick={onMarkPaid}
                 className="w-full sm:flex-1 py-2.5 sm:py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-medium transition flex items-center justify-center gap-2">
-                <CheckCircle2 size={18} /> <span className="hidden xs:inline">Marquer comme payé</span><span className="xs:hidden">Payé</span>
+                <CheckCircle2 size={18} /> Valider le paiement
               </button>
               <button onClick={onMarkFailed}
                 className="w-full sm:flex-1 py-2.5 sm:py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium transition flex items-center justify-center gap-2">
-                <XCircle size={18} /> <span className="hidden xs:inline">Marquer comme échoué</span><span className="xs:hidden">Échec</span>
+                <XCircle size={18} /> Rejeter le paiement
               </button>
             </div>
           )}
@@ -738,7 +787,7 @@ function PaymentDetailsModal({
               <Download size={16} /> <span className="hidden xs:inline">Télécharger reçu</span><span className="xs:hidden">Reçu</span>
             </button>
             <a 
-              href={`https://wa.me/?text=Bonjour, je confirme le paiement ${payment.reference} de ${formatAmount(payment.amount)} FCFA`}
+              href={`https://wa.me/?text=Bonjour, je confirme le paiement ${payment.reference} de ${formatAmount(payment.amount)} ${payment.devise}`}
               target="_blank" rel="noopener noreferrer"
               className={`w-full sm:w-auto p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
                 darkMode ? "border-slate-600 hover:bg-slate-800" : "border-gray-300 hover:bg-gray-100"

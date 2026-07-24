@@ -1,4 +1,4 @@
-import { X, Building2, MapPin, Phone, Mail, UserCircle, Users, FileText, Edit2, Trash2, Eye, Activity } from "lucide-react";
+import { X, Building2, MapPin, Phone, Mail, UserCircle, Users, FileText, Edit2, Trash2, Eye, Activity, Briefcase, Languages, ShieldCheck } from "lucide-react";
 
 export default function ViewStructureModal({ darkMode, structure, onClose, onToggleStatus, onViewDocs, onDelete }) {
   return (
@@ -29,14 +29,14 @@ export default function ViewStructureModal({ darkMode, structure, onClose, onTog
           {/* Status & Date */}
           <div className="flex items-center gap-3 flex-wrap">
             <span className={`px-4 py-2 rounded-full text-sm font-medium border ${
-              structure.status === "Actif" 
+              structure.status === "Vérifié" 
                 ? "bg-green-500/10 text-green-500 border-green-500/20" 
                 : "bg-red-500/10 text-red-500 border-red-500/20"
             }`}>
               {structure.status}
             </span>
             <span className="text-sm text-gray-400 flex items-center gap-1">
-              <Activity size={14} /> Ajouté le {structure.createdAt}
+              <Activity size={14} /> Ajouté le {structure.createdAt ? new Date(structure.createdAt).toLocaleDateString() : "—"}
             </span>
           </div>
 
@@ -49,6 +49,20 @@ export default function ViewStructureModal({ darkMode, structure, onClose, onTog
             <InfoItem icon={UserCircle} label="Responsable" value={structure.manager} darkMode={darkMode} />
             <InfoItem icon={Users} label="Professionnels" value={`${structure.professionals} personnes`} darkMode={darkMode} />
           </div>
+
+          {/* Services, Équipements, Langues, Assurances */}
+          {structure.services?.length > 0 && (
+            <ArrayPreview icon={Briefcase} label="Services" items={structure.services} darkMode={darkMode} />
+          )}
+          {structure.equipements?.length > 0 && (
+            <ArrayPreview icon={Building2} label="Équipements" items={structure.equipements} darkMode={darkMode} />
+          )}
+          {structure.langues?.length > 0 && (
+            <ArrayPreview icon={Languages} label="Langues parlées" items={structure.langues} darkMode={darkMode} />
+          )}
+          {structure.assurances?.length > 0 && (
+            <ArrayPreview icon={ShieldCheck} label="Assurances acceptées" items={structure.assurances} darkMode={darkMode} />
+          )}
 
           {/* Documents Preview */}
           <div>
@@ -84,11 +98,11 @@ export default function ViewStructureModal({ darkMode, structure, onClose, onTog
           {/* Toggle Status Button */}
           <button onClick={onToggleStatus}
             className={`w-full py-3 rounded-xl font-medium transition flex items-center justify-center gap-2 ${
-              structure.status === "Actif"
+              structure.status === "Vérifié"
                 ? "bg-yellow-600 hover:bg-yellow-700 text-white"
                 : "bg-green-600 hover:bg-green-700 text-white"
             }`}>
-            <Edit2 size={18} /> {structure.status === "Actif" ? "Désactiver" : "Activer"} cette structure
+            <Edit2 size={18} /> {structure.status === "Vérifié" ? "Désactiver" : "Activer"} cette structure
           </button>
 
           {/* Other Actions */}
@@ -117,6 +131,25 @@ function InfoItem({ icon: Icon, label, value, darkMode }) {
         <Icon size={12} /> {label}
       </p>
       <p className="font-medium text-sm truncate">{value || "—"}</p>
+    </div>
+  );
+}
+
+function ArrayPreview({ icon: Icon, label, items, darkMode }) {
+  return (
+    <div>
+      <h3 className="font-semibold mb-3 flex items-center gap-2">
+        <Icon size={16} className="text-blue-500" /> {label}
+      </h3>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item, i) => (
+          <span key={i} className={`px-3 py-1.5 rounded-lg text-xs ${
+            darkMode ? "bg-slate-800" : "bg-gray-100"
+          }`}>
+            {item}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

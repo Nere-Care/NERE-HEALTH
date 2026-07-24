@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 export default function PatientAddModal({ isOpen, onClose, onAdd, darkMode }) {
   const [formData, setFormData] = useState({
     nom: "", age: "", sexe: "", telephone: "", email: "", adresse: "",
-    groupe: "", assurance: "", allergies: "", antecedents: "", medecin: "", statut: "Actif"
+    groupe: "", assurance: "", antecedents: "", medecin: "", statut: "Actif"
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,7 +21,7 @@ export default function PatientAddModal({ isOpen, onClose, onAdd, darkMode }) {
     if (!formData.nom.trim()) newErrors.nom = "Le nom est requis";
     if (!formData.age || formData.age < 1 || formData.age > 120) newErrors.age = "Âge invalide";
     if (!formData.sexe) newErrors.sexe = "Sélectionnez un sexe";
-    if (!formData.telephone.match(/^\+?[\d\s\-()]{8,}$/)) newErrors.telephone = "Téléphone invalide";
+    if (!formData.telephone.match(/^6\d{8}$/)) newErrors.telephone = "Téléphone invalide (9 chiffres commençant par 6)";
     if (formData.email && !formData.email.match(/^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/)) {
       newErrors.email = "Email invalide";
     }
@@ -44,7 +44,7 @@ export default function PatientAddModal({ isOpen, onClose, onAdd, darkMode }) {
       onAdd(formData);
       setFormData({
         nom: "", age: "", sexe: "", telephone: "", email: "", adresse: "",
-        groupe: "", assurance: "", allergies: "", antecedents: "", medecin: "", statut: "Actif"
+        groupe: "", assurance: "", antecedents: "", medecin: "", statut: "Actif"
       });
     } catch (error) {
       toast.error("❌ Erreur lors de l'ajout");
@@ -123,7 +123,7 @@ export default function PatientAddModal({ isOpen, onClose, onAdd, darkMode }) {
               <div className={fieldClass}>
                 <Phone size={18} className="text-gray-400" />
                 <input type="tel" name="telephone" value={formData.telephone} onChange={handleChange} 
-                  placeholder="+237 690000000" className={inputClass} />
+                  placeholder="6XX XXX XXX" maxLength={9} pattern="6[0-9]{8}" className={inputClass} />
               </div>
               {errors.telephone && <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>}
             </div>
@@ -195,15 +195,6 @@ export default function PatientAddModal({ isOpen, onClose, onAdd, darkMode }) {
                 <option value="En attente">En attente</option>
               </select>
             </div>
-          </div>
-
-          {/* Allergies */}
-          <div>
-            <label className="text-sm font-medium">Allergies</label>
-            <textarea name="allergies" value={formData.allergies} onChange={handleChange} rows={2}
-              placeholder="Aucune" className={`mt-2 w-full border rounded-2xl px-4 py-3 bg-transparent outline-none resize-none ${
-                darkMode ? "border-slate-700" : "border-gray-300"
-              }`} />
           </div>
 
           {/* Antécédents */}

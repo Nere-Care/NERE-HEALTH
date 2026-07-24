@@ -1,5 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -66,3 +67,39 @@ async def read_notification(
     if current_user.role != "admin" and notification.utilisateur_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     return notification
+
+
+@router.put("/notifications/{notification_id}/lu", response_model=NotificationRead)
+async def mark_notification_read(
+    notification_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    notification = db.get(Notification, notification_id)
+    if not notification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification non trouvée")
+    if current_user.role != "admin" and notification.utilisateur_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    notification.statut = "lu"
+    notification.date_lecture = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+@router.put("/notifications/lu-toutes", response_model=List[NotificationRead])
+async def mark_all_read(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    stmt = select(Notification).where(
+        Notification.utilisateur_id == current_user.id,
+        Notification.statut != "lu",
+    )
+    notifs = db.execute(stmt).scalars().all()
+    now = datetime.now(timezone.utc)
+    for n in notifs:
+        n.statut = "lu"
+        n.date_lecture = now
+    db.commit()
+    return notifs

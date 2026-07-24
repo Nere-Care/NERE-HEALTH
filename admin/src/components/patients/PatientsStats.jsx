@@ -5,7 +5,7 @@ export default function PatientsStats({ darkMode, patients = [] }) {
   const total = patients.length > 0 ? patients.length : 2540;
   const consultations = Math.floor(total * 0.3);
   const incomplets = Math.floor(total * 0.05);
-  const critiques = patients.filter(p => p.allergies !== "Aucune").length || 12;
+  const critiques = patients.filter(p => p.antecedents !== "Aucun").length || 12;
 
   const stats = [
     { title: "Patients Totaux", value: total.toLocaleString(), icon: Users, color: "blue" },

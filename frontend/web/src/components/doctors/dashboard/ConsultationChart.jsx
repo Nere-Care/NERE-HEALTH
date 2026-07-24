@@ -8,9 +8,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-import { consultationsData } from "../../../constants/doctors/DasboardData";
-
-export default function ConsultationChart({ darkMode }) {
+export default function ConsultationChart({ consultationsData = [], darkMode }) {
   const totalConsultations = consultationsData.reduce(
     (acc, d) => acc + d.total,
     0

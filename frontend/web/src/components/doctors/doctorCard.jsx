@@ -1,118 +1,81 @@
-// ================================
-// DoctorCard.jsx (IMPROVED)
-// ================================
-import { Star, MapPin, Send } from "lucide-react";
+import { Star, MapPin, Clock, Heart, User, Send } from "lucide-react";
 
-export default function DoctorCard({ doctor, darkMode , onAskOpinion }) {
+export default function DoctorCard({ doctor, darkMode, onAskOpinion, currentUserId }) {
+  const note = parseFloat(doctor.rating || 0);
+  const nom = doctor.name || "Médecin";
   return (
     <div
-      className={`
-        group flex flex-col overflow-hidden
-        rounded-2xl border transition-all duration-300
-        w-full max-w-[290px] sm:max-w-[310px] mx-auto
-        hover:shadow-xl hover:-translate-y-1
-        ${darkMode
-          ? "bg-gray-900 border-gray-800 text-white"
-          : "bg-white border-gray-200 text-gray-900"
-        }
-      `}
+      className={`rounded-2xl shadow p-4 flex flex-col gap-3 cursor-pointer transition-all hover:shadow-md ${
+        darkMode ? "bg-gray-800 hover:bg-gray-750" : "bg-white hover:bg-gray-50"
+      }`}
     >
-      {/* IMAGE */}
       <div className="relative">
-        <img
-          src={doctor.image}
-          alt={doctor.name}
-          className="w-full h-40 sm:h-44 md:h-48 object-cover"
-        />
-
-        {/* subtle overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-      </div>
-
-      {/* CONTENT */}
-      <div className="p-4 sm:p-5 flex flex-col flex-1">
-
-        {/* NAME + SPECIALTY */}
-        <div>
-          <h3 className="text-base sm:text-lg font-semibold truncate">
-            {doctor.name}
-          </h3>
-
-          <p
-            className={`text-xs sm:text-sm mt-1 ${
-              darkMode ? "text-gray-400" : "text-gray-500"
-            }`}
-          >
-            {doctor.specialty}
-          </p>
+        <div className={`w-full h-40 rounded-xl flex items-center justify-center ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
+          {doctor.image ? (
+            <img src={doctor.image} alt="" className="w-full h-full rounded-xl object-cover" />
+          ) : (
+            <User size={48} className="text-blue-300" />
+          )}
         </div>
-
-        {/* INFO */}
-        <div className="mt-4 space-y-2 text-sm">
-
-          {/* CITY + RATING */}
-          <div className="flex items-center justify-between">
-
-            <div
-              className={`flex items-center gap-1 ${
-                darkMode ? "text-gray-400" : "text-gray-600"
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span className="text-xs sm:text-sm">{doctor.city}</span>
-            </div>
-
-            <div className="flex items-center gap-1 font-semibold">
-              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-              <span className="text-xs sm:text-sm">{doctor.rating}</span>
-            </div>
-
+        <button className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center">
+          <Heart size={16} className="text-gray-400" />
+        </button>
+        <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-semibold ${
+          doctor.available ? "bg-green-500 text-white" : "bg-gray-400 text-white"
+        }`}>
+          {doctor.available ? "Disponible" : "Indisponible"}
+        </div>
+      </div>
+      <div>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className={`font-bold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>{nom}</p>
+            <p className="text-xs text-blue-500 font-medium">{doctor.specialty}</p>
           </div>
-
-          {/* HOSPITAL */}
-          <p
-            className={`text-xs truncate ${
-              darkMode ? "text-gray-500" : "text-gray-500"
-            }`}
-          >
-            {doctor.hospital}
-          </p>
-
-          {/* EXPERIENCE BADGE */}
-          <div className="flex items-center justify-between">
-
-            <span
-              className={`text-xs px-2 py-1 rounded-full ${
-                darkMode
-                  ? "bg-gray-800 text-gray-300"
-                  : "bg-gray-100 text-gray-600"
-              }`}
-            >
-              {doctor.experience} yrs exp
-            </span>
-
+          <div className="flex items-center gap-1">
+            <Star size={12} fill="#FBBF24" className="text-yellow-400" />
+            <span className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>{note.toFixed(1)}</span>
           </div>
         </div>
-
-        {/* BUTTON */}
-        <button
-  onClick={(e) => {
-    e.stopPropagation();
-    onAskOpinion?.(doctor);
-  }}
-  className="
-    mt-5 w-full flex items-center justify-center gap-2
-    py-2.5 rounded-xl text-sm font-medium
-    bg-blue-600 text-white
-    hover:bg-blue-700 active:scale-[0.98]
-    transition-all duration-200
-  "
->
-  <Send className="w-4 h-4" />
-  Ask for opinion
-</button>
-
       </div>
+      <div className="flex flex-col gap-1">
+        {doctor.experience > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Clock size={12} className="text-gray-400" />
+            <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doctor.experience} ans d'expérience</span>
+          </div>
+        )}
+        {doctor.hospital && (
+          <div className="flex items-center gap-1.5">
+            <MapPin size={12} className="text-gray-400" />
+            <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{doctor.hospital}{doctor.city ? ` • ${doctor.city}` : ""}</span>
+          </div>
+        )}
+      </div>
+      {doctor.description && (
+        <p className={`text-xs leading-relaxed truncate ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+          {doctor.description}
+        </p>
+      )}
+      <button
+        disabled={currentUserId === doctor.id || !doctor.available}
+        onClick={(e) => { e.stopPropagation(); onAskOpinion?.(doctor); }}
+        className={`mt-1 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+          currentUserId === doctor.id || !doctor.available
+            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+            : "bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]"
+        }`}
+        title={
+          currentUserId === doctor.id
+            ? "Vous ne pouvez pas demander un avis sur votre propre profil"
+            : !doctor.available
+            ? "Ce médecin est indisponible"
+            : ""
+        }
+      >
+        <Send size={14} />
+        Ask for opinion
+      </button>
     </div>
   );
 }

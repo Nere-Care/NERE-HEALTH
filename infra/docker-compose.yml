@@ -8,7 +8,6 @@ services:
       POSTGRES_DB: nere_db
     volumes:
       - db_data:/var/lib/postgresql/data
-      - "../Documentations NERE/nere_schema.sql:/docker-entrypoint-initdb.d/nere_schema.sql:ro"
     ports:
       - "5433:5432"
     healthcheck:
@@ -31,9 +30,11 @@ services:
       start_period: 10s
     environment:
       DATABASE_URL: postgresql://nere_user:nere_pass@db:5432/nere_db
-      CORS_ORIGINS: "http://localhost:4173,http://localhost:5173"
+      CORS_ORIGINS: "http://localhost:4173,http://localhost:4174,http://localhost:8000"
       ENVIRONMENT: development
+      DEBUG: "true"
       API_PREFIX: /api
+      SECRET_KEY: dev-secret-key-change-in-production
     ports:
       - "8000:8000"
 
@@ -42,12 +43,12 @@ services:
       context: ../frontend/web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://backend:8000
+        VITE_API_URL: http://localhost:8000
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "4173:4173"
+      - "4173:5173"
 
 volumes:
   db_data:

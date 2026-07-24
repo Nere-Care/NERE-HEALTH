@@ -8,10 +8,24 @@ from sqlalchemy.orm import Session
 
 from auth import get_current_active_user
 from db import get_db
-from models import Conversation, Message
+from models import Conversation, DemandeAvisMedical, Message
 from schemas import MessageCreate, MessageRead
 
 router = APIRouter(tags=["messages"])
+
+
+def _can_access_conversation(user, conv: Conversation, db: Session) -> bool:
+    if user.role == "admin":
+        return True
+    if conv.patient_id and user.id == conv.patient_id:
+        return True
+    if conv.medecin_id and user.id == conv.medecin_id:
+        return True
+    if conv.demande_avis_id:
+        demande = db.get(DemandeAvisMedical, conv.demande_avis_id)
+        if demande and user.id in (demande.medecin_demandeur_id, demande.medecin_cible_id, demande.medecin_accepteur_id):
+            return True
+    return False
 
 
 @router.get("/messages", response_model=List[MessageRead])
@@ -27,7 +41,7 @@ async def list_messages(
     if current_user.role not in ("admin", "medecin", "patient"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux utilisateurs authentifiés")
 
-    messages = db.execute(stmt.order_by(Message.created_at.desc()).limit(limit)).scalars().all()
+    messages = db.execute(stmt.order_by(Message.created_at.asc()).limit(limit)).scalars().all()
     return messages
 
 
@@ -40,10 +54,11 @@ async def create_message(
     conversation = db.get(Conversation, message_create.conversation_id)
     if not conversation:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conversation introuvable")
-    if current_user.role == "patient" and conversation.patient_id != current_user.id:
+    if not _can_access_conversation(current_user, conversation, db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
-    if current_user.role == "medecin" and conversation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
+    if conversation.statut == "fermee" and current_user.role == "patient":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La conversation a été fermée par le médecin")
 
     message = Message(
         **message_create.dict(exclude_unset=True),

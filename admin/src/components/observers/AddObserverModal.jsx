@@ -82,8 +82,8 @@ export default function AddObserverModal({ darkMode, formData, setFormData, isSu
             </div>
             <div>
               <label className="text-sm font-medium">Téléphone</label>
-              <input name="phone" value={formData.phone} onChange={handleChange} 
-                placeholder="+237 6XX XXX XXX" className={inputClass} />
+              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} 
+                placeholder="6XX XXX XXX" maxLength={9} pattern="6[0-9]{8}" className={inputClass} />
             </div>
           </div>
 

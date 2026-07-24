@@ -19,6 +19,7 @@ export default function IdleScreen({
   rdvDuJour,
   historique,
   stats,
+  todayStats,
 }) {
   const [recherche, setRecherche] = useState("");
   const [tabActif, setTabActif] = useState("file"); // file | historique
@@ -26,6 +27,11 @@ export default function IdleScreen({
   const rdvFiltres = rdvDuJour.filter((r) =>
     r.patientName.toLowerCase().includes(recherche.toLowerCase()) ||
     r.motif.toLowerCase().includes(recherche.toLowerCase())
+  );
+
+  const historiqueFiltre = (historique || []).filter((h) =>
+    h.patientName.toLowerCase().includes(recherche.toLowerCase()) ||
+    h.motif.toLowerCase().includes(recherche.toLowerCase())
   );
 
   const statutConfig = {
@@ -46,6 +52,12 @@ export default function IdleScreen({
       color: "text-green-500",
       bg: darkMode ? "bg-green-900/30" : "bg-green-50",
       icon: CheckCircle,
+    },
+    expire: {
+      label: "Expiré",
+      color: "text-gray-400",
+      bg: darkMode ? "bg-gray-700/50" : "bg-gray-100",
+      icon: Clock,
     },
   };
 
@@ -204,7 +216,7 @@ export default function IdleScreen({
                         <div className="flex items-center gap-3 mt-1">
                           <span className={`flex items-center gap-1 text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                             <Clock size={10} />
-                            {rdv.heure}
+                            {rdv.date} à {rdv.heure}
                           </span>
                           <span className={`flex items-center gap-1 text-xs font-medium ${config.color}`}>
                             <StatusIcon size={10} />
@@ -214,7 +226,7 @@ export default function IdleScreen({
                       </div>
 
                       {/* Action */}
-                      {rdv.statut === "en_attente" && (
+                      {rdv.statut === "en_attente" && rdv._canStart && (
                         <button
                           onClick={() => startConsultation(rdv)}
                           className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs sm:text-sm hover:bg-blue-700 transition flex-shrink-0"
@@ -222,6 +234,13 @@ export default function IdleScreen({
                           <Play size={14} className="fill-white" />
                           <span className="hidden sm:inline">Démarrer</span>
                         </button>
+                      )}
+
+                      {rdv.statut === "en_attente" && !rdv._canStart && (
+                        <span className="flex items-center gap-1.5 bg-gray-300 text-gray-500 px-3 py-2 rounded-xl text-xs sm:text-sm cursor-not-allowed flex-shrink-0">
+                          <Clock size={14} />
+                          <span className="hidden sm:inline">Disponible dans 2 min</span>
+                        </span>
                       )}
 
                       {rdv.statut === "en_cours" && (
@@ -240,7 +259,7 @@ export default function IdleScreen({
             </div>
           ) : (
             <div className="space-y-2">
-              {historique.length === 0 ? (
+              {historiqueFiltre.length === 0 ? (
                 <div className="text-center py-12">
                   <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
@@ -248,31 +267,36 @@ export default function IdleScreen({
                   </p>
                 </div>
               ) : (
-                historique.map((h) => (
+                historiqueFiltre.map((h) => {
+                  const hConfig = statutConfig[h.statut] || statutConfig.expire;
+                  const HIcon = hConfig.icon;
+                  return (
                   <div
                     key={h.id}
                     className={`flex items-center gap-3 p-3 rounded-xl
                       ${darkMode ? "bg-gray-700/50" : "bg-gray-50"}`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      {h.avatar}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`font-semibold text-sm truncate ${darkMode ? "text-white" : "text-gray-800"}`}>
-                        {h.patient}
+                        {h.patientName}
                       </p>
                       <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        {h.diagnostic}
+                        {h.motif}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{h.date}</p>
-                      <p className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-                        {h.heure} • {h.duree}
-                      </p>
+                      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{h.date} à {h.heure}</p>
+                      <span className={`flex items-center gap-1 text-xs font-medium justify-end ${hConfig.color}`}>
+                        <HIcon size={10} />
+                        {hConfig.label}
+                      </span>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -295,7 +319,7 @@ export default function IdleScreen({
                   {rdvDuJour.find(r => r.statut === "en_attente").motif}
                 </p>
                 <p className="text-xs text-blue-500 font-semibold mt-2">
-                  à {rdvDuJour.find(r => r.statut === "en_attente").heure}
+                  {rdvDuJour.find(r => r.statut === "en_attente").date} à {rdvDuJour.find(r => r.statut === "en_attente").heure}
                 </p>
               </div>
             ) : (
@@ -306,26 +330,28 @@ export default function IdleScreen({
           </div>
 
           {/* Stats rapides */}
-          <div className={`rounded-2xl p-4 ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
-            <h3 className={`font-semibold text-sm mb-3 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
-              <TrendingUp className="w-4 h-4 text-green-500" />
-              Aujourd'hui
-            </h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Durée moyenne</span>
-                <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>24 min</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Taux d'occupation</span>
-                <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>68%</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Satisfaction</span>
-                <span className="text-sm font-semibold text-green-500">4.8/5</span>
+          {todayStats && todayStats.count > 0 && (
+            <div className={`rounded-2xl p-4 ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
+              <h3 className={`font-semibold text-sm mb-3 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
+                <TrendingUp className="w-4 h-4 text-green-500" />
+                Aujourd'hui
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Consultations</span>
+                  <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>{todayStats.count}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Durée moyenne</span>
+                  <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>{todayStats.avgDurationMin} min</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>Taux de complétion</span>
+                  <span className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>{todayStats.tauxCompletion}%</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

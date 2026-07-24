@@ -43,18 +43,21 @@ class User(Base):
     telephone = Column(String(20))
     mot_de_passe_hash = Column(String(255), nullable=False)
     role = Column(
-        _enum_type(("patient", "medecin", "structure", "admin", "observateur"), "role_utilisateur"),
+        _enum_type(("patient", "medecin", "infirmier", "sage_femme", "structure", "admin", "observateur"), "role_utilisateur"),
         nullable=False,
     )
     statut = Column(
-        _enum_type(("actif", "inactif", "suspendu", "en_attente", "supprime"), "statut_compte"),
+        _enum_type(("actif", "inactif", "suspendu", "banni", "en_attente", "supprime"), "statut_compte"),
         nullable=False,
         server_default=text("'en_attente'::public.statut_compte"),
     )
     nom = Column(String(100))
     prenom = Column(String(100))
-    photo_url = Column(String(1000))
+    photo_url = Column(Text)
     langue = Column(String(5), nullable=False, server_default=text("'fr'"))
+    timezone = Column(String(50), nullable=False, server_default=text("'Africa/Douala'"))
+    adresse = Column(Text)
+    date_naissance = Column(Date)
     theme = Column(
         _enum_type(("clair", "sombre", "auto"), "theme_interface"),
         nullable=False,
@@ -81,7 +84,7 @@ class User(Base):
 
     @property
     def is_active(self):
-        return self.statut == "actif"
+        return self.statut in ("actif", "suspendu")
 
     @property
     def full_name(self):
@@ -92,11 +95,11 @@ class User(Base):
 
 class Patient(Base):
     __tablename__ = "patients"
-    __table_args__ = (UniqueConstraint("numero_patient", name="uq_patients_numero_patient"),)
+    __table_args__ = (UniqueConstraint("nss", name="uq_patients_nss"),)
 
     id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True, server_default=text("gen_random_uuid()"))
-    numero_patient = Column(String(25), nullable=False)
-    date_naissance = Column(Date)
+    code_patient = Column(String(20), unique=True, nullable=False)
+    nss = Column(String(20), nullable=False)
     sexe = Column(
         _enum_type(("M", "F", "Autre", "Non_precise"), "sexe_enum"),
         nullable=False,
@@ -107,29 +110,50 @@ class Patient(Base):
         nullable=False,
         server_default=text("'Inconnu'::public.groupe_sanguin_enum"),
     )
-    adresse = Column(Text)
     ville = Column(String(100))
     region = Column(String(100))
     pays = Column(String(50), nullable=False, server_default=text("'CM'"))
     code_postal = Column(String(10))
     latitude = Column(Numeric(10, 8))
     longitude = Column(Numeric(11, 8))
-    taille_cm = Column(Numeric(5, 2))
-    poids_kg = Column(Numeric(5, 2))
-    allergies = Column(ARRAY(Text))
-    antecedents_medicaux = Column(Text)
-    medicaments_en_cours = Column(Text)
+    profession = Column(String(150))
+    statut_matrimonial = Column(String(20))
     couverture_assurance = Column(String(200))
     numero_assurance = Column(String(100))
     organisme_assurance = Column(String(200))
     contact_urgence_nom = Column(String(150))
     contact_urgence_tel = Column(String(20))
     contact_urgence_lien = Column(String(50))
+    contact_urgence2_nom = Column(String(150))
+    contact_urgence2_tel = Column(String(20))
+    contact_urgence2_lien = Column(String(50))
+    proche_nom = Column(String(100))
+    proche_prenom = Column(String(100))
+    proche_age = Column(Integer)
     consentement_donnees = Column(Boolean, nullable=False, server_default=text("false"))
     date_consentement = Column(DateTime(timezone=True))
     consentement_marketing = Column(Boolean, nullable=False, server_default=text("false"))
+    acces_dossier = Column(
+        _enum_type(("standard", "restreint"), "acces_dossier_enum"),
+        nullable=False,
+        server_default=text("'standard'::public.acces_dossier_enum"),
+    )
+    partage_anonyme = Column(Boolean, nullable=False, server_default=text("true"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ProfessionnelAutorise(Base):
+    __tablename__ = "professionnels_autorises"
+    __table_args__ = (
+        UniqueConstraint("patient_id", "medecin_id", name="uq_professionnels_autorises"),
+        Index("ix_professionnels_autorises_patient_id", "patient_id"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class Consultation(Base):
@@ -158,6 +182,9 @@ class Consultation(Base):
     code_cim10 = Column(String(10))
     diagnostics_secondaires = Column(ARRAY(Text))
     plan_traitement = Column(Text)
+    prescription_nom = Column(Text)
+    prescription_posologie = Column(Text)
+    demandes_labo = Column(Text)
     observations = Column(Text)
     suivi_necessaire = Column(Boolean, nullable=False, server_default=text("false"))
     date_prochain_rdv = Column(Date)
@@ -181,11 +208,17 @@ class Ordonnance(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     numero = Column(String(30), nullable=False)
-    consultation_id = Column(UUID(as_uuid=True), ForeignKey("consultations.id"), nullable=False)
-    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
+    consultation_id = Column(UUID(as_uuid=True), ForeignKey("consultations.id"), nullable=True)
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=True)
+    medecin_nom_libre = Column(String(200))
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    motif = Column(Text)
+    type_consultation = Column(String(50))
+    type_ordonnance = Column(String(50), nullable=True)
+    structure_nom = Column(String(200))
+    adresse_structure = Column(Text)
     date_emission = Column(Date, nullable=False, server_default=func.current_date())
-    date_expiration = Column(Date, nullable=False)
+    date_expiration = Column(Date, nullable=True)
     statut = Column(
         _enum_type(("active", "utilisee", "partiellement_utilisee", "expiree", "annulee"), "statut_ordonnance"),
         nullable=False,
@@ -197,16 +230,24 @@ class Ordonnance(Base):
     qr_code_url = Column(String(1000))
     code_pharmacie = Column(String(20))
     signature_numerique = Column(Text)
-    hash_integritet = Column(String(64))
+    hash_integrite = Column(String(64))
     pdf_url = Column(String(1000))
     notes_medecin = Column(Text)
     renouvelable = Column(Boolean, nullable=False, server_default=text("false"))
     nb_renouvellements_max = Column(Integer, nullable=False, server_default=text("0"))
     nb_renouvellements = Column(Integer, nullable=False, server_default=text("0"))
+    date_debut_traitement = Column(Date, nullable=True)
+    statut_traitement = Column(
+        _enum_type(("EN_COURS", "TERMINE", "ARRETE"), "statut_traitement"),
+        nullable=True,
+    )
+    date_arret_traitement = Column(Date, nullable=True)
+    motif_arret_traitement = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     lignes = relationship("OrdonnanceLigne", back_populates="ordonnance", cascade="all, delete-orphan", lazy="selectin")
+    prises = relationship("PriseMedicament", back_populates="ordonnance", cascade="all, delete-orphan", lazy="selectin")
 
 
 class OrdonnanceLigne(Base):
@@ -218,7 +259,7 @@ class OrdonnanceLigne(Base):
     medicament_nom = Column(String(300), nullable=False)
     dci = Column(String(300))
     classe_therapeutique = Column(String(150))
-    dosage = Column(String(100), nullable=False)
+    dosage = Column(String(100))
     forme = Column(
         _enum_type(
             (
@@ -236,12 +277,12 @@ class OrdonnanceLigne(Base):
             ),
             "forme_medicament",
         ),
-        nullable=False,
+        nullable=True,
     )
-    posologie = Column(String(500), nullable=False)
+    posologie = Column(String(500))
     frequence_par_jour = Column(SmallInteger, nullable=False, server_default=text("1"))
-    duree_jours = Column(Integer, nullable=False)
-    quantite = Column(Integer, nullable=False)
+    duree_jours = Column(Integer)
+    quantite = Column(Integer)
     avant_repas = Column(Boolean)
     heure_prise = Column(ARRAY(Time))
     instructions_speciales = Column(Text)
@@ -305,6 +346,8 @@ class Paiement(Base):
                 "rembourse_partiel",
                 "annule",
                 "expire",
+                "en_attente_validation",
+                "valide_manuellement",
             ),
             "statut_paiement",
         ),
@@ -325,6 +368,8 @@ class Paiement(Base):
     reference_reversement = Column(String(200))
     ip_paiement = Column(INET)
     user_agent_paiement = Column(Text)
+    telephone_paiement = Column(String(20))
+    derniers_4_chiffres = Column(String(4))
     date_expiration = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -374,6 +419,7 @@ class RendezVous(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     numero_rdv = Column(String(30), nullable=False)
+    code_verification = Column(String(6))
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
     structure_id = Column(UUID(as_uuid=True), ForeignKey("structures.id"))
@@ -396,6 +442,8 @@ class RendezVous(Base):
                 "no_show_patient",
                 "no_show_medecin",
                 "rembourse",
+                "en_attente_paiement",
+                "paye_en_attente_validation",
             ),
             "statut_rdv",
         ),
@@ -451,6 +499,16 @@ class Notification(Base):
                 "compte_valide",
                 "compte_rejete",
                 "nouveaux_avis",
+                "document_ajoute",
+                "rappel_prise_medicament",
+                "reponse_ticket",
+                "demande_reprogrammation",
+                "acceptation_reprogrammation",
+                "refus_reprogrammation",
+                "demande_avis_recue",
+                "demande_avis_acceptee",
+                "demande_avis_refusee",
+                "demande_avis_repondu",
             ),
             "type_notification",
         ),
@@ -538,12 +596,14 @@ class Conversation(Base):
         Index("ix_conversations_patient_id", "patient_id"),
         Index("ix_conversations_medecin_id", "medecin_id"),
         Index("ix_conversations_rdv_id", "rdv_id"),
+        Index("ix_conversations_demande_avis_id", "demande_avis_id"),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"))
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
     rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"))
+    demande_avis_id = Column(UUID(as_uuid=True), ForeignKey("demandes_avis_medical.id"))
     statut = Column(String(20), nullable=False, server_default=text("'active'"))
     nb_messages_non_lus_patient = Column(Integer, nullable=False, server_default=text("0"))
     nb_messages_non_lus_medecin = Column(Integer, nullable=False, server_default=text("0"))
@@ -602,10 +662,14 @@ class DocumentMedical(Base):
                 "imagerie_echographie",
                 "imagerie_scanner",
                 "imagerie_irm",
+                "mammographie",
                 "compte_rendu_consultation",
                 "ordonnance_scannee",
+                "ordonnance_biologie",
+                "ordonnance_imagerie",
                 "certificat_medical",
                 "carnet_vaccination",
+                "autre",
             ),
             "type_document_medical",
         ),
@@ -613,7 +677,7 @@ class DocumentMedical(Base):
     )
     nom_fichier_original = Column(String(500), nullable=False)
     nom_fichier_stockage = Column(String(500), nullable=False)
-    url_stockage = Column(String(2000), nullable=False)
+    url_stockage = Column(Text, nullable=False)
     checksum_sha256 = Column(String(64), nullable=False)
     taille_octets = Column(BigInteger, nullable=False)
     mime_type = Column(String(100), nullable=False)
@@ -624,6 +688,7 @@ class DocumentMedical(Base):
     description = Column(Text)
     date_document = Column(Date)
     laboratoire_nom = Column(String(200))
+    adresse_structure = Column(Text)
     prescripteur_nom = Column(String(200))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -648,6 +713,7 @@ class Medecin(Base):
     __tablename__ = "medecins"
 
     id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    code_medecin = Column(String(20), unique=True, nullable=False)
     numero_ordre = Column(String(60), nullable=False)
     statut_verification = Column(
         _enum_type(
@@ -661,8 +727,13 @@ class Medecin(Base):
     verifie_par_admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     annees_experience = Column(Integer, nullable=False, server_default=text("0"))
     biographie = Column(Text)
+    presentation = Column(Text)
+    expertises = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    actes = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     diplomes = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     certifications = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    experience_history = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    documents = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     langues_parlees = Column(ARRAY(String(10)), nullable=False, server_default=text("ARRAY['fr'::text]"))
     tarif_consultation = Column(Numeric(10, 2), nullable=False, server_default=text("5000.00"))
     devise = Column(
@@ -675,6 +746,8 @@ class Medecin(Base):
     nombre_avis = Column(Integer, nullable=False, server_default=text("0"))
     nombre_consultations = Column(Integer, nullable=False, server_default=text("0"))
     structure_id = Column(UUID(as_uuid=True), ForeignKey("structures.id"))
+    ville = Column(String(100))
+    district = Column(String(100))
     disponible_maintenant = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -767,7 +840,13 @@ class Structure(Base):
     logo_url = Column(String(1000))
     horaires_ouverture = Column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     services_offerts = Column(ARRAY(String), nullable=False, server_default=text("ARRAY[]::text[]"))
+    equipements = Column(ARRAY(String), nullable=False, server_default=text("ARRAY[]::text[]"))
+    langues_parlees = Column(ARRAY(String), nullable=False, server_default=text("ARRAY[]::text[]"))
+    assurances = Column(ARRAY(String), nullable=False, server_default=text("ARRAY[]::text[]"))
+    responsable = Column(String(200))
+    nombre_professionnels = Column(Integer, server_default=text("0"))
     capacite_lits = Column(Integer)
+    documents = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -778,7 +857,7 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True)
     utilisateur_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     role_utilisateur = Column(
-        _enum_type(("patient", "medecin", "structure", "admin", "observateur"), "role_utilisateur")
+        _enum_type(("patient", "medecin", "infirmier", "sage_femme", "structure", "admin", "observateur"), "role_utilisateur")
     )
     session_id = Column(UUID(as_uuid=True), ForeignKey("sessions.id"))
     action = Column(
@@ -821,6 +900,205 @@ class AuditLog(Base):
     code_http = Column(SmallInteger)
     message_erreur = Column(Text)
     duree_ms = Column(Integer)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AvisStructure(Base):
+    __tablename__ = "avis_structure"
+    __table_args__ = (
+        Index("ix_avis_structure_patient_id", "patient_id"),
+        Index("ix_avis_structure_structure_id", "structure_id"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    structure_id = Column(UUID(as_uuid=True), ForeignKey("structures.id"), nullable=False)
+    note = Column(SmallInteger, nullable=False)
+    commentaire = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class DemandeAvisMedical(Base):
+    __tablename__ = "demandes_avis_medical"
+    __table_args__ = (
+        Index("ix_demandes_avis_medical_medecin_demandeur_id", "medecin_demandeur_id"),
+        Index("ix_demandes_avis_medical_medecin_accepteur_id", "medecin_accepteur_id"),
+        Index("ix_demandes_avis_medical_specialite_id", "specialite_id"),
+        Index("ix_demandes_avis_medical_statut", "statut"),
+    )
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    medecin_demandeur_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
+    specialite_id = Column(UUID(as_uuid=True), ForeignKey("specialites.id"), nullable=False)
+    portee = Column(
+        _enum_type(("cameroun", "diaspora"), "portee_enum"),
+        nullable=False,
+    )
+    consultation_id = Column(UUID(as_uuid=True), ForeignKey("consultations.id"))
+    dossier_medical_id = Column(UUID(as_uuid=True), ForeignKey("dossiers_medicaux.id"))
+    motif = Column(Text, nullable=False)
+    message = Column(Text)
+    statut = Column(
+        _enum_type(("en_attente", "acceptee", "refusee", "annulee"), "statut_demande_avis"),
+        nullable=False,
+        server_default=text("'en_attente'::public.statut_demande_avis"),
+    )
+    medecin_accepteur_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"))
+    medecin_cible_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"))
+    reponse = Column(Text)
+    date_reponse = Column(DateTime(timezone=True))
+    confidentiel = Column(Boolean, nullable=False, server_default=text("true"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ExceptionDisponibilite(Base):
+    __tablename__ = "exceptions_disponibilites"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False)
+    type = Column(String(50), nullable=False)
+    creneaux = Column(JSONB, server_default=text("'[]'::jsonb"))
+    actif = Column(Boolean, nullable=False, server_default=text("true"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Medicament(Base):
+    __tablename__ = "medicaments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    nom_commercial = Column(String(300), nullable=False)
+    dci = Column(String(300), nullable=False)
+    dosage = Column(String(100), nullable=False)
+    forme = Column(String(100), nullable=False)
+    classe_therapeutique = Column(String(150), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class PriseMedicament(Base):
+    __tablename__ = "prise_medicaments"
+    __table_args__ = (
+        Index("ix_prise_medicaments_ordonnance_id", "ordonnance_id"),
+        Index("ix_prise_medicaments_date_prise_prevue", "date_prise_prevue"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    ordonnance_id = Column(UUID(as_uuid=True), ForeignKey("ordonnances.id"), nullable=False)
+    medicament_nom = Column(String(300), nullable=False)
+    date_prise_prevue = Column(Date, nullable=False)
+    heure_prise_prevue = Column(Time, nullable=True)
+    moment_journee = Column(
+        _enum_type(("MATIN", "MIDI", "SOIR"), "moment_journee_prise"),
+        nullable=False,
+    )
+    statut = Column(
+        _enum_type(("A_PRENDRE", "PRIS", "OUBLIE"), "statut_prise"),
+        nullable=False,
+        server_default=text("'A_PRENDRE'::public.statut_prise"),
+    )
+    date_prise_effective = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    ordonnance = relationship("Ordonnance", back_populates="prises")
+
+
+class CategorieTicket(Base):
+    __tablename__ = "categories_tickets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    nom = Column(String(150), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    module = Column(String(100), nullable=False, unique=True)
+    icone = Column(String(100), nullable=True)
+    actif = Column(Boolean, nullable=False, server_default=text("true"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+    __table_args__ = (
+        UniqueConstraint("numero", name="uq_tickets_numero"),
+        Index("ix_tickets_patient_id_statut", "patient_id", "statut"),
+        Index("ix_tickets_statut_created_at", "statut", "created_at"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    numero = Column(String(30), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    categorie_id = Column(UUID(as_uuid=True), ForeignKey("categories_tickets.id"), nullable=False)
+    sujet = Column(String(300), nullable=False)
+    description = Column(Text, nullable=False)
+    statut = Column(
+        _enum_type(("ouvert", "en_cours", "resolu", "ferme"), "statut_ticket"),
+        nullable=False,
+        server_default=text("'ouvert'::public.statut_ticket"),
+    )
+    priorite = Column(
+        _enum_type(("basse", "moyenne", "haute", "urgente"), "priorite_ticket"),
+        nullable=False,
+        server_default=text("'moyenne'::public.priorite_ticket"),
+    )
+    assigne_a = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    piece_jointe_url = Column(String(2000), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class TicketReponse(Base):
+    __tablename__ = "ticket_reponses"
+    __table_args__ = (
+        Index("ix_ticket_reponses_ticket_id", "ticket_id"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    ticket_id = Column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
+    auteur_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    piece_jointe_url = Column(String(2000), nullable=True)
+    contenu = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class MiseAJour(Base):
+    __tablename__ = "mises_a_jour"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    titre = Column(String(255), nullable=False)
+    contenu = Column(Text, nullable=False)
+    lien = Column(Text)
+    icon = Column(String(10), server_default=text("'🔔'"))
+    est_active = Column(Boolean, nullable=False, server_default=text("true"))
+    est_visible_medecin = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Actualite(Base):
+    __tablename__ = "actualites"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    titre = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    lien = Column(Text)
+    couleur = Column(String(20), server_default=text("'bg-blue-500'"))
+    icon = Column(String(10), server_default=text("'📢'"))
+    est_active = Column(Boolean, nullable=False, server_default=text("true"))
+    ordre = Column(Integer, server_default=text("0"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class AnalyseBiologique(Base):
+    __tablename__ = "analyses_biologiques"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    nom = Column(String(300), nullable=False, index=True)
+    categorie = Column(String(150), nullable=False)
+    description = Column(Text)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import API from "../services/api";
 import {
   Search,
   Plus,
@@ -22,95 +23,99 @@ import {
   ChevronRight,
   Filter,
   RefreshCw,
+  Loader2,
+  Power,
+  Copy,
 } from "lucide-react";
 
-/* ================= MOCK DATA ================= */
-const initialStructures = [
-  {
-    id: 1,
-    name: "Hôpital Laquintinie",
-    type: "Hôpital public",
-    city: "Douala",
-    address: "Akwa, Douala",
-    phone: "+237 690 000 001",
-    email: "contact@laquintinie.cm",
-    manager: "Dr. Ndzi",
-    professionals: 120,
-    status: "Actif",
-    documents: [
-      { id: 1, name: "Autorisation.pdf", url: "#", type: "application/pdf", size: "2.1 MB" },
-      { id: 2, name: "Licence.pdf", url: "#", type: "application/pdf", size: "1.4 MB" },
-    ],
-    createdAt: "2023-06-15",
-  },
-  {
-    id: 2,
-    name: "CHU Yaoundé",
-    type: "CHU",
-    city: "Yaoundé",
-    address: "Centre ville, Yaoundé",
-    phone: "+237 670 000 002",
-    email: "contact@chu.cm",
-    manager: "Dr. Essomba",
-    professionals: 250,
-    status: "Actif",
-    documents: [
-      { id: 1, name: "Agrément.pdf", url: "#", type: "application/pdf", size: "3.2 MB" },
-      { id: 2, name: "Certification.pdf", url: "#", type: "application/pdf", size: "890 KB" },
-    ],
-    createdAt: "2023-03-20",
-  },
-  {
-    id: 3,
-    name: "Clinique des Palétuviers",
-    type: "Clinique privée",
-    city: "Kribi",
-    address: "Bord de mer, Kribi",
-    phone: "+237 655 000 003",
-    email: "info@palétuviers.cm",
-    manager: "Dr. Mbarga",
-    professionals: 45,
-    status: "Inactif",
-    documents: [],
-    createdAt: "2024-01-10",
-  },
-];
-
 import AddStructureModal from "../components/structures/AddStructureModal";
-import DeleteConfirmModal from "../components/structures/DeleteConfirmModal"; 
+import DeleteConfirmModal from "../components/structures/DeleteConfirmModal";
 import ViewStructureModal from "../components/structures/ViewStructureModal";
 import DocumentsModal from "../components/structures/DocumentsModal";
+
+const STATUS_MAP = {
+  en_attente: "En attente",
+  verifie: "Vérifié",
+  rejete: "Rejeté",
+  suspendu: "Suspendu",
+};
+
+function mapStructure(item) {
+  return {
+    id: item.id,
+    name: item.nom_etablissement,
+    type: item.type,
+    city: item.ville,
+    address: item.adresse,
+    phone: item.telephone_pro,
+    email: item.email_pro,
+    manager: item.responsable || "—",
+    professionals: item.nombre_professionnels || 0,
+    services: item.services_offerts || [],
+    equipements: item.equipements || [],
+    langues: item.langues_parlees || [],
+    assurances: item.assurances || [],
+    status: STATUS_MAP[item.statut_verification] || item.statut_verification || "En attente",
+    documents: item.documents || [],
+    horaires: item.horaires_ouverture || {},
+    createdAt: item.created_at,
+  };
+}
+
+const INITIAL_FORM = {
+  name: "", type: "", city: "", address: "", phone: "", email: "",
+  manager: "", professionals: "", services: [], equipements: [],
+  langues: [], assurances: [], horaires: {},
+};
 
 /* ================= COMPONENT ================= */
 export default function StructuresPage({ darkMode }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [structures, setStructures] = useState(initialStructures);
-  
+  const [structures, setStructures] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDocModal, setShowDocModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
+
   // Selected items
   const [selectedStructure, setSelectedStructure] = useState(null);
-  
+
   // Form state
-  const [formData, setFormData] = useState({
-    name: "", type: "", city: "", address: "", phone: "", email: "", manager: "", professionals: ""
-  });
+  const [formData, setFormData] = useState({ ...INITIAL_FORM });
+  const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  /* ================= FETCH ================= */
+  const fetchStructures = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await API.get("/structures");
+      const mapped = Array.isArray(data) ? data.map(mapStructure) : [];
+      setStructures(mapped);
+    } catch {
+      toast.error("❌ Erreur lors du chargement des structures");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStructures();
+  }, [fetchStructures]);
+
   /* ================= FILTERING ================= */
   const filteredStructures = useMemo(() => {
     return structures.filter((s) => {
-      const matchSearch = 
+      const matchSearch =
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.city.toLowerCase().includes(search.toLowerCase()) ||
         s.type.toLowerCase().includes(search.toLowerCase());
@@ -130,7 +135,7 @@ export default function StructuresPage({ darkMode }) {
   /* ================= STATS ================= */
   const stats = useMemo(() => ({
     total: structures.length,
-    active: structures.filter(s => s.status === "Actif").length,
+    active: structures.filter(s => s.status === "Vérifié").length,
     totalPros: structures.reduce((acc, s) => acc + Number(s.professionals || 0), 0),
   }), [structures]);
 
@@ -140,30 +145,86 @@ export default function StructuresPage({ darkMode }) {
       toast.error("❌ Nom, type et ville sont requis");
       return;
     }
-    
+
     setIsSubmitting(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newStructure = {
-        id: Date.now(),
-        ...formData,
-        professionals: Number(formData.professionals) || 0,
-        status: "Actif",
-        documents: [],
-        createdAt: new Date().toISOString().split("T")[0],
+      const payload = {
+        nom_etablissement: formData.name,
+        type: formData.type,
+        ville: formData.city,
+        adresse: formData.address,
+        telephone_pro: formData.phone,
+        email_pro: formData.email,
+        services_offerts: formData.services,
+        equipements: formData.equipements,
+        langues_parlees: formData.langues,
+        assurances: formData.assurances,
+        responsable: formData.manager || null,
+        nombre_professionnels: formData.professionals ? Number(formData.professionals) : null,
+        horaires_ouverture: Object.keys(formData.horaires || {}).length > 0 ? formData.horaires : null,
       };
-      
-      setStructures(prev => [newStructure, ...prev]);
-      toast.success("✅ Structure ajoutée avec succès");
-      setFormData({ name: "", type: "", city: "", address: "", phone: "", email: "", manager: "", professionals: "" });
+
+      if (editingId) {
+        await API.put(`/structures/${editingId}`, payload);
+        toast.success("✅ Structure modifiée avec succès");
+      } else {
+        const res = await API.post("/structures", payload);
+
+        const { mot_de_passe_genere, email } = res.data;
+
+        toast.success(
+          <div>
+            <p>✅ Structure ajoutée avec succès</p>
+            <p className="text-xs mt-1">
+              Email: <strong>{email}</strong> | Mot de passe:{" "}
+              <strong>{mot_de_passe_genere}</strong>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Email: ${email}\nMot de passe: ${mot_de_passe_genere}`
+                  );
+                  toast.success("📋 Identifiants copiés");
+                }}
+                className="ml-2 text-blue-400 hover:text-blue-300"
+              >
+                <Copy size={14} className="inline" />
+              </button>
+            </p>
+          </div>,
+          { duration: 10000 }
+        );
+      }
+
+      setFormData({ ...INITIAL_FORM });
+      setEditingId(null);
       setShowAddModal(false);
+      fetchStructures();
     } catch {
-      toast.error("❌ Erreur lors de l'ajout");
+      toast.error(editingId ? "❌ Erreur lors de la modification" : "❌ Erreur lors de l'ajout");
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData]);
+  }, [formData, editingId, fetchStructures]);
+
+  const handleEditStructure = useCallback((structure) => {
+    setFormData({
+      name: structure.name,
+      type: structure.type,
+      city: structure.city,
+      address: structure.address || "",
+      phone: structure.phone || "",
+      email: structure.email || "",
+      manager: structure.manager || "",
+      professionals: structure.professionals || "",
+      services: structure.services || [],
+      equipements: structure.equipements || [],
+      langues: structure.langues || [],
+      assurances: structure.assurances || [],
+      horaires: structure.horaires || {},
+    });
+    setEditingId(structure.id);
+    setShowAddModal(true);
+  }, []);
 
   const handleViewStructure = useCallback((structure) => {
     setSelectedStructure(structure);
@@ -175,37 +236,38 @@ export default function StructuresPage({ darkMode }) {
     setShowDocModal(true);
   }, []);
 
-  const handleToggleStatus = useCallback((id) => {
-    setStructures(prev => prev.map(s => {
-      if (s.id === id) {
-        const newStatus = s.status === "Actif" ? "Inactif" : "Actif";
-        toast.success(newStatus === "Actif" ? "✅ Structure activée" : "🚫 Structure désactivée");
-        return { ...s, status: newStatus };
-      }
-      return s;
-    }));
-    if (selectedStructure?.id === id) {
-      setSelectedStructure(prev => prev ? { 
-        ...prev, 
-        status: prev.status === "Actif" ? "Inactif" : "Actif" 
-      } : null);
+  const handleToggleStatus = useCallback(async (id) => {
+    const s = structures.find(item => item.id === id);
+    if (!s) return;
+    const newStatut = s.status === "Vérifié" ? "suspendu" : "verifie";
+    try {
+      await API.put(`/structures/${id}`, { statut_verification: newStatut });
+      toast.success(newStatut === "verifie" ? "✅ Structure activée" : "🚫 Structure désactivée");
+      fetchStructures();
+    } catch {
+      toast.error("❌ Erreur lors du changement de statut");
     }
-  }, [selectedStructure]);
+  }, [structures, fetchStructures]);
 
   const handleDelete = useCallback((id) => {
     setSelectedStructure(structures.find(s => s.id === id));
     setShowDeleteConfirm(true);
   }, [structures]);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (selectedStructure) {
-      setStructures(prev => prev.filter(s => s.id !== selectedStructure.id));
-      toast.success("🗑️ Structure supprimée");
-      setShowDeleteConfirm(false);
-      setSelectedStructure(null);
-      setShowViewModal(false);
+      try {
+        await API.delete(`/structures/${selectedStructure.id}`);
+        toast.success("🗑️ Structure supprimée");
+        setShowDeleteConfirm(false);
+        setSelectedStructure(null);
+        setShowViewModal(false);
+        fetchStructures();
+      } catch {
+        toast.error("❌ Erreur lors de la suppression");
+      }
     }
-  }, [selectedStructure]);
+  }, [selectedStructure, fetchStructures]);
 
   const handleDownload = useCallback((doc) => {
     toast.success(`📥 Téléchargement: ${doc.name}`);
@@ -229,16 +291,20 @@ export default function StructuresPage({ darkMode }) {
     setShowDocModal(false);
     setShowDeleteConfirm(false);
     setSelectedStructure(null);
+    setEditingId(null);
+    setFormData({ ...INITIAL_FORM });
   }, []);
 
   /* ================= RENDER HELPERS ================= */
   const getStatusBadge = (status) => {
     const styles = {
-      "Actif": "bg-green-500/10 text-green-500 border-green-500/20",
-      "Inactif": "bg-red-500/10 text-red-500 border-red-500/20",
+      "Vérifié": "bg-green-500/10 text-green-500 border-green-500/20",
+      "Suspendu": "bg-red-500/10 text-red-500 border-red-500/20",
+      "En attente": "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
+      "Rejeté": "bg-red-500/10 text-red-500 border-red-500/20",
     };
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${styles[status] || styles["Actif"]}`}>
+      <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${styles[status] || styles["Vérifié"]}`}>
         {status}
       </span>
     );
@@ -249,6 +315,12 @@ export default function StructuresPage({ darkMode }) {
       "Hôpital public": "text-blue-500",
       "Clinique privée": "text-purple-500",
       "CHU": "text-emerald-500",
+      "Centre de santé": "text-cyan-500",
+      "Laboratoire": "text-pink-500",
+      "Pharmacie": "text-yellow-500",
+      "Centre de radiologie": "text-green-500",
+      "Centre de dialyse": "text-blue-500",
+
     };
     return colors[type] || "text-gray-500";
   };
@@ -256,16 +328,27 @@ export default function StructuresPage({ darkMode }) {
   const bg = darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900";
   const card = darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200";
 
+  if (loading) {
+    return (
+      <div className={`min-h-screen p-3 sm:p-4 lg:p-6 flex items-center justify-center transition-all ${bg}`}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={40} className="animate-spin text-blue-500" />
+          <p className="text-gray-400">Chargement des structures…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen p-3 sm:p-4 lg:p-6 space-y-5 lg:space-y-6 transition-all ${bg}`}>
-      
+
       {/* ================= HEADER ================= */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold leading-tight">Gestion des Structures</h1>
           <p className="text-sm text-gray-400 mt-1">Hôpitaux, cliniques et centres de santé</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
           className="w-full sm:w-auto justify-center px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-blue-500/25 active:scale-95 flex items-center gap-2"
         >
@@ -288,9 +371,8 @@ export default function StructuresPage({ darkMode }) {
             purple: "bg-purple-500/10 text-purple-500",
           };
           return (
-            <div key={i} className={`rounded-2xl p-4 sm:p-5 border transition hover:shadow-lg ${
-              darkMode ? "bg-slate-900 border-slate-800 hover:border-slate-700" : "bg-white border-gray-200 hover:border-gray-300"
-            }`}>
+            <div key={i} className={`rounded-2xl p-4 sm:p-5 border transition hover:shadow-lg ${darkMode ? "bg-slate-900 border-slate-800 hover:border-slate-700" : "bg-white border-gray-200 hover:border-gray-300"
+              }`}>
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm text-gray-400 truncate">{item.title}</p>
@@ -321,37 +403,34 @@ export default function StructuresPage({ darkMode }) {
 
         {/* Filter buttons */}
         <div className="flex flex-wrap gap-2">
-          {["all", "Hôpital public", "Clinique privée", "CHU"].map((type) => (
+          {["all", "Hôpital public", "Clinique privée", "CHU", "Centre de santé", "Laboratoire", "Pharmacie", "Centre de radiologie", "Centre de dialyse"].map((type) => (
             <button
               key={type}
               onClick={() => { setTypeFilter(type); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
-                typeFilter === type
-                  ? "bg-blue-600 text-white"
-                  : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${typeFilter === type
+                ? "bg-blue-600 text-white"
+                : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
             >
               {type === "all" ? "Tous types" : type}
             </button>
           ))}
-          {["all", "Actif", "Inactif"].map((status) => (
+          {["all", "Vérifié", "En attente", "Suspendu", "Rejeté"].map((status) => (
             <button
               key={status}
               onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${
-                statusFilter === status
-                  ? "bg-blue-600 text-white"
-                  : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition whitespace-nowrap ${statusFilter === status
+                ? "bg-blue-600 text-white"
+                : darkMode ? "bg-slate-800 text-gray-300 hover:bg-slate-700" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
             >
               {status === "all" ? "Tous statuts" : status}
             </button>
           ))}
-          <button 
+          <button
             onClick={resetFilters}
-            className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5 transition ${
-              darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
-            }`}
+            className={`px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-1.5 transition ${darkMode ? "hover:bg-slate-800" : "hover:bg-gray-100"
+              }`}
           >
             <RefreshCw size={14} /> Réinitialiser
           </button>
@@ -396,27 +475,34 @@ export default function StructuresPage({ darkMode }) {
               </div>
 
               {/* Actions */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <button
                   onClick={() => handleViewStructure(s)}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-500/10 text-blue-500"
+                  className="flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-500/10 text-blue-500"
                 >
-                  <Eye size={16} />
-                  <span className="text-sm">Voir</span>
+                  <Eye size={14} />
+                  <span className="text-xs">Voir</span>
+                </button>
+                <button
+                  onClick={() => handleEditStructure(s)}
+                  className="flex items-center justify-center gap-1 py-2 rounded-xl bg-blue-500/10 text-blue-500"
+                >
+                  <Edit size={14} />
+                  <span className="text-xs">Edit</span>
                 </button>
                 <button
                   onClick={() => handleViewDocuments(s)}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl bg-purple-500/10 text-purple-500"
+                  className="flex items-center justify-center gap-1 py-2 rounded-xl bg-purple-500/10 text-purple-500"
                 >
-                  <FileText size={16} />
-                  <span className="text-sm">Docs</span>
+                  <FileText size={14} />
+                  <span className="text-xs">Docs</span>
                 </button>
                 <button
                   onClick={() => handleDelete(s.id)}
-                  className="flex items-center justify-center gap-2 py-2 rounded-xl bg-red-500/10 text-red-500"
+                  className="flex items-center justify-center gap-1 py-2 rounded-xl bg-red-500/10 text-red-500"
                 >
-                  <Trash2 size={16} />
-                  <span className="text-sm">Suppr.</span>
+                  <Trash2 size={14} />
+                  <span className="text-xs">Suppr.</span>
                 </button>
               </div>
             </div>
@@ -450,9 +536,8 @@ export default function StructuresPage({ darkMode }) {
             <tbody>
               {paginatedStructures.length > 0 ? (
                 paginatedStructures.map((s) => (
-                  <tr key={s.id} className={`border-t transition ${
-                    darkMode ? "border-slate-800 hover:bg-slate-800/40" : "border-gray-200 hover:bg-gray-50"
-                  }`}>
+                  <tr key={s.id} className={`border-t transition ${darkMode ? "border-slate-800 hover:bg-slate-800/40" : "border-gray-200 hover:bg-gray-50"
+                    }`}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -504,23 +589,30 @@ export default function StructuresPage({ darkMode }) {
                     </td>
                     <td className="p-4">
                       <div className="flex gap-1.5">
-                        <button 
+                        <button
                           onClick={() => handleViewStructure(s)}
-                          className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-500 transition" 
+                          className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-500 transition"
                           title="Voir détails"
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleToggleStatus(s.id)}
-                          className="p-2 rounded-lg hover:bg-yellow-500/10 text-yellow-500 transition" 
-                          title={s.status === "Actif" ? "Désactiver" : "Activer"}
+                        <button
+                          onClick={() => handleEditStructure(s)}
+                          className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-500 transition"
+                          title="Modifier"
                         >
                           <Edit size={16} />
                         </button>
-                        <button 
+                        <button
+                          onClick={() => handleToggleStatus(s.id)}
+                          className="p-2 rounded-lg hover:bg-yellow-500/10 text-yellow-500 transition"
+                          title={s.status === "Actif" ? "Désactiver" : "Activer"}
+                        >
+                          <Power size={16} />
+                        </button>
+                        <button
                           onClick={() => handleDelete(s.id)}
-                          className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition" 
+                          className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition"
                           title="Supprimer"
                         >
                           <Trash2 size={16} />
@@ -548,9 +640,8 @@ export default function StructuresPage({ darkMode }) {
 
         {/* Desktop Pagination */}
         {totalPages > 1 && (
-          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${
-            darkMode ? "border-slate-800" : "border-gray-200"
-          }`}>
+          <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t ${darkMode ? "border-slate-800" : "border-gray-200"
+            }`}>
             <p className="text-sm text-gray-400 text-center sm:text-left">
               Page {currentPage} sur {totalPages} • {filteredStructures.length} résultats
             </p>
@@ -606,6 +697,7 @@ export default function StructuresPage({ darkMode }) {
           isSubmitting={isSubmitting}
           onSubmit={handleAddStructure}
           onClose={closeModal}
+          editingId={editingId}
         />
       )}
 
@@ -628,6 +720,7 @@ export default function StructuresPage({ darkMode }) {
           onPreview={handlePreview}
           onDownload={handleDownload}
           onClose={closeModal}
+          onRefresh={fetchStructures}
         />
       )}
 

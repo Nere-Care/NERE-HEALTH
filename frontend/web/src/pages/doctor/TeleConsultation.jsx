@@ -1,79 +1,169 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import IdleScreen from "../../components/doctors/teleconsultation/IdleScreen";
 import CallScreen from "../../components/doctors/teleconsultation/CallScreen";
-
-// Données simulées des RDV du jour
-const rdvDuJour = [
-  {
-    id: 1,
-    patientName: "Marie Dupont",
-    age: 45,
-    motif: "Suivi diabète",
-    heure: "14:00",
-    statut: "en_attente",
-    avatar: "M",
-    dossier: {
-      antecedents: ["Diabète type 2", "Hypertension"],
-      allergies: ["Pénicilline"],
-      dernierConsultation: "2026-05-15",
-    },
-  },
-  {
-    id: 2,
-    patientName: "Jean Martin",
-    age: 62,
-    motif: "Douleurs thoraciques",
-    heure: "14:30",
-    statut: "en_cours",
-    avatar: "J",
-    dossier: {
-      antecedents: ["Cardiopathie", "Cholestérol"],
-      allergies: [],
-      dernierConsultation: "2026-04-20",
-    },
-  },
-  {
-    id: 3,
-    patientName: "Sophie Bernard",
-    age: 28,
-    motif: "Consultation générale",
-    heure: "15:00",
-    statut: "en_attente",
-    avatar: "S",
-    dossier: {
-      antecedents: [],
-      allergies: ["Latex"],
-      dernierConsultation: "2026-01-10",
-    },
-  },
-];
-
-const historiqueRecent = [
-  { id: 101, patient: "Paul Durand", date: "Aujourd'hui", heure: "10:30", duree: "25 min", diagnostic: "Rhinite allergique" },
-  { id: 102, patient: "Claire Moreau", date: "Aujourd'hui", heure: "09:00", duree: "18 min", diagnostic: "Angine bactérienne" },
-  { id: 103, patient: "Luc Petit", date: "Hier", heure: "16:00", duree: "32 min", diagnostic: "Lombalgie aiguë" },
-];
+import { get, put } from "../../services/apiClient";
+import { getUserTimezone } from "../../utils/timezone";
 
 export default function TeleConsultation({ darkMode }) {
   const [consultationActive, setConsultationActive] = useState(null);
-  const [rdvList, setRdvList] = useState(rdvDuJour);
+  const [rdvList, setRdvList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const startConsultation = (rdv) => {
-    setConsultationActive(rdv);
-    // Mettre à jour le statut du RDV
-    setRdvList(rdvList.map(r => r.id === rdv.id ? { ...r, statut: "en_cours" } : r));
+  useEffect(() => {
+    setLoading(true);
+    get("/api/rendez_vous?limit=100")
+      .then(async (rdvs) => {
+        const uniquePatientIds = [...new Set(rdvs.map((r) => r.patient_id))];
+        const patientsMap = {};
+        await Promise.all(
+          uniquePatientIds.map(async (pid) => {
+            try {
+              const p = await get(`/api/patients/${pid}`);
+              patientsMap[pid] = p;
+            } catch {
+              patientsMap[pid] = null;
+            }
+          })
+        );
+
+        const remoteTypes = ["video", "audio", "chat"];
+        const remoteRdvs = rdvs.filter(
+          (r) => remoteTypes.includes(r.type) && r.statut !== "en_attente_paiement"
+        );
+
+        const now = Date.now();
+        const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+        const mapped = remoteRdvs.map((r) => {
+          const p = patientsMap[r.patient_id] || {};
+          const rdvDate = new Date(r.date_heure_debut);
+          const rdvEndTime = new Date(r.date_heure_fin).getTime();
+          const rdvLocalDate = rdvDate.toLocaleDateString("sv-SE");
+          const todayLocalDate = new Date().toLocaleDateString("sv-SE");
+          const isToday = rdvLocalDate === todayLocalDate;
+          const isPast = rdvLocalDate < todayLocalDate;
+          const heureLocal = rdvDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: getUserTimezone() });
+          const timeParts = heureLocal;
+          const dateStr = rdvDate.toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
+          const isExpired = now > rdvEndTime + TWO_HOURS_MS;
+
+          let statut = r.statut;
+          if (r.statut === "confirme" || r.statut === "en_attente") {
+            statut = isExpired ? "expire" : "en_attente";
+          }
+
+          return {
+            id: r.id,
+            patientId: r.patient_id,
+            patientName: `${p.prenom || ""} ${p.nom || ""}`.trim() || "Patient",
+            age: p.date_naissance
+              ? Math.floor((Date.now() - new Date(p.date_naissance).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+              : null,
+            motif: r.motif_consultation || "Consultation générale",
+            heure: timeParts,
+            date: dateStr,
+            statut,
+            avatar: (p.prenom || "?")[0].toUpperCase(),
+            rdvId: r.id,
+            type: r.type,
+            dateDebut: r.date_heure_debut,
+            dateFin: r.date_heure_fin,
+            _isToday: isToday,
+            _isPast: isPast,
+            _canStart: statut === "en_attente" && new Date(r.date_heure_debut).getTime() - 2 * 60 * 1000 <= now,
+          };
+        });
+
+        setRdvList(mapped);
+      })
+      .catch(() => setRdvList([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const startConsultation = async (rdv) => {
+    if (rdv.statut === "en_cours") {
+      setConsultationActive(rdv);
+      return;
+    }
+    try {
+      const updated = await put(`/api/rendez_vous/${rdv.rdvId}/start`, {});
+      setConsultationActive({ ...rdv, statut: "en_cours", webrtc_room_id: updated.webrtc_room_id });
+      setRdvList((prev) => prev.map((r) => (r.id === rdv.id ? { ...r, statut: "en_cours" } : r)));
+    } catch (err) {
+      console.error("Erreur démarrage consultation:", err);
+    }
   };
 
-  const endConsultation = () => {
+  const endConsultation = async (dureeSec) => {
+    if (consultationActive?.rdvId) {
+      try {
+        await put(`/api/rendez_vous/${consultationActive.rdvId}/complete`, {});
+        setRdvList((prev) =>
+          prev.map((r) =>
+            r.id === consultationActive.rdvId
+              ? { ...r, statut: "termine", dureeReelleSec: dureeSec || 0 }
+              : r
+          )
+        );
+      } catch (err) {
+        console.error("Erreur finalisation consultation:", err);
+      }
+    }
     setConsultationActive(null);
   };
 
   const stats = {
-    total: rdvList.length,
-    terminees: rdvList.filter(r => r.statut === "termine").length,
-    enAttente: rdvList.filter(r => r.statut === "en_attente").length,
-    enCours: rdvList.filter(r => r.statut === "en_cours").length,
+    total: rdvList.filter((r) => (r.statut === "en_attente" || r.statut === "en_cours") && r._isToday).length,
+    terminees: rdvList.filter((r) => r.statut === "termine" && r._isToday).length,
+    enAttente: rdvList.filter((r) => r.statut === "en_attente" && r._isToday).length,
+    enCours: rdvList.filter((r) => r.statut === "en_cours" && r._isToday).length,
   };
+
+  const todayRdvs = rdvList.filter((r) => r._isToday);
+  const todayStarted = todayRdvs.filter((r) => r.statut === "en_cours" || r.statut === "termine");
+
+  let avgDurationMin = 0;
+  if (todayStarted.length > 0) {
+    const durations = todayStarted.map((r) => {
+      if (r.dureeReelleSec && r.dureeReelleSec > 0) {
+        return r.dureeReelleSec / 60;
+      }
+      const start = new Date(r.dateDebut).getTime();
+      const end = new Date(r.dateFin || r.dateDebut).getTime();
+      const diffMin = (end - start) / 60000;
+      return diffMin > 0 ? diffMin : 15;
+    });
+    avgDurationMin = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
+  }
+
+  const nbTerminesToday = todayStarted.filter((r) => r.statut === "termine").length;
+  const tauxCompletion = todayStarted.length > 0
+    ? Math.round((nbTerminesToday / todayStarted.length) * 100)
+    : 0;
+
+  const todayStats = { count: todayStarted.length, avgDurationMin, tauxCompletion };
+
+  const rdvActifs = rdvList
+    .filter((r) => (r.statut === "en_attente" || r.statut === "en_cours") && r._isToday)
+    .sort((a, b) => new Date(a.dateDebut) - new Date(b.dateDebut));
+  const rdvExpires = rdvList
+    .filter((r) => r._isPast || (r._isToday && (r.statut === "expire" || r.statut === "termine" || r.statut.startsWith("annule"))))
+    .sort((a, b) => new Date(b.dateDebut) - new Date(a.dateDebut));
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Chargement des rendez-vous...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -87,11 +177,13 @@ export default function TeleConsultation({ darkMode }) {
         <IdleScreen
           darkMode={darkMode}
           startConsultation={startConsultation}
-          rdvDuJour={rdvList}
-          historique={historiqueRecent}
+          rdvDuJour={rdvActifs}
+          historique={rdvExpires}
           stats={stats}
+          todayStats={todayStats}
         />
       )}
+
     </>
   );
 }

@@ -1,15 +1,17 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import get_current_active_user, require_role
+from access_control import get_dossier_access_level
 from db import get_db
-from models import Consultation, Patient, User
+from models import Consultation, DossierMedical, Patient, User
 from schemas import ConsultationCreate, ConsultationRead
 
 router = APIRouter(tags=["consultations"])
@@ -25,14 +27,34 @@ async def list_consultations(
     current_user=Depends(get_current_active_user),
 ):
     stmt = select(Consultation)
-    if patient_id:
-        stmt = stmt.where(Consultation.patient_id == patient_id)
-    if medecin_id:
+    if current_user.role == "medecin":
+        if patient_id:
+            access = get_dossier_access_level(db, current_user, patient_id)
+            if access == "restricted":
+                stmt = stmt.where(
+                    Consultation.patient_id == patient_id,
+                    Consultation.medecin_id == current_user.id,
+                )
+            else:
+                stmt = stmt.where(Consultation.patient_id == patient_id)
+        else:
+            stmt = stmt.where(Consultation.medecin_id == current_user.id)
+    elif current_user.role == "patient":
+        stmt = stmt.where(Consultation.patient_id == current_user.id)
+    elif current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    if medecin_id and current_user.role in ("admin", "patient"):
         stmt = stmt.where(Consultation.medecin_id == medecin_id)
     if statut:
         stmt = stmt.where(Consultation.statut == statut)
     stmt = stmt.order_by(Consultation.date_heure_debut.desc()).limit(limit)
     consultations = db.execute(stmt).scalars().all()
+
+    medecin_ids = {c.medecin_id for c in consultations}
+    users = {u.id: u for u in db.execute(select(User).where(User.id.in_(medecin_ids))).scalars().all()}
+    for c in consultations:
+        c.medecin = users.get(c.medecin_id)
+
     return consultations
 
 
@@ -49,6 +71,14 @@ async def create_consultation(
     payload = consultation_create.dict()
     if current_user.role == "medecin":
         payload["medecin_id"] = current_user.id
+
+    if not payload.get("numero_consultation"):
+        payload["numero_consultation"] = f"CONS-{secrets.token_hex(4).upper()}"
+
+    if not payload.get("dossier_id"):
+        dossier = db.query(DossierMedical).filter(DossierMedical.patient_id == consultation_create.patient_id).first()
+        if dossier:
+            payload["dossier_id"] = dossier.id
 
     consultation = Consultation(**payload)
     db.add(consultation)
@@ -76,10 +106,20 @@ async def read_consultation(
     if not consultation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Consultation non trouvée")
 
-    if current_user.role == "medecin" and consultation.medecin_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
-    if current_user.role not in ("admin", "medecin"):
+    if current_user.role not in ("admin", "medecin", "infirmier", "sage_femme"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+
+    if current_user.role in ("medecin", "infirmier", "sage_femme") and consultation.medecin_id != current_user.id:
+        from models import DemandeAvisMedical
+        linked_demande = db.execute(
+            select(DemandeAvisMedical).where(DemandeAvisMedical.consultation_id == consultation_id)
+        ).scalars().first()
+        if not linked_demande:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+        involved_ids = {linked_demande.medecin_demandeur_id, linked_demande.medecin_cible_id, linked_demande.medecin_accepteur_id}
+        if current_user.id not in involved_ids:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
     return consultation
 
 
@@ -112,7 +152,7 @@ async def update_consultation(
             continue
         setattr(consultation, field, value)
 
-    consultation.updated_at = datetime.utcnow()
+    consultation.updated_at = datetime.now(timezone.utc)
     db.add(consultation)
     try:
         db.commit()

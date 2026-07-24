@@ -27,7 +27,7 @@ export default function PatientDetailsModal({ patient, onClose, onEdit, darkMode
             </div>
             <div>
               <h2 className="text-2xl font-bold">{patient.nom}</h2>
-              <p className="text-sm text-gray-400">ID: #{patient.id}</p>
+              <p className="text-sm text-gray-400">{patient.code_patient || '—'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -66,7 +66,6 @@ export default function PatientDetailsModal({ patient, onClose, onEdit, darkMode
             </h3>
             <div className={`rounded-2xl p-4 space-y-1 ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}>
               <InfoRow icon={Droplet} label="Groupe sanguin" value={patient.groupe} />
-              <InfoRow icon={HeartPulse} label="Allergies" value={patient.allergies} />
               <InfoRow icon={HeartPulse} label="Antécédents" value={patient.antecedents} />
               <InfoRow icon={User} label="Médecin traitant" value={patient.medecin} />
               <InfoRow icon={Shield} label="Assurance" value={patient.assurance} />

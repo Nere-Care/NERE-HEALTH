@@ -28,7 +28,7 @@ export default function PaymentModal({
       case "mobile":
         return (
           <div className="space-y-3">
-            <input placeholder="Phone number" className={inputStyle} />
+            <input placeholder="6XX XXX XXX" type="tel" maxLength={9} pattern="6[0-9]{8}" className={inputStyle} />
 
             <select className={inputStyle}>
               <option>MTN</option>

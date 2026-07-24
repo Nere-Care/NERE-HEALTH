@@ -1,5 +1,6 @@
 // Appointment.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   CalendarDays,
   List,
@@ -12,6 +13,7 @@ import {
   Send,
   UserCheck,
   Plus,
+  Power,
 } from "lucide-react";
 
 import SearchBar from "../../components/common/SearchBar";
@@ -25,14 +27,21 @@ import OpinionRequestsTab from "../../components/doctors/appointment/OpinionRequ
 import MyOpinionRequestsTab from "../../components/doctors/appointment/MyOpinionRequestsTab";
 import AvailabilityForm from "../../components/doctors/appointment/AvailabilityForm";
 import PatientProfileModal from "../../components/doctors/appointment/PatientProfileModal";
+import SlotFormModal from "../../components/doctors/appointment/SlotFormModal";
+import AppointmentChatModal from "../../components/doctors/appointment/AppointmentChatModal";
 
-import { appointments } from "../../constants/doctors/appointmentsData";
+import { get, post, put as apiPut, del } from "../../services/apiClient";
+import { getStoredUser } from "../../services/auth";
+import { getUserTimezone } from "../../utils/timezone";
 
 export default function Appointment({ darkMode }) {
+  const navigate = useNavigate();
   // ============ STATES ============
   const [openPatientModal, setOpenPatientModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [openForm, setOpenForm] = useState(false);
+  const [openChatModal, setOpenChatModal] = useState(false);
+  const [chatRdv, setChatRdv] = useState(null);
   const [activeTab, setActiveTab] = useState("Upcoming");
   const [view, setView] = useState("list");
   const [search, setSearch] = useState("");
@@ -41,30 +50,262 @@ export default function Appointment({ darkMode }) {
   const [openReschedule, setOpenReschedule] = useState(false);
   const [openAvailability, setOpenAvailability] = useState(false);
   const [selectedAvailability, setSelectedAvailability] = useState(null);
+  const [openSlotModal, setOpenSlotModal] = useState(false);
+  const [selectedSlotForModal, setSelectedSlotForModal] = useState(null);
+  const [selectedDateForModal, setSelectedDateForModal] = useState(null);
 
-  const [availabilities, setAvailabilities] = useState([
-    { id: 1, day: 12, month: 4, year: 2026, startTime: "08:00", endTime: "12:00", status: "available" },
-    { id: 2, day: 15, month: 4, year: 2026, startTime: "14:00", endTime: "18:00", status: "available" },
-  ]);
+  const [appointments, setAppointments] = useState([]);
+  const [loadingRdv, setLoadingRdv] = useState(true);
+  const [availabilities, setAvailabilities] = useState([]);
+  const [exceptions, setExceptions] = useState([]);
 
   const [mainTab, setMainTab] = useState("patients");
-  const [opinionRequests, setOpinionRequests] = useState([
-    {
-      id: 1,
-      requesterName: "Ngassa Pierre",
-      requesterSpeciality: "Médecin généraliste",
-      motif: "Confirmation diagnostique",
-      urgence: "normal",
-      contexte: "Patient de 45 ans, diabétique, présentant des douleurs thoraciques...",
-      question: "Pouvez-vous confirmer l'indication d'un test d'effort ?",
-      examens: "ECG normal, Troponine négative",
-      date: "2026-06-04T10:30:00",
-      statut: "en_attente",
-      attachments: [],
-    },
-  ]);
+  const [opinionRequests, setOpinionRequests] = useState([]);
   const [myOpinionRequests, setMyOpinionRequests] = useState([]);
   const [colleagueAppointments, setColleagueAppointments] = useState([]);
+  const [disponible, setDisponible] = useState(false);
+  const [togglingDispo, setTogglingDispo] = useState(false);
+
+  // ============ CHARGEMENT RDV ============
+  const fetchRdvs = async () => {
+    setLoadingRdv(true);
+    try {
+      const rdvsRaw = await get("/api/rendez_vous");
+      const paidStatuses = new Set([
+        "confirme", "paye_en_attente_validation", "en_cours", "termine",
+      ]);
+      const rdvs = rdvsRaw.filter(r => paidStatuses.has(r.statut));
+      const uniqueIds = [...new Set(rdvs.map((r) => r.patient_id))];
+      const patientsMap = {};
+      await Promise.all(
+        uniqueIds.map(async (pid) => {
+          try {
+            const p = await get(`/api/patients/${pid}`);
+            patientsMap[pid] = p;
+          } catch {
+            patientsMap[pid] = null;
+          }
+        })
+      );
+      const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+      const now = Date.now();
+      const mapped = rdvs.map((r) => {
+        const p = patientsMap[r.patient_id] || {};
+        const d = new Date(r.date_heure_debut);
+        const endTime = new Date(r.date_heure_fin).getTime();
+        const isExpired = now > endTime + TWO_HOURS_MS;
+        const isDone = r.statut === "en_cours" || r.statut === "termine";
+        const timeParts = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: getUserTimezone() });
+        const statusMap = {
+          confirme: "Confirmed",
+          en_cours: "Confirmed",
+          termine: "Confirmed",
+          paye_en_attente_validation: "Pending",
+        };
+        return {
+          id: r.id,
+          patientId: r.patient_id,
+          patientName: `${p.prenom || ""} ${p.nom || ""}`.trim() || "Patient",
+          patientImage: p.photo_url || "",
+          email: p.email || "",
+          phone: p.telephone || "",
+          city: p.ville || "",
+          note: r.motif_consultation || "",
+          status: statusMap[r.statut] || "Pending",
+          date: d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+          time: timeParts,
+          type: r.type === "presentiel" ? "In-person" : "Teleconsultation",
+          category: isExpired || isDone ? "past" : "upcoming",
+          dateHeureDebut: r.date_heure_debut,
+          dateHeureFin: r.date_heure_fin,
+          medecinId: r.medecin_id,
+          statut: r.statut,
+          montant: Math.round(Number(r.montant) * 0.9) || 0,
+          devise: r.devise || "XAF",
+          patientCode: p.code_patient || "",
+        };
+      });
+      setAppointments(mapped);
+    } catch {
+      setAppointments([]);
+    } finally {
+      setLoadingRdv(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRdvs();
+  }, []);
+
+  // ============ CHARGEMENT DISPONIBILITÉS ============
+  const mapAvailability = (d) => ({
+    id: d.id,
+    day: d.jour_semaine.charAt(0).toUpperCase() + d.jour_semaine.slice(1),
+    startTime: d.heure_debut.slice(0, 5),
+    endTime: d.heure_fin.slice(0, 5),
+    status: d.actif ? "available" : "unavailable",
+    recurrence: d.recurrence || "hebdomadaire",
+    dateDebut: d.date_debut_validite,
+    dateFin: d.date_fin_validite,
+  });
+
+  const fetchAvailabilities = async () => {
+    try {
+      const data = await get("/api/disponibilites");
+      setAvailabilities(data.map(mapAvailability));
+    } catch {
+      setAvailabilities([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailabilities();
+  }, []);
+
+  // ============ CHARGEMENT EXCEPTIONS ============
+  useEffect(() => {
+    get("/api/exceptions-disponibilites")
+      .then((data) => setExceptions(data))
+      .catch(() => setExceptions([]));
+  }, []);
+
+  // ============ CHARGEMENT DISPONIBILITÉ MÉDECIN ============
+  useEffect(() => {
+    const user = getStoredUser();
+    if (!user?.id) return;
+    get(`/api/medecins/${user.id}`)
+      .then((m) => setDisponible(m.disponible_maintenant ?? false))
+      .catch(() => {});
+  }, []);
+
+  // ============ CHARGEMENT DEMANDES D'AVIS ============
+  const parseMessage = (msg) => {
+    if (!msg) return {};
+    const result = {};
+    const lines = msg.split("\n\n").filter(Boolean);
+    for (const line of lines) {
+      const m = line.match(/^Urgence:\s*(.+)$/);
+      if (m) { result.urgence = m[1].trim(); continue; }
+      const c = line.match(/^Contexte:\s*(.+)$/);
+      if (c) { result.contexte = c[1].trim(); continue; }
+      const q = line.match(/^Question:\s*(.+)$/);
+      if (q) { result.question = q[1].trim(); continue; }
+      const e = line.match(/^Examens:\s*(.+)$/);
+      if (e) { result.examens = e[1].trim(); continue; }
+    }
+    return result;
+  };
+
+  const fetchDemandesAvis = async () => {
+    try {
+      const user = getStoredUser();
+      if (!user?.id) return;
+      const data = await get("/api/demandes-avis");
+
+      const received = [];
+      const sent = [];
+
+      for (const d of data) {
+        const parsed = parseMessage(d.message);
+        const base = {
+          id: d.id,
+          statut: d.statut,
+          motif: d.motif,
+          date: d.created_at,
+          urgence: parsed.urgence || "normal",
+          contexte: parsed.contexte || "",
+          question: parsed.question || "",
+          examens: parsed.examens || "",
+          portee: d.portee,
+          confidentiel: d.confidentiel,
+          reponse: d.reponse,
+          medecinDemandeurId: d.medecin_demandeur_id,
+          medecinAccepteurId: d.medecin_accepteur_id,
+          dossierNumero: d.dossier_numero || "",
+          dossierMedicalId: d.dossier_medical_id || null,
+          consultationNumero: d.consultation_numero || "",
+          consultationId: d.consultation_id || null,
+          consultationMotif: d.consultation_motif || "",
+        };
+
+        if (d.medecin_demandeur_id === user.id) {
+          sent.push({
+            ...base,
+            doctorName: d.cible_prenom && d.cible_nom
+              ? `${d.cible_prenom} ${d.cible_nom}`
+              : d.medecin_accepteur_id
+                ? "Dr. accepté"
+                : "En attente",
+            doctorSpeciality: d.specialite_libelle || "",
+            patientNom: d.patient_nom || "",
+            patientPrenom: d.patient_prenom || "",
+          });
+        } else {
+          received.push({
+            ...base,
+            requesterName: d.demandeur_prenom && d.demandeur_nom
+              ? `${d.demandeur_prenom} ${d.demandeur_nom}`
+              : "Dr. confrère",
+            requesterSpeciality: d.specialite_libelle || "",
+            patientNom: d.patient_nom || "",
+            patientPrenom: d.patient_prenom || "",
+          });
+        }
+      }
+
+      setOpinionRequests(received);
+      setMyOpinionRequests(sent);
+    } catch {
+      setOpinionRequests([]);
+      setMyOpinionRequests([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchDemandesAvis();
+  }, []);
+
+  const handleToggleDisponibilite = async () => {
+    const user = getStoredUser();
+    if (!user?.id) return;
+    setTogglingDispo(true);
+    try {
+      const res = await apiPut(`/api/medecins/${user.id}/disponibilite`);
+      setDisponible(res.disponible_maintenant);
+    } catch (err) {
+      console.error("Erreur toggle disponibilité:", err);
+    } finally {
+      setTogglingDispo(false);
+    }
+  };
+
+  const handleAddException = async (exceptionData) => {
+    const created = await post("/api/exceptions-disponibilites", exceptionData);
+    setExceptions((prev) => [created, ...prev]);
+    return created;
+  };
+
+  const handleUpdateException = async (id, updateData) => {
+    const updated = await apiPut(`/api/exceptions-disponibilites/${id}`, updateData);
+    setExceptions((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...updated } : e))
+    );
+    return updated;
+  };
+
+  const handleDeleteException = async (id) => {
+    try {
+      await del(`/api/exceptions-disponibilites/${id}`);
+      setExceptions((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      console.error("Erreur suppression exception:", err);
+    }
+  };
+
+  const getExceptionForDay = (day) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return exceptions.find((ex) => ex.date === dateStr && ex.actif !== false) || null;
+  };
 
   // ============ HANDLERS ============
   const handleOpenPatient = (patient) => {
@@ -77,58 +318,198 @@ export default function Appointment({ darkMode }) {
     setOpenReschedule(true);
   };
 
+  const handleOpenChat = (item) => {
+    setChatRdv(item);
+    setOpenChatModal(true);
+  };
+
   const handleSaveReschedule = (id, newDate, newTime) => {
-    console.log("Update :", id, newDate, newTime);
+    fetchRdvs();
   };
 
-  const handleSaveAvailability = (newAvailabilities) => {
-    setAvailabilities((prev) => [...prev, ...newAvailabilities]);
-  };
+  const handleSaveAvailability = async (data) => {
+    const user = getStoredUser();
+    if (!user?.id) return;
 
-  const handleUpdateOpinionRequest = (id, newStatus, data) => {
-    setOpinionRequests(prev =>
-      prev.map(req => (req.id === id ? { ...req, statut: newStatus, ...data } : req))
-    );
+    const slots = Array.isArray(data) ? data : data.slots;
+    const repeat = !Array.isArray(data) ? data.repeat || "none" : "none";
+    const repeatEndDate = !Array.isArray(data) ? data.repeatEndDate || null : null;
 
-    if (newStatus === "acceptee" && data.meetingDate) {
-      const request = opinionRequests.find(r => r.id === id);
-      const newAppointment = {
-        id: Date.now(),
-        type: "opinion_meeting",
-        patientName: `Dr. ${request.requesterName}`,
-        patientImage: null,
-        date: new Date(data.meetingDate).toLocaleDateString("fr-FR"),
-        time: new Date(data.meetingDate).toLocaleTimeString("fr-FR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        status: "Confirmed",
-        category: "upcoming",
-        mode: data.mode,
+    const today = new Date().toISOString().split("T")[0];
+
+    const promises = slots.map((slot) => {
+      const payload = {
+        medecin_id: user.id,
+        jour_semaine: slot.day.toLowerCase(),
+        heure_debut: slot.startTime + ":00",
+        heure_fin: slot.endTime + ":00",
+        duree_creneau_minutes: 30,
+        type: "video",
+        recurrence:
+          repeat === "weekly"
+            ? "hebdomadaire"
+            : repeat === "biweekly"
+            ? "bi_mensuel"
+            : repeat === "daily"
+            ? "quotidien"
+            : repeat === "monthly"
+            ? "mensuel"
+            : "unique",
+        date_debut_validite: today,
+        date_fin_validite: repeatEndDate || null,
+        actif: true,
       };
-      setColleagueAppointments(prev => [...prev, newAppointment]);
+      return post("/api/disponibilites", payload);
+    });
+
+    try {
+      await Promise.all(promises);
+      await fetchAvailabilities();
+    } catch (err) {
+      console.error("Erreur lors de l'enregistrement des disponibilités:", err);
+    }
+  };
+
+  const handleDeleteAvailability = async (id) => {
+    try {
+      await del(`/api/disponibilites/${id}`);
+      setAvailabilities((prev) => prev.filter((a) => a.id !== id));
+    } catch (err) {
+      console.error("Erreur suppression disponibilité:", err);
+      throw err; // Remonte l'erreur pour affichage dans la modal
+    }
+  };
+
+  const handleOpenCreateSlotModal = (day) => {
+    const y = currentDate.getFullYear();
+    const m = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const d = String(day).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
+
+    setSelectedSlotForModal(null);
+    setSelectedDateForModal(dateStr);
+    setOpenSlotModal(true);
+  };
+
+  const handleOpenEditSlotModal = (slot) => {
+    setSelectedSlotForModal(slot);
+    setSelectedDateForModal(null);
+    setOpenSlotModal(true);
+  };
+
+  const handleSwitchToCreateSlot = (effectiveDateStr) => {
+    setSelectedSlotForModal(null);
+    setSelectedDateForModal(effectiveDateStr || localDateStr(new Date()));
+  };
+
+  const handleSaveSlot = async (slotData) => {
+    const user = getStoredUser();
+    if (!user?.id) return;
+
+    const payload = {
+      medecin_id: user.id,
+      jour_semaine: slotData.day.toLowerCase(),
+      heure_debut: slotData.startTime + ":00",
+      heure_fin: slotData.endTime + ":00",
+      duree_creneau_minutes: 30,
+      type: "video",
+      recurrence: slotData.recurrence,
+      date_debut_validite: slotData.dateDebut,
+      date_fin_validite: slotData.dateFin || null,
+      actif: true,
+    };
+
+    try {
+      if (slotData.id) {
+        await apiPut(`/api/disponibilites/${slotData.id}`, payload);
+      } else {
+        await post("/api/disponibilites", payload);
+      }
+      await fetchAvailabilities();
+    } catch (err) {
+      console.error("Erreur lors de l'enregistrement du créneau:", err);
+      throw err; // Remonte l'erreur pour affichage dans la modal
+    }
+  };
+
+  const handleUpdateOpinionRequest = async (id, newStatus, data) => {
+    try {
+      if (newStatus === "acceptee") {
+        if (data?.openMessaging) {
+          const res = await apiPut(`/api/demandes-avis/${id}/accepter-et-discuter`);
+          setOpinionRequests(prev =>
+            prev.map(req => (req.id === id ? { ...req, statut: "acceptee" } : req))
+          );
+          if (res.conversation_id) {
+            navigate("/doctor-messages", { state: { conversationId: res.conversation_id } });
+          }
+          return;
+        }
+        await apiPut(`/api/demandes-avis/${id}/accepter`);
+      } else if (newStatus === "refusee") {
+        await apiPut(`/api/demandes-avis/${id}/refuser`, { reason: data?.reason });
+      }
+
+      setOpinionRequests(prev =>
+        prev.map(req => (req.id === id ? { ...req, statut: newStatus, ...data } : req))
+      );
+
+      if (newStatus === "acceptee" && data.meetingDate) {
+        const request = opinionRequests.find(r => r.id === id);
+        const newAppointment = {
+          id: Date.now(),
+          type: "opinion_meeting",
+          patientName: `Dr. ${request?.requesterName || "confrère"}`,
+          patientImage: null,
+          date: new Date(data.meetingDate).toLocaleDateString("fr-FR"),
+          time: new Date(data.meetingDate).toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          status: "Confirmed",
+          category: "upcoming",
+          mode: data.mode,
+        };
+        setColleagueAppointments(prev => [...prev, newAppointment]);
+      }
+    } catch (err) {
+      console.error("Erreur mise à jour demande d'avis:", err);
     }
   };
 
   // ============ FILTRAGE ============
-  const filteredAppointments = appointments.filter((item) => {
-    if (activeTab === "Upcoming") return item.category === "upcoming";
-    if (activeTab === "Past") return item.category === "past";
-    return true;
-  });
+  const filteredAppointments = appointments
+    .filter((item) => {
+      if (activeTab === "Upcoming") return item.category === "upcoming";
+      if (activeTab === "Past") return item.category === "past";
+      return true;
+    })
+    .sort((a, b) => {
+      if (activeTab === "Past") return (b.dateHeureDebut || "").localeCompare(a.dateHeureDebut || "");
+      return (a.dateHeureDebut || "").localeCompare(b.dateHeureDebut || "");
+    });
 
   // ============ STATS ============
+  const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+  const now = Date.now();
   const stats = {
     today: filteredAppointments.filter(a => {
       const today = new Date().toLocaleDateString();
       return new Date(a.date).toLocaleDateString() === today;
     }).length,
-    pending: filteredAppointments.filter(a => a.status === "Pending").length,
+    pending: filteredAppointments.filter(a => {
+      if (a.statut === "en_cours" || a.statut === "termine") return false;
+      if (!a.dateHeureFin) return false;
+      return now <= new Date(a.dateHeureFin).getTime() + TWO_HOURS_MS;
+    }).length,
     week: filteredAppointments.filter(a => {
       const apptDate = new Date(a.date);
-      const now = new Date();
-      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return apptDate >= now && apptDate <= weekFromNow;
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + mondayOffset);
+      const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6, 23, 59, 59);
+      return apptDate >= monday && apptDate <= sunday;
     }).length,
     opinionRequests: opinionRequests.filter(r => r.statut === "en_attente").length,
   };
@@ -186,20 +567,93 @@ export default function Appointment({ darkMode }) {
   const emptyDays = Array.from({ length: startDay });
   const today = new Date();
 
+  const localDateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const previousMonth = () => setCurrentDate(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   const getAvailabilityForDay = (day) => {
     const current = new Date(year, month, day);
-    const weekDay = current.toLocaleDateString("en-US", { weekday: "long" });
-    return availabilities.filter((a) => a.day === weekDay);
+    const currentStr = localDateStr(current);
+    const weekDay = current.toLocaleDateString("fr-FR", { weekday: "long" });
+    const cap = weekDay.charAt(0).toUpperCase() + weekDay.slice(1);
+
+    const exception = exceptions.find(
+      (ex) => ex.date === currentStr && ex.actif !== false
+    );
+    if (exception) {
+      if (exception.type === "indisponible") {
+        return [];
+      }
+      if (exception.type === "horaires_personnalises") {
+        return (exception.creneaux || [])
+          .filter((cr) => {
+            if (!cr.start) return false;
+            const isToday = currentStr === localDateStr(today);
+            if (isToday) {
+              const [h, m] = cr.start.split(":").map(Number);
+              const slotStart = new Date(today);
+              slotStart.setHours(h, m, 0, 0);
+              if (slotStart.getTime() - today.getTime() < 30 * 60 * 1000) return false;
+            }
+            return true;
+          })
+          .map((cr, idx) => ({
+            id: `exc-${exception.id}-${idx}`,
+            day: cap,
+            startTime: cr.start,
+            endTime: cr.end,
+            status: "available",
+            exception: true,
+          }));
+      }
+    }
+
+    return availabilities.filter((a) => {
+      if (a.day !== cap) return false;
+
+      if (a.dateDebut && currentStr < a.dateDebut) return false;
+      if (a.dateFin && currentStr > a.dateFin) return false;
+
+      if (a.recurrence === "unique") {
+        if (!a.dateDebut) return false;
+        if (currentStr < a.dateDebut) return false;
+        const debut = new Date(a.dateDebut + "T00:00:00");
+        const diffDays = Math.round(
+          (current.getTime() - debut.getTime()) / (24 * 60 * 60 * 1000)
+        );
+        if (diffDays < 0 || diffDays >= 7) return false;
+      } else if (a.recurrence === "bi_mensuel") {
+        if (!a.dateDebut) return false;
+        const debut = new Date(a.dateDebut + "T00:00:00");
+        const diffMs = current.getTime() - debut.getTime();
+        const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+        if (diffWeeks < 0 || diffWeeks % 2 !== 0) return false;
+      } else if (a.recurrence === "quotidien") {
+        // Pour quotidien, on affiche chaque jour sauf si jour de la semaine ne match pas
+        // quotidien = tous les jours dans la plage de validité
+      } else if (a.recurrence === "mensuel") {
+        if (!a.dateDebut) return false;
+        const debut = new Date(a.dateDebut + "T00:00:00");
+        if (current.getDate() !== debut.getDate()) return false;
+      }
+
+      if (!a.startTime) return false;
+
+      return true;
+    });
   };
 
   const getAppointmentsByDay = (day) => {
     return filteredAppointments.filter((a) => {
       const [dayPart, monthPart] = a.date.split(" ");
       const apptDay = parseInt(dayPart);
-      const monthIndex = new Date(`${monthPart} 1, 2026`).getMonth();
+      const monthIndex = new Date(`${monthPart} 1, ${year}`).getMonth();
       return apptDay === day && monthIndex === month;
     });
   };
@@ -223,15 +677,32 @@ export default function Appointment({ darkMode }) {
           </p>
         </div>
 
-        <button
-          onClick={() => setOpenForm(true)}
-          className="bg-[#3B82F6] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm w-full sm:w-auto hover:bg-blue-700 transition flex items-center justify-center gap-1.5 sm:gap-2 font-medium"
-        >
-          <Plus size={14} className="sm:hidden" />
-          <Plus size={16} className="hidden sm:inline" />
-          <span className="hidden sm:inline">Create new appointment</span>
-          <span className="sm:hidden">New</span>
-        </button>
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* POWER TOGGLE */}
+          <button
+            onClick={handleToggleDisponibilite}
+            disabled={togglingDispo}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              disponible
+                ? "bg-green-500 hover:bg-green-600 text-white shadow-md shadow-green-500/25"
+                : "bg-gray-400 hover:bg-gray-500 text-white"
+            } ${togglingDispo ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={disponible ? "Vous êtes disponible — cliquer pour passer indisponible" : "Vous êtes indisponible — cliquer pour passer disponible"}
+          >
+            <Power size={16} className={disponible ? "animate-pulse" : ""} />
+            <span className="hidden sm:inline">{disponible ? "Disponible" : "Indisponible"}</span>
+          </button>
+
+          <button
+            onClick={() => setOpenForm(true)}
+            className="bg-[#3B82F6] text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm w-full sm:w-auto hover:bg-blue-700 transition flex items-center justify-center gap-1.5 sm:gap-2 font-medium"
+          >
+            <Plus size={14} className="sm:hidden" />
+            <Plus size={16} className="hidden sm:inline" />
+            <span className="hidden sm:inline">Create new appointment</span>
+            <span className="sm:hidden">New</span>
+          </button>
+        </div>
       </div>
 
       {/* STATS RESPONSIVE */}
@@ -429,7 +900,9 @@ export default function Appointment({ darkMode }) {
                     getStatusStyle={getStatusStyle}
                     darkMode={darkMode}
                     onReschedule={handleReschedule}
+                    onOpenChat={handleOpenChat}
                     onOpenPatient={handleOpenPatient}
+                    onNavigatePatient={() => navigate("/patients", { state: { patientId: item.patientId } })}
                   />
                 ))}
               </div>
@@ -473,7 +946,7 @@ export default function Appointment({ darkMode }) {
 
                 {/* DAYS HEADER */}
                 <div className="hidden md:grid grid-cols-7 text-xs font-semibold mb-2">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+                  {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
                     <div
                       key={d}
                       className={`text-center py-2 ${
@@ -497,12 +970,16 @@ export default function Appointment({ darkMode }) {
                       day={day}
                       dayAppointments={getAppointmentsByDay(day)}
                       availability={getAvailabilityForDay(day)}
+                      dayException={getExceptionForDay(day)}
                       isToday={
                         day === today.getDate() &&
                         month === today.getMonth() &&
                         year === today.getFullYear()
                       }
                       darkMode={darkMode}
+                      onDayClick={handleOpenCreateSlotModal}
+                      onSlotClick={handleOpenEditSlotModal}
+                      onDeleteException={handleDeleteException}
                     />
                   ))}
                 </div>
@@ -570,6 +1047,59 @@ export default function Appointment({ darkMode }) {
         open={openForm}
         onClose={() => setOpenForm(false)}
         darkMode={darkMode}
+        onCreated={() => {
+          setLoadingRdv(true);
+          get("/api/rendez_vous")
+            .then(async (rdvsRaw) => {
+              const paidStatuses = new Set([
+                "confirme", "paye_en_attente_validation", "en_cours", "termine",
+              ]);
+              const rdvs = rdvsRaw.filter(r => paidStatuses.has(r.statut));
+              const uniqueIds = [...new Set(rdvs.map((r) => r.patient_id))];
+              const patientsMap = {};
+              await Promise.all(
+                uniqueIds.map(async (pid) => {
+                  try {
+                    const p = await get(`/api/patients/${pid}`);
+                    patientsMap[pid] = p;
+                  } catch {
+                    patientsMap[pid] = null;
+                  }
+                })
+              );
+              const now2 = Date.now();
+              const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+              const mapped = rdvs.map((r) => {
+                const p = patientsMap[r.patient_id] || {};
+                const d = new Date(r.date_heure_debut);
+                const endTime = new Date(r.date_heure_fin).getTime();
+                const isExpired = now2 > endTime + TWO_HOURS_MS;
+                const isDone = r.statut === "en_cours" || r.statut === "termine";
+          const timeParts = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: getUserTimezone() });
+                const statusMap = {
+                  confirme: "Confirmed",
+                  paye_en_attente_validation: "Pending",
+                  en_cours: "Confirmed",
+                  termine: "Confirmed",
+                };
+                return {
+                  id: r.id,
+                  patientName: `${p.prenom || ""} ${p.nom || ""}`.trim() || "Patient",
+                  patientImage: p.photo_url || "",
+                  status: statusMap[r.statut] || "Pending",
+                  date: d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+                  time: timeParts,
+                  type: r.type === "presentiel" ? "In-person" : "Teleconsultation",
+                  category: isExpired || isDone ? "past" : "upcoming",
+                  dateHeureFin: r.date_heure_fin,
+                  statut: r.statut,
+                };
+              });
+              setAppointments(mapped);
+            })
+            .catch(() => setAppointments([]))
+            .finally(() => setLoadingRdv(false));
+        }}
       />
       <RescheduleForm
         open={openReschedule}
@@ -584,11 +1114,35 @@ export default function Appointment({ darkMode }) {
         darkMode={darkMode}
         onSave={handleSaveAvailability}
         selectedAvailability={selectedAvailability}
+        exceptions={exceptions}
+        onAddException={handleAddException}
+        onUpdateException={handleUpdateException}
+        onDeleteException={handleDeleteException}
+        existingAvailabilities={availabilities}
+        onDeleteAvailability={handleDeleteAvailability}
       />
       <PatientProfileModal
         open={openPatientModal}
         onClose={() => setOpenPatientModal(false)}
         patient={selectedPatient}
+        darkMode={darkMode}
+      />
+      <SlotFormModal
+        open={openSlotModal}
+        onClose={() => setOpenSlotModal(false)}
+        selectedSlot={selectedSlotForModal}
+        selectedDate={selectedDateForModal}
+        darkMode={darkMode}
+        onSave={handleSaveSlot}
+        onDelete={handleDeleteAvailability}
+        onAddNew={handleSwitchToCreateSlot}
+        existingAvailabilities={availabilities}
+        exceptions={exceptions}
+      />
+      <AppointmentChatModal
+        open={openChatModal}
+        onClose={() => setOpenChatModal(false)}
+        rdv={chatRdv}
         darkMode={darkMode}
       />
     </div>

@@ -1,12 +1,12 @@
-import { CalendarDays, Droplets, ChevronRight, Baby } from "lucide-react";
+import { CalendarDays, Droplets, ChevronRight, Baby, Lock } from "lucide-react";
 
 export default function PatientListCard({ patient, onClick, darkMode }) {
-  // Détection femme enceinte
   const isFemmeEnceinte =
     patient?.gender === "Female" &&
     patient?.age >= 15 &&
     patient?.age <= 50 &&
     patient?.isPregnant === true;
+  const isRestricted = patient?.dossierRestricted === true;
 
   return (
     <div
@@ -30,6 +30,13 @@ export default function PatientListCard({ patient, onClick, darkMode }) {
               ${darkMode ? "text-white" : "text-[#2C3850]"}`}>
               {patient.name}
             </h3>
+            {isRestricted && (
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold
+                ${darkMode ? "bg-yellow-900/40 text-yellow-300" : "bg-yellow-100 text-yellow-700"}`}>
+                <Lock size={10} />
+                Accès restreint
+              </span>
+            )}
             {isFemmeEnceinte && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-100 text-pink-700">
                 <Baby size={10} />

@@ -29,9 +29,10 @@ import {
   doctorSpecialities,
   nurseSpecialities,
   cities,
-  districts,
   hospitals,
 } from "../../constants/medicalOptions";
+
+import { register } from "../../services/auth";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -40,8 +41,22 @@ export default function Auth() {
   const [stepThree, setStepThree] = useState(false);
   const [experience, setExperience] = useState(0);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [prenom, setPrenom] = useState("");
+  const [nom, setNom] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [ville, setVille] = useState("");
+  const [district, setDistrict] = useState("");
+  const [dateNaissance, setDateNaissance] = useState("");
+  const [specialite, setSpecialite] = useState("");
+  const [hopital, setHopital] = useState("");
+  const [numeroOrdre, setNumeroOrdre] = useState("");
+  const [presentation, setPresentation] = useState("");
+  const [sexe, setSexe] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const [documentsFiles, setDocumentsFiles] = useState([]);
 
   const navigate = useNavigate();
 
@@ -49,8 +64,124 @@ export default function Auth() {
     localStorage.setItem("user", JSON.stringify(user));
   };
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordUpper = /[A-Z]/;
+  const passwordLower = /[a-z]/;
+  const passwordSpecial = /[^a-zA-Z0-9]/;
+
   const handleNext = () => {
-    if (selectedRole) setStepTwo(true);
+    const newErrors = {};
+    if (!selectedRole) newErrors.role = "Veuillez sélectionner un rôle";
+    if (!prenom.trim()) newErrors.prenom = "Prénom requis";
+    if (!nom.trim()) newErrors.nom = "Nom requis";
+    if (!email.trim()) {
+      newErrors.email = "Email requis";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Email invalide";
+    }
+    if (!password) {
+      newErrors.password = "Mot de passe requis";
+    } else if (password.length < 8) {
+      newErrors.password = "Min 8 caractères";
+    } else if (!passwordUpper.test(password)) {
+      newErrors.password = "Doit contenir une majuscule";
+    } else if (!passwordLower.test(password)) {
+      newErrors.password = "Doit contenir une minuscule";
+    } else if (!passwordSpecial.test(password)) {
+      newErrors.password = "Doit contenir un caractère spécial";
+    }
+    if (password !== confirmPassword) newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+    setStepTwo(true);
+  };
+
+  const sexeMap = {
+    Masculin: "M",
+    Féminin: "F",
+    "Non précisé": "Non_precise",
+  };
+
+  const handlePatientSignUp = async () => {
+    setLoading(true);
+    setErrors({});
+    try {
+      const userData = {
+        email,
+        password,
+        prenom,
+        nom,
+        telephone: telephone || undefined,
+        sexe: sexeMap[sexe] || undefined,
+        ville: ville || undefined,
+        date_naissance: dateNaissance || undefined,
+        adresse: [ville, district].filter(Boolean).join(', ') || undefined,
+      };
+      const user = await register(userData, "patient");
+      saveUser(user);
+      navigate(redirectByRole("patient"));
+    } catch (err) {
+      setErrors({ api: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDoctorNurseSignUp = async () => {
+    setLoading(true);
+    setErrors({});
+    try {
+      const birthDate = new Date(dateNaissance);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+      if (age < 21) {
+        setErrors({ api: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
+        setLoading(false);
+        return;
+      }
+
+      const userData = {
+        email,
+        password,
+        prenom,
+        nom,
+        telephone: telephone || undefined,
+        ville: ville || undefined,
+        date_naissance: dateNaissance || undefined,
+        specialites: specialite ? [specialite] : undefined,
+        numero_ordre: numeroOrdre,
+        annees_experience: experience,
+        structure_nom: hopital || undefined,
+        biographie: presentation || undefined,
+        adresse: [hopital, ville, district].filter(Boolean).join(', ') || undefined,
+      };
+      const user = await register(userData, "medecin");
+      // Upload documents after successful registration
+      if (documentsFiles.length > 0 && user.id) {
+        const token = user.token;
+        for (const file of documentsFiles) {
+          try {
+            const form = new FormData();
+            form.append("file", file);
+            await fetch(`${import.meta.env.VITE_API_URL}/api/medecins/${user.id}/documents/upload`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: form,
+            });
+          } catch (e) {
+            console.error("Failed to upload document:", file.name, e);
+          }
+        }
+      }
+      saveUser(user);
+      navigate(redirectByRole(selectedRole));
+    } catch (err) {
+      setErrors({ api: err.message });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignUp = () => {
@@ -72,17 +203,10 @@ export default function Auth() {
     setStepTwo(false);
     setStepThree(false);
     setSelectedRole("");
+    setErrors({});
   };
 
-  const handleSubmit = () => {
-    const user = {
-      role: selectedRole,
-      experience,
-    };
-
-    saveUser(user);
-    navigate(redirectByRole(selectedRole));
-  };
+  const handleSubmit = handleDoctorNurseSignUp;
 
   const validateForm = () => {
     const newErrors = {};
@@ -111,6 +235,8 @@ export default function Auth() {
         return "/nurse-dashboard";
       case "observer":
         return "/observer-dashboard";
+      case "admin":
+        return "http://localhost:4174";
       case "structure":
         return "/structure-dashboard";
       default:
@@ -217,6 +343,19 @@ export default function Auth() {
                   setSelectedRole={setSelectedRole}
                   handleNext={handleNext}
                   resetToLogin={resetToLogin}
+                  prenom={prenom}
+                  setPrenom={setPrenom}
+                  nom={nom}
+                  setNom={setNom}
+                  email={email}
+                  setEmail={setEmail}
+                  telephone={telephone}
+                  setTelephone={setTelephone}
+                  password={password}
+                  setPassword={setPassword}
+                  confirmPassword={confirmPassword}
+                  setConfirmPassword={setConfirmPassword}
+                  errors={errors}
                 />
               )}
 
@@ -224,10 +363,20 @@ export default function Auth() {
               {stepTwo && !stepThree && (
                 <SignupStep2
                   selectedRole={selectedRole}
-                  saveUser={saveUser}
-                  navigate={navigate}
-                  redirectByRole={redirectByRole}
+                  ville={ville}
+                  setVille={setVille}
+                  district={district}
+                  setDistrict={setDistrict}
+                  dateNaissance={dateNaissance}
+                  setDateNaissance={setDateNaissance}
+                  specialite={specialite}
+                  setSpecialite={setSpecialite}
+                  sexe={sexe}
+                  setSexe={setSexe}
+                  onPatientSignUp={handlePatientSignUp}
                   setStepThree={setStepThree}
+                  loading={loading}
+                  errors={errors}
                 />
               )}
 
@@ -235,9 +384,19 @@ export default function Auth() {
               {stepThree && (
                 <SignupStep3
                   hospitals={hospitals}
+                  hopital={hopital}
+                  setHopital={setHopital}
+                  numeroOrdre={numeroOrdre}
+                  setNumeroOrdre={setNumeroOrdre}
                   experience={experience}
                   setExperience={setExperience}
+                  presentation={presentation}
+                  setPresentation={setPresentation}
+                  documentsFiles={documentsFiles}
+                  setDocumentsFiles={setDocumentsFiles}
                   handleSubmit={handleSubmit}
+                  loading={loading}
+                  errors={errors}
                   resetToLogin={resetToLogin}
                 />
               )}

@@ -23,7 +23,7 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSave, dar
     const newErrors = {};
     if (!form.nom?.trim()) newErrors.nom = "Le nom est requis";
     if (!form.age || form.age < 1 || form.age > 120) newErrors.age = "Âge invalide";
-    if (!form.telephone?.match(/^\+?[\d\s\-()]{8,}$/)) newErrors.telephone = "Téléphone invalide";
+    if (!form.telephone?.match(/^6\d{8}$/)) newErrors.telephone = "Téléphone invalide (9 chiffres commençant par 6)";
     return newErrors;
   };
 
@@ -102,7 +102,7 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSave, dar
               <label className="text-sm font-medium">Téléphone *</label>
               <div className={fieldClass}>
                 <Phone size={18} className="text-gray-400" />
-                <input name="telephone" value={form.telephone || ""} onChange={handleChange} className="w-full bg-transparent outline-none" />
+                <input type="tel" name="telephone" value={form.telephone || ""} onChange={handleChange} maxLength={9} pattern="6[0-9]{8}" placeholder="6XX XXX XXX" className="w-full bg-transparent outline-none" />
               </div>
               {errors.telephone && <p className="text-red-500 text-xs mt-1">{errors.telephone}</p>}
             </div>
@@ -163,14 +163,6 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSave, dar
                 <option value="En attente">En attente</option>
               </select>
             </div>
-          </div>
-
-          <div className="mt-6">
-            <label className="text-sm font-medium">Allergies</label>
-            <textarea name="allergies" value={form.allergies || ""} onChange={handleChange} rows={2}
-              className={`mt-2 w-full border rounded-2xl px-4 py-3 bg-transparent outline-none resize-none ${
-                darkMode ? "border-slate-700" : "border-gray-300"
-              }`} />
           </div>
 
           <div className="mt-4">

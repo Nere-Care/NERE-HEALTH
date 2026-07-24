@@ -5,7 +5,7 @@ export default function PatientsAnalytics({ darkMode, patients = [] }) {
   const total = patients.length;
   const actifs = patients.filter(p => p.statut === "Actif").length;
   const nouveaux = patients.filter(p => p.derniereConnexion === "À l'instant" || p.derniereConnexion === "Aujourd'hui").length;
-  const critiques = patients.filter(p => p.allergies !== "Aucune" || p.antecedents !== "Aucun").length;
+  const critiques = patients.filter(p => p.antecedents !== "Aucun").length;
 
   const stats = [
     { label: "Total patients", value: total, icon: Users, color: "blue" },

@@ -23,13 +23,16 @@ async def list_avis(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    stmt = select(Avis)
-    if current_user.role == "patient":
-        stmt = stmt.where(Avis.patient_id == current_user.id)
-    elif current_user.role == "medecin":
-        stmt = stmt.where(Avis.medecin_id == current_user.id)
-    elif current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
+    stmt = select(Avis, User.prenom, User.nom).join(User, Avis.patient_id == User.id)
+    
+    # Appliquer le scoping par défaut si aucune cible (médecin ou patient) n'est spécifiée
+    if not medecin_id and not patient_id:
+        if current_user.role == "patient":
+            stmt = stmt.where(Avis.patient_id == current_user.id)
+        elif current_user.role in ("medecin", "infirmier", "sage_femme"):
+            stmt = stmt.where(Avis.medecin_id == current_user.id)
+        elif current_user.role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
 
     if patient_id:
         stmt = stmt.where(Avis.patient_id == patient_id)
@@ -38,8 +41,15 @@ async def list_avis(
     if rdv_id:
         stmt = stmt.where(Avis.rdv_id == rdv_id)
 
-    avis_list = db.execute(stmt.order_by(Avis.created_at.desc()).limit(limit)).scalars().all()
-    return avis_list
+    rows = db.execute(stmt.order_by(Avis.created_at.desc()).limit(limit)).all()
+    results = []
+    for row in rows:
+        avis = row[0]
+        avis_data = {c.key: getattr(avis, c.key) for c in avis.__table__.columns}
+        avis_data["patient_prenom"] = row[1]
+        avis_data["patient_nom"] = row[2]
+        results.append(avis_data)
+    return results
 
 
 @router.post("/avis", response_model=AvisRead, status_code=status.HTTP_201_CREATED)

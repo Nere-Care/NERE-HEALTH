@@ -12,6 +12,9 @@ import {
   CreditCard,
   Calendar,
   MessageSquare,
+  LifeBuoy,
+  Megaphone,
+  Images,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -67,9 +70,27 @@ const items = [
   },
 
   {
+    icon: LifeBuoy,
+    label: "Support",
+    path: "/tickets",
+  },
+
+  {
     icon: FileText,
     label: "Reports",
     path: "/reports",
+  },
+
+  {
+    icon: Megaphone,
+    label: "Mises à jour",
+    path: "/mises-a-jour",
+  },
+
+  {
+    icon: Images,
+    label: "Carrousels",
+    path: "/actualites",
   },
 ];
 

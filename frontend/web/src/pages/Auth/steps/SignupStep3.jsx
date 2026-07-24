@@ -5,11 +5,24 @@ import { FileText, User } from "lucide-react";
 
 export default function SignupStep3({
   hospitals,
+  hopital,
+  setHopital,
+  numeroOrdre,
+  setNumeroOrdre,
   experience,
   setExperience,
+  presentation,
+  setPresentation,
+  documentsFiles,
+  setDocumentsFiles,
   handleSubmit,
+  loading,
+  errors,
   resetToLogin,
 }) {
+  const handleFileChange = (e) => {
+    setDocumentsFiles([...e.target.files]);
+  };
   return (
     <>
       <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
@@ -19,17 +32,38 @@ export default function SignupStep3({
           <SelectInput
             placeholder="Select Health Structure"
             options={hospitals}
+            value={hopital}
+            onChange={(e) => setHopital(e.target.value)}
+            error={errors.hopital}
           />
 
           <Input
             icon={<User className="w-5 h-5 text-gray-500" />}
             placeholder="Professional Registration Number"
+            value={numeroOrdre}
+            onChange={(e) => setNumeroOrdre(e.target.value)}
+            error={errors.numeroOrdre}
           />
 
           <ExperienceInput
             value={experience}
             setValue={setExperience}
           />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Présentation</label>
+            <textarea
+              placeholder="Parlez de votre parcours, vos spécialités, votre approche..."
+              value={presentation}
+              onChange={(e) => setPresentation(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:border-[#2F80ED] focus:ring-2 focus:ring-blue-100 outline-none text-gray-700 placeholder:text-gray-400 resize-none transition-all"
+            />
+          </div>
+
+          {errors.api && (
+            <p className="text-red-500 text-sm text-center">{errors.api}</p>
+          )}
 
           {/* ================= UPLOAD ================= */}
           <div>
@@ -43,12 +77,22 @@ export default function SignupStep3({
 
               <label className="inline-block bg-[#2F80ED] hover:bg-[#044EC8] transition text-white px-10 py-3 rounded-xl cursor-pointer font-medium shadow-md">
                 Choose File
-                <input type="file" hidden multiple />
+                <input type="file" hidden multiple onChange={handleFileChange} />
               </label>
 
               <p className="text-sm text-gray-500 mt-4">
                 Upload your certifications and professional documents
               </p>
+              {documentsFiles.length > 0 && (
+                <div className="mt-3 text-left">
+                  <p className="text-xs font-medium text-gray-600 mb-1">Fichiers sélectionnés ({documentsFiles.length}) :</p>
+                  <ul className="text-xs text-gray-500 space-y-0.5">
+                    {[...documentsFiles].map((f, i) => (
+                      <li key={i} className="truncate">• {f.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <p className="text-sm text-[#B97A2B] mt-3">
@@ -58,10 +102,11 @@ export default function SignupStep3({
         </div>
 
         <button
+          disabled={loading}
           onClick={handleSubmit}
-          className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100"
+          className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50"
         >
-          Submit
+          {loading ? "Creating account..." : "Submit"}
         </button>
       </div>
 

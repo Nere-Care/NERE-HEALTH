@@ -11,6 +11,7 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  Send,
 } from "lucide-react";
 import ScheduleOpinionMeeting from "./ScheduleOpinionMeeting";
 
@@ -48,7 +49,11 @@ export default function OpinionRequestsTab({
     tres_urgent: "Très urgent",
   };
 
-  const handleAccept = (request) => setScheduleFor(request);
+  const handleAccept = (request) => {
+    onUpdateRequest(request.id, "acceptee", { openMessaging: true });
+  };
+
+  const handleAcceptAndSchedule = (request) => setScheduleFor(request);
 
   const handleDecline = (request, reason) => {
     onUpdateRequest(request.id, "refusee", { reason });
@@ -396,6 +401,46 @@ export default function OpinionRequestsTab({
                       </div>
                     )}
 
+                  {/* Documents associés */}
+                  {(request.dossierNumero || request.consultationNumero) && (
+                    <div>
+                      <p
+                        className={`text-[10px] sm:text-xs font-bold uppercase mb-2
+                        ${
+                          darkMode
+                            ? "text-gray-400"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        Documents associés
+                      </p>
+
+                      <div className="space-y-1.5">
+                        {request.dossierNumero && (
+                          <div className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+                            <FileText size={14} className="text-blue-500 flex-shrink-0" />
+                            <span className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Dossier médical :</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs">
+                              {request.dossierNumero}
+                            </span>
+                          </div>
+                        )}
+                        {request.consultationNumero && (
+                          <div className={`flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
+                            <FileText size={14} className="text-purple-500 flex-shrink-0" />
+                            <span className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Consultation :</span>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs">
+                              {request.consultationNumero}
+                            </span>
+                            {request.consultationMotif && (
+                              <span className={`text-[10px] sm:text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({request.consultationMotif})</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   {request.statut === "en_attente" && (
                     <div
@@ -410,17 +455,32 @@ export default function OpinionRequestsTab({
                         onClick={() => handleAccept(request)}
                         className="flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 font-semibold text-xs sm:text-sm transition"
                       >
-                        <CheckCircle
+                        <Send
                           size={14}
                           className="sm:hidden"
                         />
-                        <CheckCircle
+                        <Send
                           size={16}
                           className="hidden sm:inline"
                         />
                         <span>
-                          Accepter & Planifier
+                          Accepter
                         </span>
+                      </button>
+
+                      <button
+                        onClick={() => handleAcceptAndSchedule(request)}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border border-blue-500 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-semibold text-xs sm:text-sm transition"
+                      >
+                        <Calendar
+                          size={14}
+                          className="sm:hidden"
+                        />
+                        <Calendar
+                          size={16}
+                          className="hidden sm:inline"
+                        />
+                        <span>Planifier un RDV</span>
                       </button>
 
                       <button

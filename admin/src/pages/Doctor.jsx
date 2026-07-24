@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import {
   Search,
@@ -14,66 +14,25 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  Copy,
 } from "lucide-react";
 
 import ViewDoctorModal from "../components/doctors/ViewDoctorModal";
 import AddDoctorModal from "../components/doctors/AddDoctorModal";
 import DocumentsModal from "../components/doctors/DocumentsModal";
 import DeleteConfirmModal from "../components/doctors/DeleteConfirmModal";
-
-/* ================= MOCK DATA ================= */
-const initialDoctors = [
-  {
-    id: 1,
-    name: "Dr. Martin Nkono",
-    specialty: "Cardiologue",
-    hospital: "Hôpital Laquintinie",
-    phone: "+237 690 000 001",
-    email: "martin.nkono@hopital.cm",
-    address: "Douala, Bonanjo",
-    status: "En attente",
-    documents: [
-      { id: 1, name: "CV.pdf", url: "#", type: "application/pdf", size: "2.4 MB" },
-      { id: 2, name: "Licence.pdf", url: "#", type: "application/pdf", size: "1.1 MB" },
-      { id: 3, name: "Attestation.pdf", url: "#", type: "application/pdf", size: "890 KB" },
-    ],
-    createdAt: "2024-01-15",
-  },
-  {
-    id: 2,
-    name: "Dr. Sarah Ngono",
-    specialty: "Pédiatre",
-    hospital: "CHU Yaoundé",
-    phone: "+237 670 000 002",
-    email: "sarah.ngono@chu.cm",
-    address: "Yaoundé, Bastos",
-    status: "Vérifié",
-    documents: [
-      { id: 1, name: "CV.pdf", url: "#", type: "application/pdf", size: "1.8 MB" },
-    ],
-    createdAt: "2024-01-10",
-  },
-  {
-    id: 3,
-    name: "Dr. Paul Mbe",
-    specialty: "Chirurgien",
-    hospital: "Hôpital Général Douala",
-    phone: "+237 650 000 003",
-    email: "paul.mbe@hgdouala.cm",
-    address: "Douala, Akwa",
-    status: "Rejeté",
-    documents: [
-      { id: 1, name: "Incomplet.pdf", url: "#", type: "application/pdf", size: "450 KB" },
-    ],
-    createdAt: "2024-01-20",
-  },
-];
+import API from "../services/api";
 
 /* ================= COMPONENT ================= */
 export default function DoctorsPage({ darkMode }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [doctors, setDoctors] = useState(initialDoctors);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Lists for dropdowns
+  const [specialitesList, setSpecialitesList] = useState([]);
+  const [structuresList, setStructuresList] = useState([]);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -87,18 +46,171 @@ export default function DoctorsPage({ darkMode }) {
   // Form state
   const [formData, setFormData] = useState({
     name: "",
+    role: "medecin",
     specialty: "",
     hospital: "",
     phone: "",
     email: "",
     address: "",
+    numero_ordre: "",
+    annees_experience: "",
   });
 
+  const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleEditDoctor = useCallback((doctor) => {
+    setFormData({
+      name: doctor.name,
+      role: doctor.role || "medecin",
+      specialty: doctor.specialty === "Non spécifiée" ? "" : doctor.specialty,
+      hospital: doctor.hospital === "Non spécifié" ? "" : doctor.hospital,
+      phone: doctor.phone || "",
+      email: doctor.email || "",
+      address: doctor.address || "",
+      numero_ordre: doctor.numero_ordre || "",
+      annees_experience: doctor.annees_experience ?? "",
+    });
+    setEditingId(doctor.id);
+    setShowAddModal(true);
+    setShowViewModal(false);
+  }, []);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  /* ================= DATA FETCHING ================= */
+  const fetchDoctors = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    try {
+      const [
+        medecinsRes,
+        usersRes,
+        specialitesRes,
+        medecinSpecialitesRes,
+        structuresRes,
+      ] = await Promise.all([
+        API.get("/medecins", { params: { limit: 200 } }),
+        API.get("/users"),
+        API.get("/specialites", { params: { limit: 200 } }),
+        API.get("/medecin_specialites", { params: { limit: 200 } }),
+        API.get("/structures", { params: { limit: 200 } }),
+      ]);
+
+      const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+      const specialites = Array.isArray(specialitesRes.data) ? specialitesRes.data : [];
+      const medecinSpecialites = Array.isArray(medecinSpecialitesRes.data) ? medecinSpecialitesRes.data : [];
+      const structures = Array.isArray(structuresRes.data) ? structuresRes.data : [];
+
+      const usersMap = {};
+      users.forEach((u) => { usersMap[u.id] = u; });
+
+      const specialitesMap = {};
+      specialites.forEach((s) => { specialitesMap[s.id] = s; });
+
+      const medecinSpecialitesMap = {};
+      medecinSpecialites.forEach((ms) => {
+        if (!medecinSpecialitesMap[ms.medecin_id]) {
+          medecinSpecialitesMap[ms.medecin_id] = [];
+        }
+        if (specialitesMap[ms.specialite_id]) {
+          medecinSpecialitesMap[ms.medecin_id].push(specialitesMap[ms.specialite_id].libelle_fr);
+        }
+      });
+
+      const structuresMap = {};
+      structures.forEach((s) => { structuresMap[s.id] = s; });
+
+      setSpecialitesList(specialites);
+      setStructuresList(structures);
+
+      const statusMap = {
+        en_attente: "En attente",
+        verifie: "Vérifié",
+        rejete: "Rejeté",
+        actif: "Actif",
+        suspendu: "Suspendu",
+        banni: "Banni",
+        inactif: "Inactif",
+      };
+
+      const userStatutMap = {
+        actif: null,
+        suspendu: "Suspendu",
+        banni: "Banni",
+        inactif: "Inactif",
+      };
+
+      const medecins = Array.isArray(medecinsRes.data) ? medecinsRes.data : [];
+
+      const enriched = medecins.map((m) => {
+        const user = usersMap[m.id];
+        const userFullName = user
+          ? [user.prenom, user.nom].filter(Boolean).join(" ")
+          : "";
+        const specialties = medecinSpecialitesMap[m.id] || [];
+        const structure = structuresMap[m.structure_id];
+
+        return {
+          id: m.id,
+          name: userFullName ? `Dr. ${userFullName}` : `Médecin #${m.id}`,
+          role: user?.role || "medecin",
+          specialty: specialties.join(", ") || "Non spécifiée",
+          hospital: structure?.nom_etablissement || "Non spécifié",
+          phone: user?.telephone || "",
+          email: user?.email || "",
+          address: user?.adresse || "",
+          numero_ordre: m.numero_ordre || "",
+          status: userStatutMap[user?.statut] || statusMap[m.statut_verification] || "En attente",
+          userStatut: user?.statut || "actif",
+          documents: m.documents || [],
+          createdAt: m.created_at?.split("T")[0] || "",
+          structure_id: m.structure_id,
+          annees_experience: m.annees_experience || 0,
+        };
+      });
+
+      setDoctors(enriched);
+    } catch (err) {
+      if (isInitial) toast.error("❌ Erreur lors du chargement des médecins");
+    } finally {
+      if (isInitial) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors(true);
+  }, [fetchDoctors]);
+
+  const [pendingChanges, setPendingChanges] = useState([]);
+
+  const fetchPending = useCallback(async () => {
+    try {
+      const res = await API.get("/admin/medecins/pending-profile-changes");
+      setPendingChanges(Array.isArray(res.data) ? res.data : []);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchPending(); }, [fetchPending]);
+
+  const handleValidateChange = useCallback(async (medecinId, field, index, action) => {
+    try {
+      await API.put(`/medecins/${medecinId}/validate-change`, { field, index, action });
+      toast.success(action === "approve" ? "✅ Modification approuvée" : "❌ Modification rejetée");
+      fetchPending();
+      // Refresh the selected doctor profile in the modal so statuses update live
+      setSelectedDoctor((prev) => {
+        if (!prev || String(prev.id) !== String(medecinId)) return prev;
+        const updatedItems = (prev[field] || []).map((item, i) =>
+          i === index ? { ...item, statut: action === "approve" ? "valide" : "rejete" } : item
+        );
+        return { ...prev, [field]: updatedItems };
+      });
+    } catch {
+      toast.error("Erreur lors de la validation");
+    }
+  }, [fetchPending]);
 
   /* ================= FILTERING ================= */
   const filteredDoctors = useMemo(() => {
@@ -143,19 +255,51 @@ export default function DoctorsPage({ darkMode }) {
     setIsSubmitting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (editingId) {
+        await API.put(`/medecins/${editingId}`, {
+          address: formData.address,
+          specialite: formData.specialty || undefined,
+          hopital: formData.hospital || undefined,
+          telephone: formData.phone || undefined,
+          email: formData.email || undefined,
+        });
+        toast.success("✅ Médecin modifié avec succès");
+      } else {
+        const res = await API.post("/admin/medecins", {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          specialty: formData.specialty,
+          hospital: formData.hospital,
+          address: formData.address,
+          role: formData.role || "medecin",
+          numero_ordre: formData.numero_ordre || undefined,
+        });
 
-      const newDoctor = {
-        id: Date.now(),
-        ...formData,
-        status: "En attente",
-        documents: [],
-        createdAt: new Date().toISOString().split("T")[0],
-      };
+        const { mot_de_passe_genere, email } = res.data;
 
-      setDoctors((prev) => [newDoctor, ...prev]);
-
-      toast.success("✅ Médecin ajouté avec succès");
+        toast.success(
+          <div>
+            <p>✅ Médecin ajouté avec succès</p>
+            <p className="text-xs mt-1">
+              Email: <strong>{email}</strong> | Mot de passe:{" "}
+              <strong>{mot_de_passe_genere}</strong>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Email: ${email}\nMot de passe: ${mot_de_passe_genere}`
+                  );
+                  toast.success("📋 Identifiants copiés");
+                }}
+                className="ml-2 text-blue-400 hover:text-blue-300"
+              >
+                <Copy size={14} className="inline" />
+              </button>
+            </p>
+          </div>,
+          { duration: 10000 }
+        );
+      }
 
       setFormData({
         name: "",
@@ -165,18 +309,38 @@ export default function DoctorsPage({ darkMode }) {
         email: "",
         address: "",
       });
-
+      setEditingId(null);
       setShowAddModal(false);
+
+      fetchDoctors();
     } catch {
-      toast.error("❌ Erreur lors de l'ajout");
+      toast.error(editingId ? "❌ Erreur lors de la modification" : "❌ Erreur lors de l'ajout");
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData]);
+  }, [formData, editingId, fetchDoctors]);
 
-  const handleViewDoctor = useCallback((doctor) => {
+  const handleViewDoctor = useCallback(async (doctor) => {
+    // Set basic info immediately so modal opens fast
     setSelectedDoctor(doctor);
     setShowViewModal(true);
+    // Fetch full profile (diplomes, certifications, experience_history)
+    try {
+      const res = await API.get(`/medecins/${doctor.id}`);
+      const full = res.data;
+      setSelectedDoctor((prev) =>
+        prev && prev.id === doctor.id
+          ? {
+              ...prev,
+              diplomes: full.diplomes || [],
+              certifications: full.certifications || [],
+              experience_history: full.experience_history || [],
+            }
+          : prev
+      );
+    } catch {
+      // silently ignore — profile sections will just be empty
+    }
   }, []);
 
   const handleViewDocuments = useCallback((doctor) => {
@@ -185,7 +349,7 @@ export default function DoctorsPage({ darkMode }) {
   }, []);
 
   const handleVerify = useCallback(
-    (id) => {
+    async (id) => {
       setDoctors((prev) =>
         prev.map((d) =>
           d.id === id ? { ...d, status: "Vérifié" } : d
@@ -199,12 +363,20 @@ export default function DoctorsPage({ darkMode }) {
           prev ? { ...prev, status: "Vérifié" } : null
         );
       }
+
+      try {
+        await API.put(`/medecins/${id}`, { statut_verification: "verifie" });
+        await API.put(`/admin/medecins/${id}/status`, { statut: "actif" });
+      } catch {
+        toast.error("❌ Erreur lors de la vérification");
+        fetchDoctors();
+      }
     },
-    [selectedDoctor]
+    [selectedDoctor, fetchDoctors]
   );
 
   const handleReject = useCallback(
-    (id, reason = "") => {
+    async (id, reason = "") => {
       setDoctors((prev) =>
         prev.map((d) =>
           d.id === id ? { ...d, status: "Rejeté" } : d
@@ -218,9 +390,46 @@ export default function DoctorsPage({ darkMode }) {
           prev ? { ...prev, status: "Rejeté" } : null
         );
       }
+
+      try {
+        await API.put(`/medecins/${id}`, { statut_verification: "rejete" });
+      } catch {
+        toast.error("❌ Erreur lors du rejet");
+        fetchDoctors();
+      }
     },
-    [selectedDoctor]
+    [selectedDoctor, fetchDoctors]
   );
+
+  const handleBan = useCallback(async (id) => {
+    try {
+      await API.put(`/admin/medecins/${id}/status`, { statut: "banni" });
+      toast.success("Médecin banni");
+      fetchDoctors();
+    } catch {
+      toast.error("Erreur lors du bannissement");
+    }
+  }, [fetchDoctors]);
+
+  const handleSuspend = useCallback(async (id) => {
+    try {
+      await API.put(`/admin/medecins/${id}/status`, { statut: "suspendu" });
+      toast.success("Médecin suspendu");
+      fetchDoctors();
+    } catch {
+      toast.error("Erreur lors de la suspension");
+    }
+  }, [fetchDoctors]);
+
+  const handleActivate = useCallback(async (id) => {
+    try {
+      await API.put(`/admin/medecins/${id}/status`, { statut: "actif" });
+      toast.success("Médecin activé");
+      fetchDoctors();
+    } catch {
+      toast.error("Erreur lors de l'activation");
+    }
+  }, [fetchDoctors]);
 
   const handleDelete = useCallback(
     (id) => {
@@ -230,19 +439,23 @@ export default function DoctorsPage({ darkMode }) {
     [doctors]
   );
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (selectedDoctor) {
-      setDoctors((prev) =>
-        prev.filter((d) => d.id !== selectedDoctor.id)
-      );
+      try {
+        await API.delete(`/medecins/${selectedDoctor.id}`);
 
-      toast.success("🗑️ Médecin supprimé");
+        toast.success("🗑️ Médecin supprimé");
 
-      setShowDeleteConfirm(false);
-      setSelectedDoctor(null);
-      setShowViewModal(false);
+        setShowDeleteConfirm(false);
+        setSelectedDoctor(null);
+        setShowViewModal(false);
+
+        fetchDoctors();
+      } catch {
+        toast.error("❌ Erreur lors de la suppression");
+      }
     }
-  }, [selectedDoctor]);
+  }, [selectedDoctor, fetchDoctors]);
 
   const handleDownload = useCallback((doc) => {
     toast.success(`📥 Téléchargement: ${doc.name}`);
@@ -253,7 +466,7 @@ export default function DoctorsPage({ darkMode }) {
   }, []);
 
   const handleStatusChange = useCallback(
-    (newStatus) => {
+    async (newStatus) => {
       if (selectedDoctor) {
         setDoctors((prev) =>
           prev.map((d) =>
@@ -270,9 +483,21 @@ export default function DoctorsPage({ darkMode }) {
         toast.success(
           newStatus === "Vérifié" ? "✅ Vérifié" : "🚫 Rejeté"
         );
+
+        try {
+          const apiStatus = newStatus === "Vérifié" ? "verifie" : "rejete";
+          await API.put(`/medecins/${selectedDoctor.id}`, { statut_verification: apiStatus });
+          // Ensure user is active when verified
+          if (newStatus === "Vérifié") {
+            await API.put(`/admin/medecins/${selectedDoctor.id}/status`, { statut: "actif" });
+          }
+        } catch {
+          toast.error("❌ Erreur lors du changement de statut");
+          fetchDoctors();
+        }
       }
     },
-    [selectedDoctor]
+    [selectedDoctor, fetchDoctors]
   );
 
   const closeModal = useCallback(() => {
@@ -281,7 +506,21 @@ export default function DoctorsPage({ darkMode }) {
     setShowDocModal(false);
     setShowDeleteConfirm(false);
     setSelectedDoctor(null);
+    setEditingId(null);
+    setFormData({ name: "", role: "medecin", specialty: "", hospital: "", phone: "", email: "", address: "", numero_ordre: "", annees_experience: "" });
   }, []);
+
+  if (loading) {
+    return (
+      <div
+        className={`min-h-screen flex items-center justify-center ${
+          darkMode ? "bg-slate-950" : "bg-gray-100"
+        }`}
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   /* ================= HELPERS ================= */
   const getStatusBadge = (status) => {
@@ -292,6 +531,14 @@ export default function DoctorsPage({ darkMode }) {
         "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
       Rejeté:
         "bg-red-500/10 text-red-500 border-red-500/20",
+      Suspendu:
+        "bg-orange-500/10 text-orange-500 border-orange-500/20",
+      Banni:
+        "bg-red-600/10 text-red-600 border-red-600/20",
+      Actif:
+        "bg-green-500/10 text-green-500 border-green-500/20",
+      Inactif:
+        "bg-gray-500/10 text-gray-500 border-gray-500/20",
     };
 
     return (
@@ -317,11 +564,11 @@ export default function DoctorsPage({ darkMode }) {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold leading-tight">
-            Gestion des Médecins
+            Gestion des professionnels
           </h1>
 
           <p className="text-sm text-gray-400 mt-1">
-            Vérification et administration des dossiers
+            Vérification et administration des comptes
           </p>
         </div>
 
@@ -330,7 +577,7 @@ export default function DoctorsPage({ darkMode }) {
           className="w-full sm:w-auto justify-center px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-blue-500/25 active:scale-95 flex items-center gap-2"
         >
           <Plus size={18} />
-          <span>Ajouter médecin</span>
+          <span>Ajouter professionnel</span>
         </button>
       </div>
 
@@ -395,6 +642,59 @@ export default function DoctorsPage({ darkMode }) {
         })}
       </div>
 
+      <div className={`rounded-2xl border p-5 space-y-4 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"}`}>
+          <div className="flex items-center gap-2">
+            <AlertCircle size={20} className={pendingChanges.length > 0 ? "text-amber-500" : "text-gray-400"} />
+            <h2 className={`font-bold ${pendingChanges.length > 0 ? "text-amber-600" : darkMode ? "text-gray-300" : "text-gray-500"}`}>
+              Modifications du profil en attente ({pendingChanges.length})
+            </h2>
+          </div>
+          {pendingChanges.length > 0 ? (
+            <div className="space-y-3">
+              {/* Group by medecin_id to show one entry per doctor */}
+              {Array.from(
+                pendingChanges.reduce((acc, pc) => {
+                  const key = String(pc.medecin_id);
+                  if (!acc.has(key)) acc.set(key, { medecin_id: pc.medecin_id, medecin_nom: pc.medecin_nom, count: 0, fields: [] });
+                  const entry = acc.get(key);
+                  entry.count += 1;
+                  if (!entry.fields.includes(pc.field)) entry.fields.push(pc.field);
+                  return acc;
+                }, new Map()).values()
+              ).map((group) => {
+                const fieldLabels = { diplomes: "Formation", certifications: "Certification", experience_history: "Expérience" };
+                const doctor = doctors.find((d) => String(d.id) === String(group.medecin_id));
+                return (
+                  <button
+                    key={String(group.medecin_id)}
+                    onClick={() => doctor && handleViewDoctor(doctor)}
+                    className={`w-full text-left flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border transition hover:shadow-md ${
+                      darkMode
+                        ? "bg-slate-800 border-slate-700 hover:border-amber-500/40"
+                        : "bg-amber-50 border-amber-100 hover:border-amber-300"
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold">{group.medecin_nom || "Médecin"}</p>
+                        <span className="text-xs text-gray-400">#{String(group.medecin_id).slice(0, 8)}…</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {group.count} modification(s) · {group.fields.map((f) => fieldLabels[f] || f).join(", ")}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-amber-500 flex-shrink-0 flex items-center gap-1">
+                      <Eye size={13} /> Voir le profil
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={`text-sm ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Aucune modification en attente de validation.</p>
+          )}
+        </div>
+
       {/* ================= FILTERS ================= */}
       <div
         className={`rounded-2xl border p-4 space-y-4 ${
@@ -420,7 +720,7 @@ export default function DoctorsPage({ darkMode }) {
 
         {/* Status buttons */}
         <div className="flex flex-wrap gap-2">
-          {["all", "En attente", "Vérifié", "Rejeté"].map(
+          {["all", "En attente", "Vérifié", "Suspendu", "Banni"].map(
             (status) => (
               <button
                 key={status}
@@ -567,6 +867,7 @@ export default function DoctorsPage({ darkMode }) {
               <tr>
                 {[
                   "Médecin",
+                  "N° Ordre",
                   "Spécialité",
                   "Hôpital",
                   "Contact",
@@ -611,6 +912,10 @@ export default function DoctorsPage({ darkMode }) {
                           </p>
                         </div>
                       </div>
+                    </td>
+
+                    <td className="p-4 text-sm text-gray-400">
+                      {d.numero_ordre || "—"}
                     </td>
 
                     <td className="p-4 text-sm text-gray-400">
@@ -695,7 +1000,7 @@ export default function DoctorsPage({ darkMode }) {
               ) : (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="p-12 text-center text-gray-400"
                   >
                     <div className="flex flex-col items-center gap-3">
@@ -807,6 +1112,9 @@ export default function DoctorsPage({ darkMode }) {
           isSubmitting={isSubmitting}
           onSubmit={handleAddDoctor}
           onClose={closeModal}
+          specialitesList={specialitesList}
+          structuresList={structuresList}
+          editingId={editingId}
         />
       )}
 
@@ -814,6 +1122,7 @@ export default function DoctorsPage({ darkMode }) {
         <ViewDoctorModal
           darkMode={darkMode}
           doctor={selectedDoctor}
+          pendingChanges={pendingChanges}
           onClose={closeModal}
           onVerify={() => handleVerify(selectedDoctor.id)}
           onReject={() => handleReject(selectedDoctor.id)}
@@ -822,13 +1131,15 @@ export default function DoctorsPage({ darkMode }) {
             setShowViewModal(false);
             handleViewDocuments(selectedDoctor);
           }}
-          onEdit={() =>
-            toast.info("✏️ Fonctionnalité à venir")
-          }
+          onEdit={() => handleEditDoctor(selectedDoctor)}
           onDelete={() => {
             setShowViewModal(false);
             handleDelete(selectedDoctor.id);
           }}
+          onBan={() => handleBan(selectedDoctor.id)}
+          onSuspend={() => handleSuspend(selectedDoctor.id)}
+          onActivate={() => handleActivate(selectedDoctor.id)}
+          onValidateChange={handleValidateChange}
         />
       )}
 
@@ -836,10 +1147,11 @@ export default function DoctorsPage({ darkMode }) {
         <DocumentsModal
           darkMode={darkMode}
           doctor={selectedDoctor}
-          documents={selectedDoctor.documents || []}
+          documents={doctors.find(d => d.id === selectedDoctor.id)?.documents || []}
           onPreview={handlePreview}
           onDownload={handleDownload}
           onClose={closeModal}
+          onRefresh={fetchDoctors}
         />
       )}
 

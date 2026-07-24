@@ -1,5 +1,14 @@
+import { CalendarDays, CheckCircle, Wallet, Smile } from "lucide-react";
+
+const ICON_MAP = {
+  green: CalendarDays,
+  blue: CheckCircle,
+  purple: Wallet,
+  orange: Smile,
+};
+
 export default function StatCard({ item, darkMode }) {
-  const Icon = item.icon;
+  const Icon = ICON_MAP[item.color] || CalendarDays;
 
   const colorStyles = {
     green: {

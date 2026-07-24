@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -34,15 +35,25 @@ def validate_password(password: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le mot de passe doit contenir au moins 8 caractères.",
         )
-    if password.isalpha() or password.isnumeric():
+    if not re.search(r"[A-Z]", password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le mot de passe doit contenir des lettres et des chiffres.",
+            detail="Le mot de passe doit contenir au moins une lettre majuscule.",
         )
-    if password.lower() == password or password.upper() == password:
+    if not re.search(r"[a-z]", password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le mot de passe doit contenir des lettres majuscules et minuscules.",
+            detail="Le mot de passe doit contenir au moins une lettre minuscule.",
+        )
+    if not re.search(r"\d", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le mot de passe doit contenir au moins un chiffre.",
+        )
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=~`\[\];'\\/]", password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le mot de passe doit contenir au moins un caractère spécial.",
         )
 
 

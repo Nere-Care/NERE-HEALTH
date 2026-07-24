@@ -1,4 +1,11 @@
+/* Applied by Message.jsx to strip <main> padding & scroll for full-height chat */
+main.chat-fullpage {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 .counter {
+
   font-size: 16px;
   padding: 5px 10px;
   border-radius: 5px;

@@ -8,7 +8,6 @@ services:
       POSTGRES_DB: nere_db
     volumes:
       - db_data:/var/lib/postgresql/data
-      - "./Documentations NERE/nere_schema.sql:/docker-entrypoint-initdb.d/nere_schema.sql:ro"
     ports:
       - "5434:5432"
     healthcheck:
@@ -33,12 +32,14 @@ services:
       start_period: 10s
     environment:
       DATABASE_URL: postgresql://nere_user:nere_pass@db:5432/nere_db
-      CORS_ORIGINS: "http://localhost:4173,http://localhost:5173"
+      CORS_ORIGINS: "http://localhost:4173,http://localhost:4174"
       ENVIRONMENT: development
       API_PREFIX: /api
       SECRET_KEY: change-me
     ports:
       - "8100:8000"
+    volumes:
+      - backend_uploads:/app/uploads
 
   frontend:
     build:
@@ -50,7 +51,25 @@ services:
     depends_on:
       - backend
     ports:
-      - "4173:4173"
+      - "4173:5173"
+    volumes:
+      - ./frontend/web/src:/app/src
+      - ./frontend/web/public:/app/public
+      - ./frontend/web/index.html:/app/index.html
+      - ./frontend/web/vite.config.js:/app/vite.config.js
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8100
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4174:4174"
 
 volumes:
   db_data:
+  backend_uploads:

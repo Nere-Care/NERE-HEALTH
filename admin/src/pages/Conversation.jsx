@@ -22,73 +22,9 @@ import {
   CheckCircle2,
   Copy,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
-
-/* ================= MOCK DATA ================= */
-const initialConversations = [
-  {
-    id: 1,
-    patient: "Marie Ndzi",
-    patientEmail: "marie.ndzi@email.cm",
-    professional: "Dr. Martin Nkono",
-    professionalEmail: "martin.nkono@hopital.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Suivi cardiologique",
-    reportReason: null,
-    status: "Normal",
-    riskLevel: "Faible",
-    createdAt: "2026-05-18",
-    lastMessage: "2026-05-18T09:13:00",
-    messages: [
-      { id: 1, from: "patient", text: "Bonjour docteur, j'espère que vous allez bien", time: "09:12", flagged: false },
-      { id: 2, from: "doctor", text: "Bonjour Marie, oui merci. Comment vous sentez-vous aujourd'hui ?", time: "09:13", flagged: false },
-      { id: 3, from: "patient", text: "Un peu mieux, mais j'ai encore des palpitations", time: "09:14", flagged: false },
-    ],
-    adminMessages: [],
-  },
-  {
-    id: 2,
-    patient: "Paul Tchoumi",
-    patientEmail: "paul.tchoumi@email.cm",
-    professional: "Dr. Sarah Ngono",
-    professionalEmail: "sarah.ngono@chu.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Plainte sur consultation",
-    reportReason: "Patient signale absence de compte rendu médical",
-    status: "Signalé",
-    riskLevel: "Moyen",
-    createdAt: "2026-05-17",
-    lastMessage: "2026-05-17T09:15:00",
-    messages: [
-      { id: 1, from: "patient", text: "Je n'ai pas reçu mon compte rendu", time: "09:14", flagged: false },
-      { id: 2, from: "patient", text: "C'est vraiment inacceptable !!", time: "09:15", flagged: true, flagReason: "Ton agressif détecté" },
-      { id: 3, from: "doctor", text: "Je comprends votre frustration, je vais vérifier", time: "09:16", flagged: false },
-    ],
-    adminMessages: [
-      { id: 1, from: "admin", text: "Bonjour, votre signalement a été pris en compte", time: "09:20" },
-    ],
-  },
-  {
-    id: 3,
-    patient: "Brigitte Essomba",
-    patientEmail: "brigitte.essomba@email.cm",
-    professional: "Dr. Paul Mbe",
-    professionalEmail: "paul.mbe@hgdouala.cm",
-    role: "Patient ↔ Médecin",
-    reason: "Demande de deuxième avis",
-    reportReason: null,
-    status: "Résolu",
-    riskLevel: "Faible",
-    createdAt: "2026-05-16",
-    lastMessage: "2026-05-16T16:45:00",
-    messages: [
-      { id: 1, from: "patient", text: "Bonjour, puis-je avoir un deuxième avis ?", time: "16:30", flagged: false },
-      { id: 2, from: "doctor", text: "Bien sûr, je vous recommande le Dr. Nkono", time: "16:35", flagged: false },
-      { id: 3, from: "patient", text: "Merci beaucoup docteur !", time: "16:45", flagged: false },
-    ],
-    adminMessages: [],
-  },
-];
+import API from "../services/api";
 
 /* ================= DETECTION INTELLIGENTE ================= */
 const detectionRules = {
@@ -121,12 +57,20 @@ const analyzeMessage = (text) => {
 export const getMessageStyle = (msg, darkMode) => {
   if (msg?.flagged) return "border-l-4 border-red-500 pl-3 bg-red-500/5";
   if (msg?.from === "admin") return "border-l-4 border-purple-500 pl-3 bg-purple-500/5";
+  if (msg?.from === "demandeur") return "border-l-4 border-blue-500 pl-3 bg-blue-500/5";
+  if (msg?.from === "cible") return "border-l-4 border-emerald-500 pl-3 bg-emerald-500/5";
   if (msg?.from === "doctor") return "border-l-4 border-blue-500 pl-3 bg-blue-500/5";
   return darkMode ? "bg-slate-800/50" : "bg-gray-50";
 };
 
-export const getSenderLabel = (from) => {
-  const labels = { patient: "👤 Patient", doctor: "🩺 Médecin", admin: "🛡️ Admin" };
+export const getSenderLabel = (from, conversation) => {
+  if (from === "demandeur" && conversation?.demande_medecin_demandeur_nom) {
+    return `Dr. ${conversation.demande_medecin_demandeur_nom} (demandeur)`;
+  }
+  if (from === "cible" && conversation?.demande_medecin_cible_nom) {
+    return `Dr. ${conversation.demande_medecin_cible_nom} (cible)`;
+  }
+  const labels = { patient: "👤 Patient", doctor: "🩺 Médecin", admin: "🛡️ Admin", demandeur: "🩺 Demandeur", cible: "🩺 Cible" };
   return labels[from] || from;
 };
 
@@ -169,10 +113,106 @@ export const formatDateTime = (isoString) => {
 
 /* ================= COMPONENT ================= */
 export default function ConversationsPage({ darkMode }) {
-  const [conversations, setConversations] = useState(initialConversations);
+  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Tous");
   const [riskFilter, setRiskFilter] = useState("Tous");
+
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  async function fetchConversations() {
+    setLoading(true);
+    try {
+      const [convRes, msgRes] = await Promise.allSettled([
+        API.get("/conversations"),
+        API.get("/messages?limit=200"),
+      ]);
+
+      let convList = convRes.status === "fulfilled" ? convRes.value.data : [];
+      const msgList = msgRes.status === "fulfilled" ? msgRes.value.data : [];
+
+      const messagesByConv = {};
+      msgList.forEach((m) => {
+        const cid = m.conversation_id;
+        if (!messagesByConv[cid]) messagesByConv[cid] = [];
+        let text = "";
+        if (m.contenu_chiffre) {
+          try {
+            text = atob(m.contenu_chiffre);
+          } catch {
+            text = "[Message chiffré]";
+          }
+        }
+        messagesByConv[cid].push({
+          id: m.id,
+          from: "doctor",
+          _expediteur_id: m.expediteur_id,
+          text,
+          time: m.created_at ? formatDateTime(m.created_at) : "",
+          flagged: false,
+        });
+      });
+
+      setConversations(
+        convList.map((c) => {
+          const isDemandeAvis = !!c.demande_avis_id;
+          const demandeurId = c.demande_medecin_demandeur_id;
+          const cibleId = c.demande_medecin_cible_id;
+          const demandeurNom = c.demande_medecin_demandeur_nom;
+          const cibleNom = c.demande_medecin_cible_nom;
+
+          return {
+            id: c.id,
+            patient_id: c.patient_id,
+            medecin_id: c.medecin_id,
+            patient: isDemandeAvis
+              ? (c.demande_patient_nom || c.patient_nom || "—")
+              : (c.patient_nom || (c.patient_id ? `Patient (${c.patient_id.slice(0, 8)})` : "—")),
+            patientEmail: "",
+            professional: isDemandeAvis
+              ? (demandeurNom ? `Dr. ${demandeurNom}` : "—") + " → " + (cibleNom ? `Dr. ${cibleNom}` : "—")
+              : (c.medecin_nom ? `Dr. ${c.medecin_nom}` : (c.medecin_id ? `Médecin (${c.medecin_id.slice(0, 8)})` : "—")),
+            professionalEmail: "",
+            role: c.rdv_id ? "RDV Consultation" : isDemandeAvis ? "Demande d'avis" : "Conversation directe",
+            reason: c.demande_motif || c.dernier_message_preview || "Conversation",
+            reportReason: null,
+            status: c.statut === "fermee" ? "Résolu" : c.statut === "active" ? "Normal" : "Normal",
+            riskLevel: "Faible",
+            createdAt: c.created_at ? c.created_at.split("T")[0] : "—",
+            lastMessage: c.updated_at || c.created_at || "",
+            demande_avis_id: c.demande_avis_id,
+            demande_medecin_demandeur_id: demandeurId,
+            demande_medecin_cible_id: cibleId,
+            demande_medecin_demandeur_nom: demandeurNom,
+            demande_medecin_cible_nom: cibleNom,
+            messages: (messagesByConv[c.id] || []).map((m) => {
+              let from;
+              if (isDemandeAvis) {
+                if (m._expediteur_id === demandeurId) {
+                  from = "demandeur";
+                } else if (m._expediteur_id === cibleId) {
+                  from = "cible";
+                } else {
+                  from = "doctor";
+                }
+              } else {
+                from = m._expediteur_id === c.patient_id ? "patient" : "doctor";
+              }
+              return { ...m, from };
+            }),
+            adminMessages: [],
+          };
+        })
+      );
+    } catch (e) {
+      console.error("Erreur chargement conversations:", e);
+    } finally {
+      setLoading(false);
+    }
+  }
   
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showBanModal, setShowBanModal] = useState(false);
@@ -336,6 +376,14 @@ export default function ConversationsPage({ darkMode }) {
 
   const bg = darkMode ? "bg-slate-950 text-white" : "bg-gray-100 text-gray-900";
   const card = darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200";
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-[#0f172a]" : "bg-gray-100"}`}>
+        <Loader2 className="animate-spin h-12 w-12 text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 transition-all overflow-x-hidden ${bg}`}>
@@ -593,7 +641,7 @@ function ConversationCard({ conversation, darkMode, cardClass, onView, onFlag, o
       {lastMsg && (
         <div className={`p-3 rounded-xl text-sm overflow-hidden ${getMessageStyle(lastMsg, darkMode)}`}>
           <p className="text-xs text-gray-400 mb-1">
-            {getSenderLabel(lastMsg.from)} • {lastMsg.time}
+            {getSenderLabel(lastMsg.from, conversation)} • {lastMsg.time}
           </p>
 
           <p className={`line-clamp-2 break-words ${lastMsg.flagged ? "text-red-400 font-medium" : ""}`}>
@@ -697,7 +745,7 @@ function ConversationDetailsModal({
                 >
                   <div className="flex items-center justify-between gap-2 mb-1 flex-wrap">
                     <span className="text-xs font-medium text-gray-400">
-                      {getSenderLabel(msg.from)}
+                      {getSenderLabel(msg.from, conversation)}
                     </span>
 
                     <span className="text-xs text-gray-400">

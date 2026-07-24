@@ -1,5 +1,7 @@
-import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, MessageCircle, Phone, Mail, BookOpen, Video, FileQuestion, Send, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { sendSupportTicket } from '../../services/support';
 
 const faqs = [
   { question: "Comment ajouter un nouveau patient ?", reponse: "Allez dans la section Patients, cliquez sur + Nouveau Patient et remplissez le formulaire d'inscription." },
@@ -13,10 +15,40 @@ const faqs = [
 export default function AideStructure({ darkMode }) {
   const [ouvert, setOuvert] = useState(null);
   const [recherche, setRecherche] = useState("");
+  const [sujet, setSujet] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
   const faqsFiltrees = faqs.filter(f =>
     f.question.toLowerCase().includes(recherche.toLowerCase())
   );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!sujet.trim() || !message.trim()) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    setSending(true);
+    try {
+      await sendSupportTicket({ sujet: sujet.trim(), message: message.trim() });
+      toast.success("Message envoyé au support");
+      setSujet("");
+      setMessage("");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const fieldClass = `flex items-center gap-3 border rounded-xl px-4 py-3 transition ${
+    darkMode ? "border-gray-600 focus-within:border-blue-500" : "border-gray-300 focus-within:border-blue-500"
+  }`;
+
+  const inputClass = `w-full bg-transparent outline-none text-sm ${
+    darkMode ? "text-gray-200 placeholder-gray-500" : "text-gray-700 placeholder-gray-400"
+  }`;
 
   return (
     <div className={`p-4 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -98,14 +130,62 @@ export default function AideStructure({ darkMode }) {
         ))}
       </div>
 
-      {/* Support */}
-      <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      {/* Contacter le support */}
+      <div className={`rounded-2xl shadow p-5 mb-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <h2 className={`text-sm font-bold mb-4 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
           Contacter le support
         </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4 mb-4">
+          <div>
+            <label className={`text-xs font-medium mb-1 block ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              Sujet *
+            </label>
+            <div className={fieldClass}>
+              <MessageCircle size={16} className="text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={sujet}
+                onChange={(e) => setSujet(e.target.value)}
+                placeholder="Résumé de votre problème"
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={`text-xs font-medium mb-1 block ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              Message *
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Décrivez votre problème en détail..."
+              rows={4}
+              className={`w-full border rounded-xl px-4 py-3 outline-none resize-none transition text-sm ${
+                darkMode
+                  ? "bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500 focus:border-blue-500"
+                  : "bg-white border-gray-300 text-gray-700 placeholder-gray-400 focus:border-blue-500"
+              }`}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={sending}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition disabled:opacity-50"
+          >
+            {sending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Send size={16} />
+            )}
+            {sending ? "Envoi..." : "Envoyer"}
+          </button>
+        </form>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { icon: MessageCircle, label: "Chat en direct", sub: "Disponible 24/7", bg: darkMode ? "bg-gray-700" : "bg-blue-50", color: "text-blue-500" },
             { icon: Phone, label: "Téléphone", sub: "+237 xxx xxx xxx", bg: darkMode ? "bg-gray-700" : "bg-green-50", color: "text-green-500" },
             { icon: Mail, label: "Email", sub: "support@nere.com", bg: darkMode ? "bg-gray-700" : "bg-purple-50", color: "text-purple-500" },
           ].map((item, index) => {

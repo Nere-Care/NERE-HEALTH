@@ -3,25 +3,27 @@ import { Lock, Eye, EyeOff } from "lucide-react";
 
 export default function PasswordInput({  placeholder,
   value,
-  onChange, }) {
+  onChange,
+  error, }) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div
-      className="
-        flex items-center
-        bg-white
-        border border-gray-200
-        rounded-2xl
-        overflow-hidden
-        shadow-sm
-        hover:border-[#2F80ED]
-        focus-within:border-[#2F80ED]
-        focus-within:ring-2
-        focus-within:ring-blue-100
-        transition-all duration-300
-      "
-    >
+    <div>
+      <div
+        className={`
+          flex items-center
+          bg-white
+          border ${error ? 'border-red-400' : 'border-gray-200'}
+          rounded-2xl
+          overflow-hidden
+          shadow-sm
+          hover:border-[#2F80ED]
+          focus-within:border-[#2F80ED]
+          focus-within:ring-2
+          focus-within:ring-blue-100
+          transition-all duration-300
+        `}
+      >
       {/* ICON LEFT */}
       <div className="pl-4">
         <Lock className="w-5 h-5 text-gray-400" />
@@ -63,6 +65,8 @@ export default function PasswordInput({  placeholder,
           <Eye className="w-5 h-5 text-white" />
         )}
       </button>
+    </div>
+      {error && <p className="text-red-500 text-xs mt-1 ml-2">{error}</p>}
     </div>
   );
 }

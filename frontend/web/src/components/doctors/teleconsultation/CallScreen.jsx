@@ -16,22 +16,36 @@ import {
   Clock,
   AlertCircle,
   Pill,
+  Plus,
+  Trash2,
   X,
   CheckCircle,
   Paperclip,
   Wifi,
+  FlaskConical,
 } from "lucide-react";
+import { post } from "../../../services/apiClient";
+import { getStoredUser } from "../../../services/auth";
+import PosologieBuilder from "../../PosologieBuilder";
+import MedicamentSearch from "../../MedicamentSearch";
+import LabSearch from "../../LabSearch";
+import { getUserTimezone } from "../../../utils/timezone";
+import { FORMES } from "../../../constants/medicalOptions";
+
+const EMPTY_LIGNE = { medicament_nom: "", dosage: "", forme: "comprimes", posologie: "", duree_jours: 7, quantite: 1, posologieConfig: null };
 
 export default function CallScreen({ darkMode, endCall, patient }) {
+  const currentUser = getStoredUser();
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [duree, setDuree] = useState(0);
   const [activePanel, setActivePanel] = useState("notes"); // notes | chat | dossier
   const [notes, setNotes] = useState("");
   const [diagnostic, setDiagnostic] = useState("");
-  const [prescription, setPrescription] = useState("");
+  const [lignes, setLignes] = useState([{ ...EMPTY_LIGNE }]);
+  const [labAnalyses, setLabAnalyses] = useState([]);
   const [messages, setMessages] = useState([
-    { id: 1, expediteur: "patient", texte: "Bonjour Docteur", heure: "14:00" },
+    { id: 1, senderId: "other", texte: "Bonjour Docteur", heure: "14:00" },
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [showSavedToast, setShowSavedToast] = useState(false);
@@ -49,30 +63,63 @@ export default function CallScreen({ darkMode, endCall, patient }) {
     return `${h > 0 ? h + ":" : ""}${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
+  const addLigne = () => setLignes((l) => [...l, { ...EMPTY_LIGNE }]);
+  const removeLigne = (idx) => setLignes((l) => l.filter((_, i) => i !== idx));
+  const updateLigne = (idx, field, val) =>
+    setLignes((l) => l.map((item, i) => (i === idx ? { ...item, [field]: val } : item)));
+
+  const buildPrescriptionText = () =>
+    lignes
+      .filter((l) => l.medicament_nom || l.posologie)
+      .map((l) => {
+        const parts = [];
+        if (l.medicament_nom) parts.push(l.medicament_nom);
+        if (l.dosage) parts.push(l.dosage);
+        if (l.forme) parts.push(`(${l.forme})`);
+        if (l.posologie) parts.push(l.posologie);
+        return parts.join(" ");
+      })
+      .join("\n");
+
   const envoyerMessage = () => {
     if (!newMessage.trim()) return;
     setMessages([
       ...messages,
       {
         id: Date.now(),
-        expediteur: "medecin",
+        senderId: currentUser?.id,
         texte: newMessage,
-        heure: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        heure: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: getUserTimezone() }),
       },
     ]);
     setNewMessage("");
   };
 
-  const sauvegarderConsultation = () => {
-    console.log("Consultation sauvegardée :", {
-      patient: patient.patientName,
-      notes,
-      diagnostic,
-      prescription,
-      duree: formatDuree(duree),
-    });
-    setShowSavedToast(true);
-    setTimeout(() => setShowSavedToast(false), 3000);
+  const sauvegarderConsultation = async () => {
+    if (!patient.rdvId) {
+      console.log("Pas de RDV lié — consultation rapide non sauvegardée");
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+      return;
+    }
+    try {
+      await post("/api/consultations", {
+        rdv_id: patient.rdvId,
+        patient_id: patient.patientId,
+        motif: patient.motif || "Consultation generale",
+        examen_clinique: notes || null,
+        diagnostic_principal: diagnostic || null,
+        plan_traitement: buildPrescriptionText() || null,
+        prescription_posologie: buildPrescriptionText() || null,
+        demandes_labo: labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : null,
+        duree_minutes: Math.floor(duree / 60),
+        statut: "en_cours",
+      });
+      setShowSavedToast(true);
+      setTimeout(() => setShowSavedToast(false), 3000);
+    } catch (err) {
+      console.error("Erreur sauvegarde consultation:", err);
+    }
   };
 
   const genererRapport = () => {
@@ -80,7 +127,7 @@ export default function CallScreen({ darkMode, endCall, patient }) {
 COMPTE-RENDU DE TÉLÉCONSULTATION
 ================================
 Patient : ${patient.patientName}
-Date : ${new Date().toLocaleDateString('fr-FR')}
+Date : ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })}
 Durée : ${formatDuree(duree)}
 
 NOTES CLINIQUES :
@@ -90,7 +137,10 @@ DIAGNOSTIC :
 ${diagnostic || "Non renseigné"}
 
 PRESCRIPTION :
-${prescription || "Aucune prescription"}
+${buildPrescriptionText() || "Aucune prescription"}
+
+DEMANDES DE LABORATOIRE :
+${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune demande"}
     `.trim();
 
     const blob = new Blob([rapport], { type: 'text/plain' });
@@ -143,7 +193,7 @@ ${prescription || "Aucune prescription"}
             </div>
 
             <button
-              onClick={endCall}
+              onClick={() => endCall(duree)}
               className="flex items-center gap-2 bg-red-600 text-white px-3 sm:px-4 py-2 rounded-xl text-sm hover:bg-red-700 transition"
             >
               <PhoneOff className="w-4 h-4" />
@@ -219,14 +269,14 @@ ${prescription || "Aucune prescription"}
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.expediteur === "medecin" ? "justify-end" : "justify-start"}`}
+                    className={`flex ${msg.senderId === currentUser?.id ? "justify-end" : "justify-start"}`}
                   >
                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm
-                      ${msg.expediteur === "medecin"
+                      ${msg.senderId === currentUser?.id
                         ? "bg-blue-500 text-white"
                         : darkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-800"}`}>
                       <p>{msg.texte}</p>
-                      <p className={`text-[10px] mt-1 text-right ${msg.expediteur === "medecin" ? "text-blue-100" : "text-gray-400"}`}>
+                      <p className={`text-[10px] mt-1 text-right ${msg.senderId === currentUser?.id ? "text-blue-100" : "text-gray-400"}`}>
                         {msg.heure}
                       </p>
                     </div>
@@ -334,20 +384,117 @@ ${prescription || "Aucune prescription"}
                     />
                   </div>
 
-                  {/* PRESCRIPTION */}
+                  {/* PRESCRIPTION - Multi-medication cards */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                        <Pill size={14} />
+                        Prescription
+                      </label>
+                      <button onClick={addLigne} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium">
+                        <Plus size={12} /> Ajouter
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {lignes.map((ligne, idx) => (
+                        <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Medicament {idx + 1}</span>
+                            {lignes.length > 1 && (
+                              <button onClick={() => removeLigne(idx)} className="text-red-400 hover:text-red-600">
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <MedicamentSearch
+                              value={ligne.medicament_nom}
+                              darkMode={darkMode}
+                              onSelect={(med) => {
+                                updateLigne(idx, "medicament_nom", med.nom_commercial);
+                                if (med.dosage) updateLigne(idx, "dosage", med.dosage);
+                                if (med.forme) updateLigne(idx, "forme", med.forme);
+                              }}
+                              placeholder="Nom du medicament"
+                            />
+                            <input
+                              placeholder="Dosage (ex: 500mg)"
+                              value={ligne.dosage}
+                              onChange={(e) => updateLigne(idx, "dosage", e.target.value)}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white placeholder-gray-400" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                            />
+                            <select
+                              value={ligne.forme}
+                              onChange={(e) => updateLigne(idx, "forme", e.target.value)}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                            >
+                              {FORMES.map((f) => <option key={f} value={f}>{f}</option>)}
+                            </select>
+                            <div>
+                              <label className={`text-[10px] font-medium mb-0.5 block ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Nb boites/Flacons</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={ligne.quantite}
+                                onChange={(e) => updateLigne(idx, "quantite", e.target.value)}
+                                className={`w-full px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <PosologieBuilder
+                              darkMode={darkMode}
+                              dureeJours={Number(ligne.duree_jours) || 7}
+                              value={ligne.posologieConfig}
+                              onChange={(config) => {
+                                updateLigne(idx, "posologie", config.posologie);
+                                updateLigne(idx, "posologieConfig", config);
+                                if (config.dureeJours) updateLigne(idx, "duree_jours", config.dureeJours);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* LABORATORY REQUESTS */}
                   <div className="space-y-2">
                     <label className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                      <Pill size={14} />
-                      Prescription
+                      <FlaskConical size={14} />
+                      Laboratoire (examens demandes)
                     </label>
-                    <textarea
-                      value={prescription}
-                      onChange={(e) => setPrescription(e.target.value)}
-                      className={`w-full border p-3 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none
-                        ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300"}`}
-                      rows={4}
-                      placeholder="Médicament - Posologie - Durée&#10;Ex: Amoxicilline 1g - 3x/jour - 7 jours"
+                    <LabSearch
+                      darkMode={darkMode}
+                      allowCustom
+                      onSelect={(analyse) => {
+                        if (!labAnalyses.find((a) => a.nom === analyse.nom)) {
+                          setLabAnalyses([...labAnalyses, analyse]);
+                        }
+                      }}
+                      placeholder="Rechercher une analyse..."
                     />
+                    {labAnalyses.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {labAnalyses.map((a, i) => (
+                          <span
+                            key={i}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${
+                              darkMode ? "bg-purple-900/40 text-purple-300" : "bg-purple-100 text-purple-700"
+                            }`}
+                          >
+                            {a.nom}
+                            <button
+                              type="button"
+                              onClick={() => setLabAnalyses(labAnalyses.filter((_, j) => j !== i))}
+                              className="ml-0.5 hover:text-red-400"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* ACTIONS */}
@@ -370,7 +517,7 @@ ${prescription || "Aucune prescription"}
                     </button>
 
                     <button
-                      onClick={endCall}
+                      onClick={() => endCall(duree)}
                       className="w-full bg-red-600 text-white py-2.5 rounded-xl hover:bg-red-700 transition text-sm font-medium flex items-center justify-center gap-2"
                     >
                       <PhoneOff size={16} />
@@ -443,7 +590,7 @@ ${prescription || "Aucune prescription"}
                       </p>
                       <p className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                         {new Date(patient.dossier.dernierConsultation).toLocaleDateString('fr-FR', {
-                          day: 'numeric', month: 'long', year: 'numeric'
+                          day: 'numeric', month: 'long', year: 'numeric', timeZone: getUserTimezone()
                         })}
                       </p>
                     </div>

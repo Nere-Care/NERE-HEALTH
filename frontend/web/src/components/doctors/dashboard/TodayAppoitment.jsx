@@ -1,7 +1,6 @@
-import { appointments } from "../../../constants/doctors/DasboardData";
 import { Clock, Building2, FileText } from "lucide-react";
 
-export default function TodayAppointments({ darkMode }) {
+export default function TodayAppointments({ appointments = [], darkMode }) {
   return (
     <div
       className={`rounded-2xl p-4 sm:p-5 border transition-all duration-300
@@ -14,7 +13,7 @@ export default function TodayAppointments({ darkMode }) {
       {/* HEADER */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-sm sm:text-base">
-          Today Appointments
+          RDV à venir
         </h2>
 
         <span className="text-xs text-gray-400">
@@ -37,6 +36,11 @@ export default function TodayAppointments({ darkMode }) {
           scrollbar-track-transparent
         "
       >
+        {appointments.length === 0 && (
+          <div className="flex items-center justify-center h-[200px]">
+            <p className="text-sm text-gray-400">Aucun rendez-vous aujourd'hui</p>
+          </div>
+        )}
         {appointments.map((a, i) => (
           <div
             key={i}

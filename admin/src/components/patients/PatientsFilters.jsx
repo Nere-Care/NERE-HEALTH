@@ -13,7 +13,7 @@ export default function PatientsFilters({ darkMode, filters, setFilters }) {
     <div className={`rounded-2xl p-5 border grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 ${
       darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"
     }`}>
-      <input type="text" name="nom" value={filters.nom} onChange={handleChange} placeholder=" Nom..." className={inputClass} />
+      <input type="text" name="nom" value={filters.nom} onChange={handleChange} placeholder=" Nom, code patient..." className={inputClass} />
       <input type="text" name="telephone" value={filters.telephone} onChange={handleChange} placeholder="Téléphone..." className={inputClass} />
       
       <select name="sexe" value={filters.sexe} onChange={handleChange} className={inputClass}>

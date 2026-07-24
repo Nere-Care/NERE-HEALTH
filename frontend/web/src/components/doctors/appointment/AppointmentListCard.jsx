@@ -4,6 +4,7 @@ import {
   Video,
   MapPin,
   PhoneCall,
+  MessageSquare,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TeleConsultation from "../../../pages/doctor/TeleConsultation";
@@ -13,7 +14,9 @@ export default function AppointmentListCard({
   getStatusStyle,
   darkMode,
   onReschedule,
+  onOpenChat,
   onOpenPatient,
+  onNavigatePatient,
 }) {
   const navigate = useNavigate();
   return (
@@ -41,7 +44,8 @@ export default function AppointmentListCard({
 
           <div>
             <p
-              className={`font-semibold text-sm ${
+              onClick={onNavigatePatient}
+              className={`font-semibold text-sm cursor-pointer hover:underline ${
                 darkMode ? "text-white" : "text-gray-900"
               }`}
             >
@@ -101,15 +105,40 @@ export default function AppointmentListCard({
 
         <div className="flex flex-wrap gap-2">
 
+          {(() => {
+            const hoursUntil = item.dateHeureDebut ? (new Date(item.dateHeureDebut) - new Date()) / (1000 * 60 * 60) : 0;
+            const canReschedule = hoursUntil >= 48 && ["confirme", "en_attente"].includes(item.statut);
+            return canReschedule ? (
+              <button
+                className={`px-3 py-2 rounded-xl text-xs border transition ${
+                  darkMode
+                    ? "border-green-500 text-green-400 hover:bg-gray-700"
+                    : "border-green-600 text-green-600 hover:bg-green-50"
+                }`}
+                onClick={() => onReschedule(item)}
+              >
+                Reschedule
+              </button>
+            ) : (
+              <button disabled title="Reprogrammation impossible moins de 48h avant le rendez-vous"
+                className={`px-3 py-2 rounded-xl text-xs border transition cursor-not-allowed ${
+                  darkMode ? "border-gray-600 text-gray-500" : "border-gray-300 text-gray-400"
+                }`}>
+                Reschedule
+              </button>
+            );
+          })()}
+
           <button
-            className={`px-3 py-2 rounded-xl text-xs border transition ${
+            className={`px-3 py-2 rounded-xl text-xs flex items-center gap-1 border transition ${
               darkMode
-                ? "border-green-500 text-green-400 hover:bg-gray-700"
-                : "border-green-600 text-green-600 hover:bg-green-50"
+                ? "border-blue-500 text-blue-400 hover:bg-gray-700"
+                : "border-blue-600 text-blue-600 hover:bg-blue-50"
             }`}
-            onClick={() => onReschedule(item)}
+            onClick={() => onOpenChat && onOpenChat(item)}
           >
-            Reschedule
+            <MessageSquare className="w-3.5 h-3.5" />
+            Message
           </button>
 
           {item.type === "Teleconsultation" && (
@@ -145,7 +174,8 @@ export default function AppointmentListCard({
 />
 
           <span
-            className={`font-semibold truncate ${
+            onClick={onNavigatePatient}
+            className={`font-semibold truncate cursor-pointer hover:underline ${
               darkMode ? "text-white" : "text-gray-900"
             }`}
           >
@@ -210,15 +240,40 @@ export default function AppointmentListCard({
 
         <div className="col-span-1 flex gap-2 justify-end">
 
+          {(() => {
+            const hoursUntil = item.dateHeureDebut ? (new Date(item.dateHeureDebut) - new Date()) / (1000 * 60 * 60) : 0;
+            const canReschedule = hoursUntil >= 48 && ["confirme", "en_attente"].includes(item.statut);
+            return canReschedule ? (
+              <button
+                className={`px-3 py-1 rounded-xl text-xs border transition ${
+                  darkMode
+                    ? "border-green-500 text-green-400 hover:bg-gray-700"
+                    : "border-green-600 text-green-600 hover:bg-green-50"
+                }`}
+                onClick={() => onReschedule(item)}
+              >
+                Reschedule
+              </button>
+            ) : (
+              <button disabled title="Reprogrammation impossible moins de 48h avant le rendez-vous"
+                className={`px-3 py-1 rounded-xl text-xs border transition cursor-not-allowed ${
+                  darkMode ? "border-gray-600 text-gray-500" : "border-gray-300 text-gray-400"
+                }`}>
+                Reschedule
+              </button>
+            );
+          })()}
+
           <button
-            className={`px-3 py-1 rounded-xl text-xs border transition ${
+            className={`px-3 py-1 rounded-xl text-xs flex items-center gap-1 border transition ${
               darkMode
-                ? "border-green-500 text-green-400 hover:bg-gray-700"
-                : "border-green-600 text-green-600 hover:bg-green-50"
+                ? "border-blue-500 text-blue-400 hover:bg-gray-700"
+                : "border-blue-600 text-blue-600 hover:bg-blue-50"
             }`}
-            onClick={() => onReschedule(item)}
+            onClick={() => onOpenChat && onOpenChat(item)}
           >
-            Reschedule
+            <MessageSquare className="w-3.5 h-3.5" />
+            Message
           </button>
 
           {item.type === "Teleconsultation" && (

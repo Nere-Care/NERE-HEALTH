@@ -1,15 +1,22 @@
-import { notifications } from "../../../constants/doctors/DasboardData";
-import { Bell, FlaskConical, CalendarCheck, CreditCard } from "lucide-react";
+import { Bell, FlaskConical, CalendarCheck, CreditCard, AlertCircle, FileText } from "lucide-react";
 
-export default function NotificationsPanel({ darkMode }) {
+const ICON_BY_TYPE = {
+  resultat_labo_disponible: FlaskConical,
+  confirmation_rdv: CalendarCheck,
+  rappel_rdv: CalendarCheck,
+  annulation_rdv: CalendarCheck,
+  confirmation_paiement: CreditCard,
+  echec_paiement: CreditCard,
+  remboursement: CreditCard,
+  nouveau_message: Bell,
+  alerte_systeme: Bell,
+  compte_valide: Bell,
+  compte_rejete: Bell,
+  nouveaux_avis: Bell,
+  document_ajoute: FileText,
+};
 
-  const getIcon = (text) => {
-    if (text.includes("lab")) return FlaskConical;
-    if (text.includes("appointment")) return CalendarCheck;
-    if (text.includes("payment")) return CreditCard;
-    return Bell;
-  };
-
+export default function NotificationsPanel({ notifications = [], darkMode }) {
   return (
     <div
       className={`rounded-2xl p-4 sm:p-5 border transition
@@ -19,21 +26,22 @@ export default function NotificationsPanel({ darkMode }) {
           : "bg-white border-gray-200 text-black"
       }`}
     >
-      {/* HEADER */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-sm sm:text-base">
           Notifications
         </h2>
-
-        <span className="text-xs text-gray-400">
-          {notifications.length}
-        </span>
+        <span className="text-xs text-gray-400">{notifications.length}</span>
       </div>
 
-      {/* LIST */}
       <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+        {notifications.length === 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl border dark:border-gray-700">
+            <AlertCircle className="w-4 h-4 text-gray-400" />
+            <p className="text-xs text-gray-400">Aucune notification</p>
+          </div>
+        )}
         {notifications.map((n, i) => {
-          const Icon = getIcon(n);
+          const Icon = ICON_BY_TYPE[n.type] || Bell;
 
           return (
             <div
@@ -45,25 +53,22 @@ export default function NotificationsPanel({ darkMode }) {
                   : "bg-gray-50 border-gray-200 hover:bg-white"
               }`}
             >
-              {/* ICON */}
               <div
                 className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0
                 ${
-                  n.includes("payment")
+                  n.type?.includes("paiement")
                     ? "bg-purple-100 text-purple-600"
-                    : n.includes("lab")
+                    : n.type?.includes("labo")
                     ? "bg-green-100 text-green-600"
                     : "bg-blue-100 text-blue-600"
                 }`}
               >
                 <Icon className="w-4 h-4" />
               </div>
-
-              {/* TEXT */}
-              <p className="text-xs sm:text-sm flex-1 leading-relaxed">
-                {n}
-              </p>
-
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm leading-relaxed">{n.titre || n.contenu}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5 truncate">{n.contenu}</p>
+              </div>
             </div>
           );
         })}

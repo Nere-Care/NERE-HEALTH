@@ -22,15 +22,15 @@ async def list_medecin_specialites(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    if current_user.role == "medecin":
-        stmt = select(MedecinSpecialite).where(MedecinSpecialite.medecin_id == current_user.id)
-    elif current_user.role == "admin":
+    if current_user.role in ("medecin", "admin", "patient", "infirmier", "sage_femme"):
         stmt = select(MedecinSpecialite)
+        if medecin_id:
+            stmt = stmt.where(MedecinSpecialite.medecin_id == medecin_id)
+        elif current_user.role == "medecin":
+            stmt = stmt.where(MedecinSpecialite.medecin_id == current_user.id)
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux professionnels")
 
-    if medecin_id:
-        stmt = stmt.where(MedecinSpecialite.medecin_id == medecin_id)
     if specialite_id:
         stmt = stmt.where(MedecinSpecialite.specialite_id == specialite_id)
 
