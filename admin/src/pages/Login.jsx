@@ -44,7 +44,7 @@ export default function AdminLogin() {
       setLoading(true);
       setServerError(null);
       await loginAdmin(email.trim(), password);
-      navigate("/admin/dashboard", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setServerError(err.message || "Erreur de connexion.");
     } finally {

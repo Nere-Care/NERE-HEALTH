@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom'; // ✅ MODIFIÉ
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Send, ArrowLeft, Video, Paperclip,
   MoreVertical, Flag, Trash2, AlertTriangle, X, CheckCircle, XCircle,
 } from 'lucide-react';
 import { fetchConversations, fetchMessages, envoyerMessage } from '../../services/messageService';
+import { connectWebSocket, onWebSocketMessage } from '../../services/websocketService';
 
 export default function Messages({ darkMode }) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams(); // ✅ AJOUTÉ
+  const [searchParams] = useSearchParams();
   const messagesEndRef = useRef(null);
 
   const [conversations, setConversations] = useState([]);
@@ -25,41 +26,73 @@ export default function Messages({ darkMode }) {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [envoi, setEnvoi] = useState(false);
 
-  // ✅ MODIFIÉ : charger conversations + ouvrir celle de l'URL
+  // Ref pour garder la trace de la conversation active dans l'abonnement WebSocket
+  const convActiveRef = useRef(convActive);
   useEffect(() => {
-    const charger = async () => {
-      try {
-        setLoadingConvs(true);
-        const data = await fetchConversations();
-        const convs = data ?? [];
-        setConversations(convs);
-        
-        // ✅ Si ?conv=xxx dans l'URL, ouvrir automatiquement
-        const convIdFromUrl = searchParams.get("conv");
-        if (convIdFromUrl) {
-          const convToOpen = convs.find(c => c.id === convIdFromUrl);
-          if (convToOpen) {
-            setConvActive(convToOpen);
-            setConversations(prev =>
-              prev.map(c => c.id === convToOpen.id ? { ...c, non_lus: 0 } : c)
-            );
-            afficherToast(`Conversation avec ${convToOpen.nom} ouverte`, "success");
-          } else {
-            afficherToast("Conversation introuvable", "error");
-          }
+    convActiveRef.current = convActive;
+  }, [convActive]);
+
+  const afficherToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // 1. Charger la liste des conversations
+  const chargerConvs = useCallback(async () => {
+    try {
+      setLoadingConvs(true);
+      const data = await fetchConversations();
+      const convs = data ?? [];
+      setConversations(convs);
+
+      // Ouvrir la conversation depuis l'URL si présente
+      const convIdFromUrl = searchParams.get("conv");
+      if (convIdFromUrl) {
+        const convToOpen = convs.find(c => c.id === convIdFromUrl);
+        if (convToOpen) {
+          setConvActive(convToOpen);
+          setConversations(prev =>
+            prev.map(c => c.id === convToOpen.id ? { ...c, non_lus: 0 } : c)
+          );
         }
-      } catch (err) {
-        afficherToast(err.message, "error");
-      } finally {
-        setLoadingConvs(false);
       }
+    } catch (err) {
+      afficherToast(err.message, "error");
+    } finally {
+      setLoadingConvs(false);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    chargerConvs();
+  }, [chargerConvs]);
+
+  // 2. Gestion du WebSocket
+  useEffect(() => {
+    connectWebSocket();
+
+    const unsubscribe = onWebSocketMessage((data) => {
+      console.log("📩 Événement WebSocket reçu :", data);
+
+      if (data.event === "nouveau_message") {
+        // Ajouter au fil si la conversation ouverte correspond
+        if (convActiveRef.current && data.conversation_id === convActiveRef.current.id) {
+          setMessages((prev) => {
+            if (prev.some(m => m.id === data.message.id)) return prev;
+            return [...prev, { ...data.message, est_moi: false }];
+          });
+        }
+        // Mettre à jour la liste des conversations
+        chargerConvs();
+      }
+    });
+
+    return () => {
+      unsubscribe();
     };
-    charger();
-  }, [searchParams]); // ✅ Ajouter searchParams dans les dépendances
+  }, [chargerConvs]);
 
-  // ... reste du code inchangé (les autres useEffect, fonctions, return, etc.)
-
-  // Charger messages quand on change de conversation
+  // 3. Charger messages au changement de conversation
   useEffect(() => {
     if (!convActive) return;
     const charger = async () => {
@@ -76,20 +109,14 @@ export default function Messages({ darkMode }) {
     charger();
   }, [convActive]);
 
-  // Scroll auto vers le bas
+  // Scroll auto
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const afficherToast = (message, type = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const ouvrirConversation = (conv) => {
     setConvActive(conv);
     setMenuOuvert(false);
-    // Remettre les non lus à 0 localement
     setConversations(prev =>
       prev.map(c => c.id === conv.id ? { ...c, non_lus: 0 } : c)
     );
@@ -101,7 +128,10 @@ export default function Messages({ darkMode }) {
       setEnvoi(true);
       const msg = await envoyerMessage(convActive.id, newMessage.trim());
       if (msg) {
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
         setConversations(prev =>
           prev.map(c => c.id === convActive.id
             ? { ...c, dernier_message: newMessage.trim() }

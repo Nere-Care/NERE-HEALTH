@@ -3,7 +3,8 @@ import {
   X, Save, User, Stethoscope, Clock,
   CreditCard, Video, CheckCircle, AlertCircle, Phone, Camera, Trash2
 } from "lucide-react";
-import { fetchMonProfil, updateMonProfil } from "../../../services/medecinService";
+import { fetchMonProfil, updateMonProfil, uploadMedecinPhoto, supprimerMedecinPhoto } from "../../../services/medecinService";
+
 
 const DEVISES = ["XAF", "EUR", "USD", "GBP"];
 
@@ -149,53 +150,50 @@ export default function ProfilMedecinModal({ open, onClose, darkMode }) {
   };
 
   const handleSave = async () => {
-    if (!valider()) return;
-    try {
-      setSaving(true);
-      setServerError(null);
+  if (!valider()) return;
+  try {
+    setSaving(true);
+    setServerError(null);
 
-      const langues = form.langues_parlees
-        .split(",")
-        .map((l) => l.trim())
-        .filter(Boolean);
+    const langues = form.langues_parlees
+      .split(",")
+      .map((l) => l.trim())
+      .filter(Boolean);
 
-      const payload = {
-        biographie: form.biographie.trim(),
-        tarif_consultation: Number(form.tarif_consultation),
-        devise: form.devise,
-        langues_parlees: langues,
-        teleconsultation_active: form.teleconsultation_active,
-        disponible_maintenant: form.disponible_maintenant,
-        annees_experience: form.annees_experience !== "" ? Number(form.annees_experience) : undefined,
-        telephone_pro: form.telephone_pro.trim() || undefined,
-        // ✅ Indiquer si on veut supprimer la photo
-        supprimer_photo: photoFile === null && photoPreview === null,
-      };
+    const payload = {
+      biographie: form.biographie.trim(),
+      tarif_consultation: Number(form.tarif_consultation),
+      devise: form.devise,
+      langues_parlees: langues,
+      teleconsultation_active: form.teleconsultation_active,
+      disponible_maintenant: form.disponible_maintenant,
+      annees_experience: form.annees_experience !== "" ? Number(form.annees_experience) : undefined,
+      telephone_pro: form.telephone_pro.trim() || undefined,
+    };
 
-      // ✅ Si une nouvelle photo a été choisie, utiliser FormData
-      if (photoFile) {
-        const formData = new FormData();
-        formData.append("photo", photoFile);
-        
-        // Ajouter les autres champs en JSON
-        formData.append("data", JSON.stringify(payload));
+    // 1. Sauvegarder les infos texte
+    await updateMonProfil(payload);
 
-        await updateMonProfilWithPhoto(formData);
-      } else {
-        await updateMonProfil(payload);
-      }
-
-      setSucces(true);
-      setTimeout(() => {
-        setSucces(false);
-        onClose();
-      }, 1500);
-    } catch (err) {
-      setServerError(err.message);
-    } finally {
-      setSaving(false);
+    // 2. Gerer la photo separement
+    if (photoFile) {
+      // Nouvelle photo choisie
+      await uploadMedecinPhoto(photoFile);
+    } else if (!photoPreview && profil?.photo_url) {
+      // Photo existante supprimee par l'utilisateur
+      await supprimerMedecinPhoto();
     }
-  };
+
+    setSucces(true);
+    setTimeout(() => {
+      setSucces(false);
+      onClose();
+    }, 1500);
+  } catch (err) {
+    setServerError(err.message);
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (!open) return null;
 

@@ -2,11 +2,27 @@ import { Bell, Sun, Moon, Settings, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import { fetchNotifications } from "../services/notificationService";
+import { onWebSocketMessage } from "../services/websocketService";
+
 
 export default function Header({ titre, darkMode, setDarkMode, collapsed }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [nonLues, setNonLues] = useState(0);
+
+
+
+// Dans Header(), ajoute a cote du polling existant :
+useEffect(() => {
+  const unsubscribe = onWebSocketMessage((data) => {
+    if (data.event === "nouvelle_notification" || data.event === "nouveau_message") {
+      setNonLues((prev) => prev + 1);
+    }
+  });
+  return unsubscribe;
+}, []);
+
+
 
   // Récupération user depuis localStorage
   useEffect(() => {

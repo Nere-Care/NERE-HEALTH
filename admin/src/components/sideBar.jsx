@@ -21,7 +21,7 @@ const items = [
   {
     icon: LayoutDashboard,
     label: "Dashboard",
-    path: "/",
+    path: "/dashboard",
   },
 
   {

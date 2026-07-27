@@ -117,3 +117,25 @@ export async function supprimerDisponibilite(dispoId) {
     method: "DELETE",
   });
 }
+
+
+export async function uploadMedecinPhoto(file) {
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const response = await fetch(`${BASE_URL}/medecin/mon-profil/photo`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` }, // pas de Content-Type — le navigateur gere le boundary multipart
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : `Erreur ${response.status}`);
+  }
+  return data;
+}
+
+export async function supprimerMedecinPhoto() {
+  return apiFetch(`${BASE_URL}/medecin/mon-profil/photo`, { method: "DELETE" });
+}

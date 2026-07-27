@@ -1,16 +1,18 @@
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, text as sql_text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-
 from auth import get_current_active_user
+import auth
 from db import get_db
-from models import Conversation, Message, User, Patient, Medecin
+from models import Conversation, Message, User, Patient, Medecin, Notification
 from schemas import MessageCreate, MessageRead
+from .ws_manager import manager
 
 router = APIRouter(tags=["messages"])
 
@@ -88,16 +90,11 @@ async def delete_message(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-
 @router.get("/mes-conversations")
 async def mes_conversations(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    from models import Medecin as MedecinModel
-
-    # Chercher toutes les conversations ou l'utilisateur apparait
-    # dans patient_id, medecin_id, OU medecin_id_2
     stmt = select(Conversation).where(
         or_(
             Conversation.patient_id == current_user.id,
@@ -110,26 +107,19 @@ async def mes_conversations(
     result = []
 
     for conv in convs:
-        # Determiner l'interlocuteur
         if conv.medecin_id_2 is not None:
-            # Conversation confrere-confrere
             if conv.medecin_id == current_user.id:
-                # Je suis l'acceptant → interlocuteur est medecin_id_2
                 interlocuteur = db.get(User, conv.medecin_id_2)
             else:
-                # Je suis le demandeur (medecin_id_2) → interlocuteur est medecin_id
                 interlocuteur = db.get(User, conv.medecin_id)
         elif conv.patient_id == current_user.id:
-            # Je suis le patient → interlocuteur est medecin_id
             interlocuteur = db.get(User, conv.medecin_id)
         else:
-            # Je suis le medecin → interlocuteur est patient_id
             interlocuteur = db.get(User, conv.patient_id) if conv.patient_id else None
 
         if not interlocuteur:
             continue
 
-        # Non lus selon la position
         if conv.patient_id == current_user.id:
             non_lus = conv.nb_messages_non_lus_patient or 0
         else:
@@ -163,12 +153,10 @@ async def messages_conversation(
     if not conv:
         raise HTTPException(404, "Conversation introuvable")
 
-    # Verifier l'acces : l'utilisateur doit etre patient_id OU medecin_id
     participants = [p for p in [conv.patient_id, conv.medecin_id, conv.medecin_id_2] if p is not None]
     if current_user.id not in participants:
-        raise HTTPException(403, "Acces refuse")
+        raise HTTPException(403, "Accès refusé")
 
-    # Marquer comme lu selon la position
     if conv.patient_id == current_user.id:
         conv.nb_messages_non_lus_patient = 0
     else:
@@ -185,9 +173,8 @@ async def messages_conversation(
     result = []
     for msg, expediteur in msgs:
         try:
-            from sqlalchemy import text
             row = db.execute(
-                text("SELECT pgp_sym_decrypt(:data, 'cle_demo_nere') AS texte"),
+                sql_text("SELECT pgp_sym_decrypt(:data, 'cle_demo_nere') AS texte"),
                 {"data": msg.contenu_chiffre}
             ).fetchone()
             texte = row.texte if row else "[message illisible]"
@@ -219,16 +206,14 @@ async def envoyer_message(
     if not conv:
         raise HTTPException(404, "Conversation introuvable")
 
-    # Verifier l'acces : l'utilisateur doit etre patient_id OU medecin_id
     participants = [p for p in [conv.patient_id, conv.medecin_id, conv.medecin_id_2] if p is not None]
     if current_user.id not in participants:
-        raise HTTPException(403, "Acces refuse")
+        raise HTTPException(403, "Accès refusé")
 
     texte = body.get("texte", "").strip()
     if not texte:
         raise HTTPException(400, "Message vide")
 
-    from sqlalchemy import text as sql_text
     row = db.execute(
         sql_text("SELECT pgp_sym_encrypt(:texte, 'cle_demo_nere') AS chiffre"),
         {"texte": texte}
@@ -244,19 +229,62 @@ async def envoyer_message(
     db.add(msg)
 
     conv.dernier_message_preview = texte[:80]
-    from datetime import datetime, timezone
     conv.dernier_message_at = datetime.now(timezone.utc)
 
-    # Incrementer les non-lus pour l'autre participant
+    # Déterminer le destinataire
+    destinataire_id = None
     if conv.patient_id == current_user.id:
-        # Je suis dans patient_id → l'autre est medecin_id
         conv.nb_messages_non_lus_medecin = (conv.nb_messages_non_lus_medecin or 0) + 1
-    else:
-        # Je suis dans medecin_id → l'autre est patient_id
+        destinataire_id = conv.medecin_id
+    elif conv.medecin_id == current_user.id:
         conv.nb_messages_non_lus_patient = (conv.nb_messages_non_lus_patient or 0) + 1
+        destinataire_id = conv.patient_id or conv.medecin_id_2
+    elif conv.medecin_id_2 == current_user.id:
+        destinataire_id = conv.medecin_id
 
     db.commit()
     db.refresh(msg)
+
+    message_data = {
+        "id": str(msg.id),
+        "expediteur_id": str(msg.expediteur_id),
+        "expediteur_nom": f"{current_user.prenom} {current_user.nom}",
+        "est_moi": False,
+        "texte": texte,
+        "type": "texte",
+        "heure": msg.created_at.strftime("%H:%M"),
+        "lu": False,
+    }
+
+    # Diffusion en temps réel
+    if destinataire_id:
+        await manager.send_to_user(str(destinataire_id), {
+            "event": "nouveau_message",
+            "conversation_id": str(conv_id),
+            "message": message_data,
+        })
+
+        if not manager.is_online(str(destinataire_id)):
+            notif = Notification(
+                utilisateur_id=destinataire_id,
+                type="nouveau_message",
+                canal="in_app",
+                statut="en_attente",
+                titre=f"Nouveau message de {current_user.prenom} {current_user.nom}",
+                contenu=texte[:100],
+                donnees_supplementaires={
+                    "type": "nouveau_message",
+                    "conversation_id": str(conv_id),
+                },
+            )
+            db.add(notif)
+            db.commit()
+
+            await manager.send_to_user(str(destinataire_id), {
+                "event": "nouvelle_notification",
+                "titre": notif.titre,
+                "contenu": notif.contenu,
+            })
 
     return {
         "id": str(msg.id),

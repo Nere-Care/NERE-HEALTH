@@ -9,17 +9,22 @@ export default function DoctorCard({ doctor, darkMode, onAskOpinion }) {
         darkMode ? "bg-gray-900 border-gray-800 text-white" : "bg-white border-gray-200 text-gray-900"
       }`}
     >
-      {/* IMAGE */}
-      <div className="relative">
-        {doctor.image_url ? (
-          <img src={doctor.image_url} alt={doctor.nom} className="w-full h-40 sm:h-44 md:h-48 object-cover" />
-        ) : (
-          <div className="w-full h-40 sm:h-44 md:h-48 bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-bold">
-            {doctor.nom?.charAt(0) || "D"}
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-      </div>
+    
+      {/* IMAGE - remplace le bloc image existant */}
+<div className="relative">
+  {doctor.photo_url || doctor.image_url ? (
+    <img
+      src={doctor.photo_url || doctor.image_url}
+      alt={doctor.nom}
+      className="w-full h-40 sm:h-44 md:h-48 object-cover"
+    />
+  ) : (
+    <div className="w-full h-40 sm:h-44 md:h-48 bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-4xl font-bold">
+      {doctor.nom?.charAt(0) || "D"}
+    </div>
+  )}
+  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+</div>
 
       {/* CONTENT */}
       <div className="p-4 sm:p-5 flex flex-col flex-1">

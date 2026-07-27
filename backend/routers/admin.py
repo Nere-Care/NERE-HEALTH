@@ -18,6 +18,11 @@ import asyncio
 
 
 
+
+
+
+
+
 # ... (tes autres routes admin) ...
 
 
@@ -1401,7 +1406,6 @@ async def admin_update_medecin_statut(
 
 
 
-
 @router.get("/admin/notifications")
 async def get_admin_notifications(
     statut: Optional[str] = None, # "non_lus" ou "lus"
@@ -1410,30 +1414,37 @@ async def get_admin_notifications(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
-    # ⚠️ ADAPTE LE NOM DU MODÈLE SI NÉCESSAIRE (ex: Notification)
-    from models import Notification
+    # Jointure avec User pour récupérer les notifications destinées aux admins
+    stmt = (
+        select(Notification)
+        .join(User, Notification.utilisateur_id == User.id)
+        .where(User.role == "admin")
+    )
     
-    stmt = select(Notification).where(Notification.destinataire_role == "admin")
-    
+    # Adapté selon le champ de statut dans votre DB (ex: statut == 'lu' ou champ lu boolean)
     if statut == "non_lus":
-        stmt = stmt.where(Notification.lu == False)
+        stmt = stmt.where(Notification.statut != "lu")
     elif statut == "lus":
-        stmt = stmt.where(Notification.lu == True)
+        stmt = stmt.where(Notification.statut == "lu")
         
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar() or 0
+    
     notifs = db.execute(
         stmt.order_by(Notification.created_at.desc()).limit(limit).offset(offset)
     ).scalars().all()
     
     result = []
     for n in notifs:
+        # On sécurise la lecture des attributs réels de votre modèle
+        est_lu = getattr(n, 'statut', '') == "lu" or getattr(n, 'lu', False)
+        
         result.append({
             "id": str(n.id),
             "titre": getattr(n, 'titre', 'Notification'),
-            "message": getattr(n, 'message', ''),
-            "type": getattr(n, 'type', 'info'), # info, success, warning, error, medecin, message
-            "lu": getattr(n, 'lu', False),
-            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "message": getattr(n, 'contenu', getattr(n, 'message', '')),
+            "type": getattr(n, 'type', 'info'),
+            "lu": est_lu,
+            "created_at": n.created_at.isoformat() if getattr(n, 'created_at', None) else None,
             "action_url": getattr(n, 'action_url', None),
         })
         
@@ -1446,12 +1457,16 @@ async def mark_notification_as_read(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
-    from models import Notification
     notif = db.get(Notification, notif_id)
     if not notif:
         raise HTTPException(404, "Notification introuvable")
     
-    notif.lu = True
+    # Mise à jour selon votre structure (champs 'statut' ou 'lu')
+    if hasattr(notif, 'statut'):
+        notif.statut = "lu"
+    if hasattr(notif, 'lu'):
+        notif.lu = True
+
     db.commit()
     return {"message": "Notification marquée comme lue"}
 
@@ -1461,12 +1476,20 @@ async def mark_all_notifications_as_read(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
-    from models import Notification
-    db.query(Notification).filter(
-        Notification.destinataire_role == "admin",
-        Notification.lu == False
-    ).update({"lu": True})
-    db.commit()
+    # Récupération des IDs d'utilisateurs admins
+    admin_ids = db.query(User.id).filter(User.role == "admin").all()
+    admin_ids_list = [a[0] for a in admin_ids]
+
+    if admin_ids_list:
+        query = db.query(Notification).filter(Notification.utilisateur_id.in_(admin_ids_list))
+        
+        if hasattr(Notification, 'statut'):
+            query.update({"statut": "lu"}, synchronize_session=False)
+        if hasattr(Notification, 'lu'):
+            query.update({"lu": True}, synchronize_session=False)
+
+        db.commit()
+
     return {"message": "Toutes les notifications ont été marquées comme lues"}
 
 
@@ -1476,7 +1499,6 @@ async def delete_notification(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
-    from models import Notification
     notif = db.get(Notification, notif_id)
     if not notif:
         raise HTTPException(404, "Notification introuvable")
@@ -1484,3 +1506,76 @@ async def delete_notification(
     db.delete(notif)
     db.commit()
     return {"message": "Notification supprimée"}
+
+
+
+
+
+
+
+
+
+
+
+
+@router.get("/admin/dashboard/stats")
+async def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    # 1. Stats globales
+    total_patients = db.query(func.count(Patient.id)).scalar() or 0
+    total_medecins = db.query(func.count(Medecin.id)).scalar() or 0
+    total_structures = db.query(func.count(Structure.id)).scalar() or 0
+    total_observers = db.query(func.count(User.id)).filter(User.role == "observateur").scalar() or 0
+
+    stats = [
+        {"title": "Patients", "value": f"{total_patients:,}".replace(",", " "), "growth": "+12%", "icon": "Users", "color": "from-blue-500 to-cyan-500"},
+        {"title": "Médecins", "value": f"{total_medecins:,}".replace(",", " "), "growth": "+8%", "icon": "Stethoscope", "color": "from-emerald-500 to-green-500"},
+        {"title": "Structures", "value": str(total_structures), "growth": "+5%", "icon": "Hospital", "color": "from-violet-500 to-purple-500"},
+        {"title": "Observateurs", "value": str(total_observers), "growth": "+15%", "icon": "UserCheck", "color": "from-orange-500 to-amber-500"},
+    ]
+
+    # 2. Données Graphiques (Exemple simplifié, adapte les requêtes à tes besoins)
+    consultations_data = [
+        {"month": "Jan", "value": 400}, {"month": "Fév", "value": 700},
+        {"month": "Mar", "value": 900}, {"month": "Avr", "value": 1200},
+        {"month": "Mai", "value": 1600}, {"month": "Jun", "value": 1900},
+    ]
+
+    users_data = [
+        {"name": "Patients", "value": total_patients},
+        {"name": "Médecins", "value": total_medecins},
+        {"name": "Observateurs", "value": total_observers},
+        {"name": "Admins", "value": db.query(func.count(User.id)).filter(User.role == "admin").scalar() or 0},
+    ]
+
+    # 3. Alertes récentes (simulé ou tiré de la BDD)
+    alerts = [
+        {"title": "Tentatives de connexion suspectes", "level": "Critique", "time": "Il y a 5 min"},
+        {"title": "Serveur API à 85% d'utilisation", "level": "Moyen", "time": "Il y a 18 min"},
+        {"title": "Nouvelle structure en attente", "level": "Info", "time": "Il y a 30 min"},
+    ]
+
+    # 4. Notifications récentes
+    recent_notifs = db.query(Notification).order_by(Notification.created_at.desc()).limit(4).all()
+    notifications = [n.contenu for n in recent_notifs] or [
+        "3 nouveaux médecins ont soumis leurs documents",
+        "Export des patients terminé avec succès",
+        "Nouvel observateur ajouté dans le système",
+        "5 nouvelles consultations enregistrées"
+    ]
+
+    return {
+        "stats": stats,
+        "charts": {
+            "consultations": consultations_data,
+            "users": users_data,
+            "alerts": alerts,
+            "notifications": notifications,
+            "exports": [
+                {"name": "Patients.xlsx", "size": "2.4 MB", "status": "Disponible"},
+                {"name": "Medecins.pdf", "size": "1.2 MB", "status": "Disponible"},
+            ]
+        }
+    }

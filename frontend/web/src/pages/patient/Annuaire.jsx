@@ -131,28 +131,25 @@ export default function Annuaire({ darkMode }) {
                   className={`rounded-2xl shadow p-4 flex flex-col gap-3 cursor-pointer transition-all hover:shadow-md
                     ${darkMode ? "bg-gray-800" : "bg-white hover:bg-gray-50"}`}
                 >
-                  {/* Avatar */}
-                  <div className="relative">
-                    <div className={`w-full h-40 rounded-xl flex items-center justify-center
-                      ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
-                      <User size={48} className="text-blue-300" />
-                    </div>
-
-                    <button
-                      onClick={(e) => toggleFavori(medecin.id, e)}
-                      className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center"
-                    >
-                      <Heart
-                        size={16}
-                        className={favoris[medecin.id] ? "text-red-500 fill-red-500" : "text-gray-400"}
-                      />
-                    </button>
-
-                    <div className={`absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-xs font-semibold
-                      ${medecin.disponible ? "bg-green-500 text-white" : "bg-gray-400 text-white"}`}>
-                      {medecin.disponible ? "Disponible" : "Indisponible"}
-                    </div>
-                  </div>
+                  {/* Remplace le bloc avatar dans ProfilMedecin.jsx */}
+<div className="relative flex-shrink-0">
+  {medecin.photo_url ? (
+    <img
+      src={medecin.photo_url}
+      alt={medecin.nom}
+      className="w-28 h-28 rounded-2xl object-cover"
+    />
+  ) : (
+    <div className={`w-28 h-28 rounded-2xl flex items-center justify-center
+      ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}>
+      <User size={52} className="text-blue-300" />
+    </div>
+  )}
+  <div className={`absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-xs font-semibold
+    ${medecin.disponible ? "bg-green-500 text-white" : "bg-gray-400 text-white"}`}>
+    {medecin.disponible ? "Disponible" : "Indisponible"}
+  </div>
+</div>
 
                   {/* Infos */}
                   <div>

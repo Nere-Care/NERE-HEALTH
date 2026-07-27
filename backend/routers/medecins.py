@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status, UploadFile, File
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from db import get_db
 from models import Medecin, User
 from schemas import MedecinCreate, MedecinRead
 
+import base64
 
 from datetime import datetime, timezone, date, timedelta
 
@@ -183,6 +184,7 @@ async def annuaire_medecins(
             "langues": medecin.langues_parlees or [],
             "statut_verification": medecin.statut_verification,
             "lieu_exercice": lieu_exercice,
+            "photo_url": medecin.photo_url,
         })
 
     return result
@@ -253,6 +255,7 @@ async def profil_medecin(
         "biographie": medecin.biographie or "",
         "langues": medecin.langues_parlees or [],
         "lieu_exercice": lieu_exercice,
+        "photo_url": medecin.photo_url,
         "ville": ville,
         "statut_verification": medecin.statut_verification,
         "avis": [
@@ -557,6 +560,7 @@ class MedecinProfilUpdate(PydanticBase):
     telephone_pro: Optional[str] = None
     annees_experience: Optional[int] = None
 
+
 @router.get("/medecin/mon-profil")
 async def get_mon_profil(
     db: Session = Depends(get_db),
@@ -601,6 +605,8 @@ async def get_mon_profil(
         "note_moyenne": float(medecin.note_moyenne or 0),
         "specialites": [s.libelle_fr for s in specs],
         "lieu_exercice": structure_nom,
+        "photo_url": medecin.photo_url,
+
     }
 
 
@@ -637,6 +643,7 @@ async def update_mon_profil(
         medecin.annees_experience = payload.annees_experience
     if payload.telephone_pro is not None:
         current_user.telephone = payload.telephone_pro
+    
 
     db.commit()
     return {"message": "Profil mis a jour avec succes"}
@@ -774,3 +781,56 @@ async def supprimer_disponibilite(
     dispo.actif = False
     db.commit()
     return {"message": "Disponibilite supprimee"}
+
+
+
+
+
+
+
+
+
+@router.post("/medecin/mon-profil/photo")
+async def uploader_photo_profil(
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    ALLOWED_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+    if photo.content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, "Format non supporte (JPG, PNG ou WEBP)")
+
+    contenu = await photo.read()
+    MAX_SIZE = 5 * 1024 * 1024
+    if len(contenu) > MAX_SIZE:
+        raise HTTPException(400, "Image trop volumineuse (max 5 MB)")
+
+    medecin = db.get(Medecin, current_user.id)
+    if not medecin:
+        raise HTTPException(404, "Profil medecin introuvable")
+
+    b64 = base64.b64encode(contenu).decode("utf-8")
+    medecin.photo_url = f"data:{photo.content_type};base64,{b64}"
+
+    db.commit()
+    return {"message": "Photo mise a jour", "photo_url": medecin.photo_url}
+
+
+@router.delete("/medecin/mon-profil/photo")
+async def supprimer_photo_profil(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    medecin = db.get(Medecin, current_user.id)
+    if not medecin:
+        raise HTTPException(404, "Profil medecin introuvable")
+
+    medecin.photo_url = None
+    db.commit()
+    return {"message": "Photo supprimee"}

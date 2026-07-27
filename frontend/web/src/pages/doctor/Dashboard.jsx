@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, Settings } from "lucide-react";
+import { AlertCircle, Settings, User } from "lucide-react";
 import StatsSection from "../../components/doctors/dashboard/StatsSection";
 import RevenueChart from "../../components/doctors/dashboard/RevenueChart";
 import ConsultationChart from "../../components/doctors/dashboard/ConsultationChart";
@@ -57,7 +57,7 @@ export default function Dashboard({ darkMode }) {
               : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm"
             }`}
         >
-          <Settings size={16} />
+          <User size={16} />
           <span className="hidden sm:inline">Mon profil</span>
         </button>
       </div>

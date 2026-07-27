@@ -679,6 +679,8 @@ class Medecin(Base):
     disponible_maintenant = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    photo_url = Column(Text)
+
 
 
 class Message(Base):

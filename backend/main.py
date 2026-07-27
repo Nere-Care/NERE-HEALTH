@@ -32,6 +32,7 @@ from routers.structures import router as structures_router
 from routers.audit import router as audit_router
 from routers.tables import router as tables_router
 from routers import symptomes
+from routers import ws
 
 
 class HostValidationMiddleware(BaseHTTPMiddleware):
@@ -93,6 +94,7 @@ app.include_router(structures_router, prefix=settings.API_PREFIX)
 app.include_router(audit_router, prefix=settings.API_PREFIX)
 app.include_router(tables_router, prefix=settings.API_PREFIX)
 app.include_router(symptomes.router, prefix=settings.API_PREFIX)
+app.include_router(ws.router)  # PAS de prefix /api pour le websocket
 
 
 

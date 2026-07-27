@@ -5,6 +5,8 @@ import "./style.css";
 
 
 import SymptomCheckerModal from "./components/patient/SymptomCheckerModal";
+import { connectWebSocket, disconnectWebSocket } from "./services/websocketService";
+
 
 
 /* LAYOUT */
@@ -61,6 +63,21 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
 
   const [symptomCheckerOpen, setSymptomCheckerOpen] = useState(false);
+
+
+
+
+// Dans App(), ajoute :
+useEffect(() => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  if (user.id) {
+    connectWebSocket();
+  }
+  return () => disconnectWebSocket();
+}, []);
+
+
+
 
 useEffect(() => {
   const handleOpen = () => setSymptomCheckerOpen(true);

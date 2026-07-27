@@ -1,20 +1,20 @@
+import { useState, useEffect } from "react";
 import {
   Users,
-  UserCheck,
-  Hospital,
   Stethoscope,
+  Hospital,
+  UserCheck,
   Activity,
   AlertTriangle,
   CalendarDays,
   ShieldCheck,
-  TrendingUp,
-  Bell,
-  FileDown,
-  Download,
   Server,
+  TrendingUp,
+  Download,
+  Bell,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
-
 import {
   ResponsiveContainer,
   AreaChart,
@@ -31,326 +31,226 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { fetchDashboardData } from "../services/DashboardService";
 
-/* ================= MOCK DATA ================= */
+// Couleurs modernes pour les graphiques
+const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EF4444"];
 
-const stats = [
-  {
-    title: "Patients",
-    value: "12,450",
-    growth: "+12%",
-    icon: Users,
-    color: "from-blue-500 to-cyan-500",
-  },
+// Composant Tooltip personnalisé pour un look "Pro"
+const CustomTooltip = ({ active, payload, label, darkMode }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div
+        className={`p-3 rounded-xl shadow-xl border text-sm ${
+          darkMode
+            ? "bg-slate-900 border-slate-700 text-white"
+            : "bg-white border-gray-200 text-gray-800"
+        }`}
+      >
+        <p className="font-semibold mb-1">{label}</p>
+        {payload.map((pld, index) => (
+          <p
+            key={index}
+            style={{ color: pld.color }}
+            className="font-medium"
+          >
+            {pld.name}: {pld.value.toLocaleString()}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
-  {
-    title: "Médecins",
-    value: "1,250",
-    growth: "+8%",
-    icon: Stethoscope,
-    color: "from-emerald-500 to-green-500",
-  },
-
-  {
-    title: "Structures",
-    value: "85",
-    growth: "+5%",
-    icon: Hospital,
-    color: "from-violet-500 to-purple-500",
-  },
-
-  {
-    title: "Observateurs",
-    value: "340",
-    growth: "+15%",
-    icon: UserCheck,
-    color: "from-orange-500 to-amber-500",
-  },
-];
-
-const consultationsData = [
-  { month: "Jan", consultations: 400 },
-  { month: "Feb", consultations: 700 },
-  { month: "Mar", consultations: 900 },
-  { month: "Apr", consultations: 1200 },
-  { month: "May", consultations: 1600 },
-  { month: "Jun", consultations: 1900 },
-];
-
-const usersData = [
-  { name: "Patients", value: 12450 },
-  { name: "Médecins", value: 1250 },
-  { name: "Observateurs", value: 340 },
-  { name: "Admins", value: 45 },
-];
-
-const hospitalData = [
-  { hospital: "Douala", patients: 4000 },
-  { hospital: "Yaoundé", patients: 3500 },
-  { hospital: "Bafoussam", patients: 1800 },
-  { hospital: "Garoua", patients: 1200 },
-];
-
-const activityData = [
-  { day: "Lun", activity: 120 },
-  { day: "Mar", activity: 210 },
-  { day: "Mer", activity: 180 },
-  { day: "Jeu", activity: 320 },
-  { day: "Ven", activity: 280 },
-  { day: "Sam", activity: 190 },
-];
-
-const alerts = [
-  {
-    title: "Tentatives de connexion suspectes",
-    level: "Critique",
-    time: "Il y a 5 min",
-  },
-
-  {
-    title: "Serveur API à 85% d'utilisation",
-    level: "Moyen",
-    time: "Il y a 18 min",
-  },
-
-  {
-    title: "Nouvelle structure en attente",
-    level: "Info",
-    time: "Il y a 30 min",
-  },
-
-  {
-    title: "Sauvegarde système réussie",
-    level: "Succès",
-    time: "Aujourd'hui",
-  },
-];
-
-const notifications = [
-  "3 nouveaux médecins ont soumis leurs documents",
-  "Export des patients terminé avec succès",
-  "Nouvel observateur ajouté dans le système",
-  "5 nouvelles consultations enregistrées",
-];
-
-const exportsData = [
-  {
-    name: "Patients.xlsx",
-    size: "2.4 MB",
-    status: "Téléchargé",
-  },
-
-  {
-    name: "Doctors.pdf",
-    size: "1.2 MB",
-    status: "Disponible",
-  },
-
-  {
-    name: "Hospitals.csv",
-    size: "850 KB",
-    status: "Disponible",
-  },
-];
-
-const COLORS = [
-  "#3B82F6",
-  "#10B981",
-  "#F59E0B",
-  "#8B5CF6",
-];
-
-/* ================= COMPONENT ================= */
+// Composant Skeleton pour le chargement
+const StatSkeleton = ({ darkMode }) => (
+  <div
+    className={`rounded-3xl p-6 animate-pulse ${
+      darkMode ? "bg-slate-900" : "bg-white"
+    }`}
+  >
+    <div className="h-4 w-24 bg-gray-300 dark:bg-slate-700 rounded mb-4" />
+    <div className="h-8 w-32 bg-gray-300 dark:bg-slate-700 rounded mb-4" />
+    <div className="h-4 w-16 bg-gray-300 dark:bg-slate-700 rounded" />
+  </div>
+);
 
 export default function Dashboard({ darkMode }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Appel réel au backend
+        const response = await fetchDashboardData();
+        setData(response);
+      } catch (err) {
+        setError(
+          "Impossible de charger les données. Vérifiez la connexion au backend."
+        );
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const stats = data?.stats || [];
+  const charts = data?.charts || {};
+
   return (
     <div
-      className={`min-h-screen w-full overflow-x-hidden p-3 sm:p-5 lg:p-6 transition-all duration-300
-      ${darkMode ? "bg-slate-950" : "bg-gray-100"}`}
+      className={`min-h-screen w-full overflow-x-hidden p-4 sm:p-6 lg:p-8 transition-colors duration-300 ${
+        darkMode ? "bg-slate-950 text-white" : "bg-gray-50 text-gray-900"
+      }`}
     >
       {/* ================= HEADER ================= */}
-
-      <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 lg:gap-6 mb-6 lg:mb-8">
-        <div className="min-w-0">
-          <h1
-            className={`text-2xl sm:text-3xl lg:text-4xl font-bold break-words
-            ${darkMode ? "text-white" : "text-gray-800"}`}
-          >
-            Dashboard Administrateur
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+            Tableau de Bord
           </h1>
-
           <p
-            className={`mt-2 text-sm sm:text-base
-            ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+            className={`mt-2 text-sm lg:text-base ${
+              darkMode ? "text-gray-400" : "text-gray-500"
+            }`}
           >
-            Vue globale du système hospitalier intelligent
+            Vue globale et temps réel de l'écosystème Néré Health.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full 2xl:w-auto">
+        <div className="flex flex-wrap gap-3">
           <div
-            className={`px-4 py-3 rounded-2xl flex items-center gap-3
-            ${
+            className={`px-4 py-3 rounded-2xl flex items-center gap-3 border ${
               darkMode
-                ? "bg-slate-900 border border-slate-800"
-                : "bg-white shadow"
+                ? "bg-slate-900 border-slate-800"
+                : "bg-white border-gray-200 shadow-sm"
             }`}
           >
-            <ShieldCheck
-              className="text-green-500 flex-shrink-0"
-              size={20}
-            />
-
-            <div className="min-w-0">
+            <div className="p-2 rounded-full bg-green-500/10">
+              <ShieldCheck className="text-green-500" size={20} />
+            </div>
+            <div>
               <p
-                className={`text-xs
-                ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                className={`text-xs ${
+                  darkMode ? "text-gray-400" : "text-gray-500"
+                }`}
               >
                 Système
               </p>
-
-              <h3 className="text-green-500 font-semibold text-sm sm:text-base">
+              <h3 className="text-green-500 font-bold text-sm">
                 Opérationnel
               </h3>
             </div>
           </div>
-
           <div
-            className={`px-4 py-3 rounded-2xl flex items-center gap-3
-            ${
+            className={`px-4 py-3 rounded-2xl flex items-center gap-3 border ${
               darkMode
-                ? "bg-slate-900 border border-slate-800"
-                : "bg-white shadow"
+                ? "bg-slate-900 border-slate-800"
+                : "bg-white border-gray-200 shadow-sm"
             }`}
           >
-            <Server
-              className="text-blue-500 flex-shrink-0"
-              size={20}
-            />
-
-            <div className="min-w-0">
+            <div className="p-2 rounded-full bg-blue-500/10">
+              <Server className="text-blue-500" size={20} />
+            </div>
+            <div>
               <p
-                className={`text-xs
-                ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                className={`text-xs ${
+                  darkMode ? "text-gray-400" : "text-gray-500"
+                }`}
               >
-                Serveur
+                API Latence
               </p>
-
-              <h3 className="font-semibold text-sm sm:text-base">
-                Online
-              </h3>
+              <h3 className="font-bold text-sm">24ms</h3>
             </div>
           </div>
         </div>
       </div>
 
       {/* ================= GLOBAL STATS ================= */}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-        {stats.map((stat, index) => {
-          const Icon = stat.icon;
-
-          return (
-            <div
-              key={index}
-              className={`rounded-3xl p-4 sm:p-5 lg:p-6 relative overflow-hidden
-              ${
-                darkMode
-                  ? "bg-slate-900 border border-slate-800"
-                  : "bg-white shadow"
-              }`}
-            >
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-8">
+        {loading ? (
+          Array(4)
+            .fill(0)
+            .map((_, i) => <StatSkeleton key={i} darkMode={darkMode} />)
+        ) : error ? (
+          <div className="col-span-full p-6 text-center text-red-500 bg-red-500/10 rounded-2xl">
+            {error}
+          </div>
+        ) : (
+          stats.map((stat, index) => {
+            const Icon = stat.icon;
+            return (
               <div
-                className={`absolute top-0 right-0 w-32 sm:w-40 h-32 sm:h-40 opacity-10 rounded-full blur-3xl bg-gradient-to-br ${stat.color}`}
-              />
-
-              <div className="flex justify-between items-start gap-4">
-                <div className="min-w-0">
-                  <p
-                    className={`text-sm
-                    ${
-                      darkMode
-                        ? "text-gray-400"
-                        : "text-gray-500"
-                    }`}
+                key={index}
+                className={`group relative overflow-hidden rounded-3xl p-6 border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${
+                  darkMode
+                    ? "bg-slate-900 border-slate-800 hover:border-slate-700"
+                    : "bg-white border-gray-200 hover:border-blue-200"
+                }`}
+              >
+                <div
+                  className={`absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-20 bg-gradient-to-br ${stat.color} group-hover:opacity-30 transition-opacity`}
+                />
+                <div className="flex justify-between items-start relative z-10">
+                  <div>
+                    <p
+                      className={`text-sm font-medium ${
+                        darkMode ? "text-gray-400" : "text-gray-500"
+                      }`}
+                    >
+                      {stat.title}
+                    </p>
+                    <h2 className="text-3xl lg:text-4xl font-extrabold mt-2 tracking-tight">
+                      {stat.value}
+                    </h2>
+                    <div className="flex items-center gap-1.5 mt-3 text-emerald-500 text-sm font-semibold bg-emerald-500/10 w-fit px-2 py-1 rounded-lg">
+                      <TrendingUp size={14} /> {stat.growth}
+                    </div>
+                  </div>
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br ${stat.color} shadow-lg`}
                   >
-                    {stat.title}
-                  </p>
-
-                  <h2
-                    className={`text-2xl sm:text-3xl lg:text-4xl font-bold mt-3
-                    ${
-                      darkMode
-                        ? "text-white"
-                        : "text-gray-800"
-                    }`}
-                  >
-                    {stat.value}
-                  </h2>
-
-                  <div className="flex items-center gap-1 mt-4 text-green-500 text-sm">
-                    <TrendingUp size={15} />
-                    {stat.growth}
+                    <Icon className="text-white" size={26} />
                   </div>
                 </div>
-
-                <div
-                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br ${stat.color} flex-shrink-0`}
-                >
-                  <Icon className="text-white" size={24} />
-                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
-      {/* ================= MAIN GRID ================= */}
-
-      <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
-        {/* CONSULTATIONS */}
-
+      {/* ================= MAIN CHARTS GRID ================= */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        {/* Area Chart: Consultations */}
         <div
-          className={`2xl:col-span-2 rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
+          className={`xl:col-span-2 rounded-3xl p-6 border ${
             darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
+              ? "bg-slate-900 border-slate-800"
+              : "bg-white border-gray-200 shadow-sm"
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h2
-                className={`text-lg sm:text-xl font-bold
-                ${
-                  darkMode
-                    ? "text-white"
-                    : "text-gray-800"
-                }`}
-              >
-                Activité des consultations
-              </h2>
-
+              <h2 className="text-xl font-bold">Activité des consultations</h2>
               <p
-                className={`text-sm mt-1
-                ${
-                  darkMode
-                    ? "text-gray-400"
-                    : "text-gray-500"
+                className={`text-sm mt-1 ${
+                  darkMode ? "text-gray-400" : "text-gray-500"
                 }`}
               >
-                Évolution mensuelle
+                Évolution sur les 6 derniers mois
               </p>
             </div>
-
-            <CalendarDays
-              className="text-blue-500 flex-shrink-0"
-            />
+            <CalendarDays className="text-blue-500 opacity-80" />
           </div>
-
-          <div className="h-[260px] sm:h-[320px] lg:h-[350px]">
+          <div className="h-[300px] lg:h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={consultationsData}>
+              <AreaChart data={charts.consultations || []}>
                 <defs>
                   <linearGradient
                     id="colorConsult"
@@ -359,42 +259,34 @@ export default function Dashboard({ darkMode }) {
                     x2="0"
                     y2="1"
                   >
-                    <stop
-                      offset="5%"
-                      stopColor="#3B82F6"
-                      stopOpacity={0.8}
-                    />
-
-                    <stop
-                      offset="95%"
-                      stopColor="#3B82F6"
-                      stopOpacity={0}
-                    />
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke={darkMode ? "#374151" : "#E5E7EB"}
+                  stroke={darkMode ? "#1e293b" : "#f1f5f9"}
+                  vertical={false}
                 />
-
                 <XAxis
                   dataKey="month"
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
+                  stroke={darkMode ? "#64748b" : "#94a3b8"}
                   tick={{ fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-
                 <YAxis
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
+                  stroke={darkMode ? "#64748b" : "#94a3b8"}
                   tick={{ fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-
-                <Tooltip />
-
+                <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
                 <Area
                   type="monotone"
-                  dataKey="consultations"
+                  dataKey="value"
                   stroke="#3B82F6"
+                  strokeWidth={3}
                   fillOpacity={1}
                   fill="url(#colorConsult)"
                 />
@@ -403,186 +295,119 @@ export default function Dashboard({ darkMode }) {
           </div>
         </div>
 
-        {/* USERS PIE */}
-
+        {/* Pie Chart: Users */}
         <div
-          className={`rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
+          className={`rounded-3xl p-6 border ${
             darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
+              ? "bg-slate-900 border-slate-800"
+              : "bg-white border-gray-200 shadow-sm"
           }`}
         >
           <div className="mb-6">
-            <h2
-              className={`text-lg sm:text-xl font-bold
-              ${
-                darkMode
-                  ? "text-white"
-                  : "text-gray-800"
-              }`}
-            >
-              Répartition utilisateurs
-            </h2>
-
+            <h2 className="text-xl font-bold">Répartition utilisateurs</h2>
             <p
-              className={`text-sm mt-1
-              ${
-                darkMode
-                  ? "text-gray-400"
-                  : "text-gray-500"
+              className={`text-sm mt-1 ${
+                darkMode ? "text-gray-400" : "text-gray-500"
               }`}
             >
-              Vue globale des comptes
+              Vue globale des comptes actifs
             </p>
           </div>
-
-          <div className="h-[260px] sm:h-[300px]">
+          <div className="h-[300px] flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={usersData}
+                  data={charts.users || []}
                   dataKey="value"
                   cx="50%"
                   cy="50%"
-                  outerRadius={window.innerWidth < 640 ? 70 : 100}
-                  label
+                  innerRadius={60}
+                  outerRadius={90}
+                  paddingAngle={4}
+                  cornerRadius={10}
                 >
-                  {usersData.map((entry, index) => (
+                  {(charts.users || []).map((entry, index) => (
                     <Cell
-                      key={index}
+                      key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
+                      stroke="none"
                     />
                   ))}
                 </Pie>
-
-                <Tooltip />
+                <Tooltip content={<CustomTooltip darkMode={darkMode} />} />
               </PieChart>
             </ResponsiveContainer>
+          </div>
+          {/* Légende personnalisée */}
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            {(charts.users || []).map((entry, index) => (
+              <div key={index} className="flex items-center gap-2 text-sm">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                />
+                <span
+                  className={darkMode ? "text-gray-300" : "text-gray-600"}
+                >
+                  {entry.name}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ================= SECOND GRID ================= */}
-
-      <div className="grid grid-cols-1 2xl:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
-        {/* BAR CHART */}
-
+      {/* ================= BOTTOM GRID ================= */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Alerts */}
         <div
-          className={`2xl:col-span-2 rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
+          className={`rounded-3xl p-6 border ${
             darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
-          }`}
-        >
-          <div className="mb-6">
-            <h2
-              className={`text-lg sm:text-xl font-bold
-              ${
-                darkMode
-                  ? "text-white"
-                  : "text-gray-800"
-              }`}
-            >
-              Patients par ville
-            </h2>
-
-            <p
-              className={`text-sm mt-1
-              ${
-                darkMode
-                  ? "text-gray-400"
-                  : "text-gray-500"
-              }`}
-            >
-              Répartition géographique
-            </p>
-          </div>
-
-          <div className="h-[260px] sm:h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hospitalData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={darkMode ? "#374151" : "#E5E7EB"}
-                />
-
-                <XAxis
-                  dataKey="hospital"
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
-                  tick={{ fontSize: 12 }}
-                />
-
-                <YAxis
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
-                  tick={{ fontSize: 12 }}
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="patients"
-                  fill="#3B82F6"
-                  radius={[10, 10, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ALERTS */}
-
-        <div
-          className={`rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
-            darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
+              ? "bg-slate-900 border-slate-800"
+              : "bg-white border-gray-200 shadow-sm"
           }`}
         >
           <div className="flex items-center gap-3 mb-6">
-            <AlertTriangle className="text-red-500" />
-
-            <h2
-              className={`text-lg sm:text-xl font-bold
-              ${
-                darkMode
-                  ? "text-white"
-                  : "text-gray-800"
-              }`}
-            >
-              Alertes système
-            </h2>
+            <div className="p-2 rounded-xl bg-red-500/10">
+              <AlertTriangle className="text-red-500" size={20} />
+            </div>
+            <h2 className="text-xl font-bold">Alertes récentes</h2>
           </div>
-
           <div className="space-y-4">
-            {alerts.map((alert, index) => (
+            {(charts.alerts || []).map((alert, index) => (
               <div
                 key={index}
-                className={`p-4 rounded-2xl
-                ${
-                  darkMode
-                    ? "bg-slate-800"
-                    : "bg-gray-50"
+                className={`p-4 rounded-2xl border-l-4 transition-all hover:scale-[1.02] ${
+                  alert.level === "Critique"
+                    ? "border-red-500 bg-red-500/5"
+                    : alert.level === "Moyen"
+                    ? "border-yellow-500 bg-yellow-500/5"
+                    : "border-blue-500 bg-blue-500/5"
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <span className="text-sm font-semibold">
+                <div className="flex justify-between items-start mb-1">
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      alert.level === "Critique"
+                        ? "bg-red-500 text-white"
+                        : alert.level === "Moyen"
+                        ? "bg-yellow-500 text-white"
+                        : "bg-blue-500 text-white"
+                    }`}
+                  >
                     {alert.level}
                   </span>
-
-                  <span className="text-xs text-gray-400">
+                  <span
+                    className={`text-xs ${
+                      darkMode ? "text-gray-500" : "text-gray-400"
+                    }`}
+                  >
                     {alert.time}
                   </span>
                 </div>
-
                 <p
-                  className={`text-sm break-words
-                  ${
-                    darkMode
-                      ? "text-gray-300"
-                      : "text-gray-700"
+                  className={`text-sm font-medium mt-2 ${
+                    darkMode ? "text-gray-200" : "text-gray-800"
                   }`}
                 >
                   {alert.title}
@@ -591,192 +416,88 @@ export default function Dashboard({ darkMode }) {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ================= THIRD GRID ================= */}
-
-      <div className="grid grid-cols-1 2xl:grid-cols-4 gap-4 lg:gap-6">
-        {/* SYSTEM ACTIVITY */}
-
+        {/* Notifications & Exports combined widget */}
         <div
-          className={`2xl:col-span-2 rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
+          className={`xl:col-span-2 rounded-3xl p-6 border ${
             darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
+              ? "bg-slate-900 border-slate-800"
+              : "bg-white border-gray-200 shadow-sm"
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-            <div>
-              <h2
-                className={`text-lg sm:text-xl font-bold
-                ${
-                  darkMode
-                    ? "text-white"
-                    : "text-gray-800"
-                }`}
-              >
-                Activité système
-              </h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-purple-500/10">
+                <Bell className="text-purple-500" size={20} />
+              </div>
+              <h2 className="text-xl font-bold">Activité & Exports</h2>
+            </div>
+          </div>
 
-              <p
-                className={`text-sm mt-1
-                ${
-                  darkMode
-                    ? "text-gray-400"
-                    : "text-gray-500"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Notifications List */}
+            <div className="space-y-3">
+              <h3
+                className={`text-sm font-semibold uppercase tracking-wider ${
+                  darkMode ? "text-gray-500" : "text-gray-400"
                 }`}
               >
-                Activité quotidienne
-              </p>
+                Dernières notifications
+              </h3>
+              {(charts.notifications || []).map((notif, index) => (
+                <div
+                  key={index}
+                  className={`flex gap-3 p-3 rounded-xl ${
+                    darkMode ? "bg-slate-800/50" : "bg-gray-50"
+                  }`}
+                >
+                  <CheckCircle2
+                    size={18}
+                    className="text-emerald-500 flex-shrink-0 mt-0.5"
+                  />
+                  <p
+                    className={`text-sm leading-snug ${
+                      darkMode ? "text-gray-300" : "text-gray-600"
+                    }`}
+                  >
+                    {notif}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            <Activity className="text-emerald-500" />
-          </div>
-
-          <div className="h-[240px] sm:h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={activityData}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke={darkMode ? "#374151" : "#E5E7EB"}
-                />
-
-                <XAxis
-                  dataKey="day"
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
-                  tick={{ fontSize: 12 }}
-                />
-
-                <YAxis
-                  stroke={darkMode ? "#9CA3AF" : "#6B7280"}
-                  tick={{ fontSize: 12 }}
-                />
-
-                <Tooltip />
-
-                <Line
-                  type="monotone"
-                  dataKey="activity"
-                  stroke="#10B981"
-                  strokeWidth={3}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* EXPORTS */}
-
-        <div
-          className={`rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
-            darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
-          }`}
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <FileDown className="text-blue-500" />
-
-            <h2
-              className={`text-lg font-bold
-              ${
-                darkMode
-                  ? "text-white"
-                  : "text-gray-800"
-              }`}
-            >
-              Exports
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {exportsData.map((file, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-2xl border
-                ${
-                  darkMode
-                    ? "border-slate-800 bg-slate-950"
-                    : "border-gray-200 bg-gray-50"
+            {/* Exports List */}
+            <div className="space-y-3">
+              <h3
+                className={`text-sm font-semibold uppercase tracking-wider ${
+                  darkMode ? "text-gray-500" : "text-gray-400"
                 }`}
               >
-                <div className="flex items-center justify-between gap-3">
+                Exports disponibles
+              </h3>
+              {(charts.exports || []).map((file, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center justify-between p-3 rounded-xl border ${
+                    darkMode
+                      ? "border-slate-700 bg-slate-800/30"
+                      : "border-gray-200 bg-gray-50"
+                  }`}
+                >
                   <div className="min-w-0">
                     <p className="font-semibold text-sm truncate">
                       {file.name}
                     </p>
-
-                    <p className="text-xs text-gray-400 mt-1">
-                      {file.size}
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {file.size} • {file.status}
                     </p>
                   </div>
-
-                  <button className="p-2 rounded-xl bg-blue-500/10 text-blue-500 flex-shrink-0">
-                    <Download size={18} />
+                  <button className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all flex-shrink-0">
+                    <Download size={16} />
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* NOTIFICATIONS */}
-
-        <div
-          className={`rounded-3xl p-4 sm:p-5 lg:p-6
-          ${
-            darkMode
-              ? "bg-slate-900 border border-slate-800"
-              : "bg-white shadow"
-          }`}
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <Bell className="text-yellow-500" />
-
-            <h2
-              className={`text-lg font-bold
-              ${
-                darkMode
-                  ? "text-white"
-                  : "text-gray-800"
-              }`}
-            >
-              Notifications
-            </h2>
-          </div>
-
-          <div className="space-y-4">
-            {notifications.map((notif, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-2xl flex gap-3
-                ${
-                  darkMode
-                    ? "bg-slate-800"
-                    : "bg-gray-50"
-                }`}
-              >
-                <div className="mt-1 flex-shrink-0">
-                  <CheckCircle2
-                    size={16}
-                    className="text-green-500"
-                  />
-                </div>
-
-                <p
-                  className={`text-sm break-words
-                  ${
-                    darkMode
-                      ? "text-gray-300"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {notif}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>

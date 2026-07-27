@@ -547,6 +547,7 @@ class MedecinBase(BaseModel):
     nombre_consultations: Optional[int] = 0
     structure_id: Optional[UUID] = None
     disponible_maintenant: Optional[bool] = False
+    photo_url: Optional[str] = None  # ✅ AJOUTÉ ICI
 
 
 class MedecinCreate(MedecinBase):
