@@ -5,9 +5,13 @@ from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
 from db import SessionLocal 
-from models import User, Message, Conversation # ✅ Ajout des modèles
+from models import User, Message, Conversation, RendezVous # ✅ Ajout des modèles
 from config import settings
 from .ws_manager import manager
+
+from .webrtc_manager import room_manager
+
+from uuid import UUID as UUIDType
 
 router = APIRouter(tags=["websocket"])
 ALGORITHM = "HS256"
@@ -100,5 +104,57 @@ async def websocket_messages(websocket: WebSocket, token: str = Query(...)):
             print(f"⚠️ Erreur WebSocket: {e}")
         if user_id:
             manager.disconnect(user_id, websocket)
+    finally:
+        db.close()
+
+
+
+
+@router.websocket("/ws/teleconsultation/{rdv_id}")
+async def websocket_teleconsultation(websocket: WebSocket, rdv_id: str, token: str = Query(...)):
+    await websocket.accept()
+    db = SessionLocal()
+    user_id = None
+    try:
+        user = get_user_from_token(token, db)
+        if not user:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        try:
+            rdv = db.get(RendezVous, UUIDType(rdv_id))
+        except ValueError:
+            rdv = None
+
+        if not rdv or (str(rdv.patient_id) != str(user.id) and str(rdv.medecin_id) != str(user.id)):
+            print(f"⛔ WEBRTC: Utilisateur {user.email} n'appartient pas au RDV {rdv_id}")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        user_id = str(user.id)
+        role = "medecin" if str(rdv.medecin_id) == user_id else "patient"
+        print(f"✅ WEBRTC: {user.email} ({role}) a rejoint la salle {rdv_id}")
+
+        await room_manager.join_room(rdv_id, user_id, websocket)
+
+        # Prevenir l'autre participant qu'un pair vient de rejoindre
+        await room_manager.relay_to_others(rdv_id, websocket, {
+            "type": "peer-joined",
+            "role": role,
+        })
+
+        while True:
+            data = await websocket.receive_json()
+            # Relayer offer/answer/ice-candidate a l'autre participant de la salle
+            await room_manager.relay_to_others(rdv_id, websocket, data)
+            print(f"📡 WEBRTC: relais du message '{data.get('type')}' dans la salle {rdv_id}")
+
+    except WebSocketDisconnect:
+        print(f"🔌 WEBRTC: Deconnexion (user_id={user_id})")
+        room_manager.leave_room(rdv_id, websocket)
+        await room_manager.relay_to_others(rdv_id, websocket, {"type": "peer-left"})
+    except Exception as e:
+        print(f"⚠️ WEBRTC ERROR: {e}")
+        room_manager.leave_room(rdv_id, websocket)
     finally:
         db.close()

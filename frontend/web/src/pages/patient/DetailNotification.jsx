@@ -229,16 +229,14 @@ export default function DetailNotification({ darkMode }) {
 
         {/* Action : Teleconsultation */}
         {estTeleconsultation && (
-          <a
-            href={extras.lien_video}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-4 w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-xl font-semibold text-sm hover:bg-green-600 transition"
-          >
-            <Video size={18} />
-            Rejoindre la teleconsultation
-          </a>
-        )}
+  <button
+    onClick={() => navigate(extras.lien_video)}
+    className="mb-4 w-full flex items-center justify-center gap-2 py-3 bg-green-500 text-white rounded-xl font-semibold text-sm hover:bg-green-600 transition"
+  >
+    <Video size={18} />
+    Rejoindre la teleconsultation
+  </button>
+)}
 
         {/* Action : Demande d'avis acceptee */}
         {estAvisAccepte && (

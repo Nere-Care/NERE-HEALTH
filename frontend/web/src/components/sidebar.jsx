@@ -112,7 +112,6 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
     <>
       {/* TOP BAR MOBILE */}
       <div className={`md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 shadow ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}`}>
-        <div className="font-semibold">LOGO</div>
         <button onClick={() => setOpen(true)}><Menu /></button>
       </div>
 

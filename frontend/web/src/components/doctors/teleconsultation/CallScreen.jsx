@@ -15,6 +15,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
+import VideoCallRoom from "../teleconsultation/VideoCallRoom";
 
 export default function CallScreen({ darkMode, endCall, patient }) {
   const [duree, setDuree] = useState(0);
@@ -203,27 +204,14 @@ ${prescription || "Aucune prescription"}
           {/* COLONNE GAUCHE : VIDEO + CHAT */}
           <div className="lg:col-span-2 space-y-4">
             
-            {/* ✅ VIDEO JITSI via SDK (pas d'iframe) */}
-            <div
-              ref={jitsiContainerRef}
-              className="bg-black rounded-2xl overflow-hidden relative"
-              style={{ height: "65vh", minHeight: "400px" }}
-            >
-              {!patient.lien_video && (
-                <div className="flex items-center justify-center h-full text-white text-center p-4">
-                  <div>
-                    <Video className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-gray-400">Preparation de la salle video...</p>
-                  </div>
-                </div>
-              )}
-
-              {/* STATUS */}
-              <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] sm:text-xs px-3 py-1 rounded-lg flex items-center gap-2 pointer-events-none z-10">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                Live
-              </div>
-            </div>
+            {/* ✅ COMPOSANT VIDEO CALL ROOM */}
+            <VideoCallRoom
+              rdvId={patient.id}
+              isInitiator={true}
+              onEnd={endCall}
+              darkMode={darkMode}
+              nomInterlocuteur={patient.patientName}
+            />
 
             {/* Lien patient a copier */}
             {patient.lien_video && (

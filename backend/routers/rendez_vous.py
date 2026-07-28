@@ -560,16 +560,10 @@ async def demarrer_teleconsultation(
     if rdv.type != "video":
         raise HTTPException(400, "Ce RDV n'est pas une teleconsultation video")
 
-    # Generer un nom de salle unique et reproductible base sur l'ID du RDV
-    room_name = f"nere-{hashlib.sha256(str(rdv_id).encode()).hexdigest()[:16]}"
-    jitsi_url = f"https://meet.jit.si/{room_name}"
-
-    # Sauvegarder le lien dans le RDV
-    rdv.lien_video = jitsi_url
-    rdv.webrtc_room_id = room_name
     rdv.statut = "en_cours"
 
-    # Notifier le patient avec le lien
+    lien_patient = f"/teleconsultation/join/{rdv_id}"
+
     patient_user = db.get(User, rdv.patient_id)
     if patient_user:
         notif = Notification(
@@ -582,7 +576,7 @@ async def demarrer_teleconsultation(
             donnees_supplementaires={
                 "type": "teleconsultation_demarree",
                 "rdv_id": str(rdv_id),
-                "lien_video": jitsi_url,
+                "lien_video": lien_patient,
                 "medecin_nom": f"Dr. {current_user.prenom} {current_user.nom}",
             },
         )
@@ -592,9 +586,6 @@ async def demarrer_teleconsultation(
 
     return {
         "rdv_id": str(rdv_id),
-        "room_name": room_name,
-        "lien_video": jitsi_url,
-        "lien_patient": jitsi_url,
         "statut": "en_cours",
     }
 

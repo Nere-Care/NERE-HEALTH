@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
 import { fetchNotifications } from "../services/notificationService";
 import { onWebSocketMessage } from "../services/websocketService";
+import logoVideo from "../assets/images/NERE.mp4"; // Adaptez le chemin/nom de votre vidéo .mp4
 
 import logoImg from "../assets/images/logo.png";
 
@@ -89,16 +90,35 @@ useEffect(() => {
     `}>
 
       {/* LOGO */}
-      <div 
-        onClick={() => navigate("/")} 
-        className="flex items-center cursor-pointer flex-shrink-0"
-      >
-        <img
-          src={logoImg}
-          alt="Logo"
-          className="h-14 sm:h-15 md:h-16 w-auto object-contain transition-all"
-        />
-      </div>
+ <div 
+  onClick={() => navigate("/")} 
+  className="flex items-center gap-3 cursor-pointer flex-shrink-0 group select-none"
+>
+  {/* LOGO AVEC GESTION DU FOND EN DARK MODE */}
+  <div className={`p-1 rounded-xl transition-all duration-300 ${
+    darkMode 
+      ? "bg-white/90 shadow-[0_0_12px_rgba(59,130,246,0.5)] group-hover:shadow-[0_0_18px_rgba(59,130,246,0.8)]" 
+      : "bg-transparent"
+  }`}>
+    <img
+      src={logoImg}
+      alt="Logo NÉRÉ"
+      className="h-9 sm:h-10 md:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+    />
+  </div>
+
+  {/* NOM DE L'APPLICATION AVEC TYPOGRAPHIE MÉDICALE/TECH */}
+  <div className="flex flex-col justify-center">
+    <span className="text-2xl sm:text-3xl font-black tracking-wider uppercase font-sans bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-400 bg-clip-text text-transparent drop-shadow-sm transition-all duration-300 group-hover:brightness-110">
+      NÉRÉ
+    </span>
+    <span className={`text-[9px] sm:text-[10px] font-semibold tracking-widest uppercase transition-colors -mt-1 ${
+      darkMode ? "text-blue-300" : "text-blue-600/80"
+    }`}>
+      Santé & Téléconsultation
+    </span>
+  </div>
+</div>
 
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-3 sm:gap-4">

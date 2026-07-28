@@ -34,6 +34,7 @@ import DetailNotification from "./pages/patient/DetailNotification";
 import PrescriptionDetail from "./pages/patient/PrescriptionDetail";
 import ProfilStructurePatient from "./pages/patient/profilStructure";
 import MessagesPatient from "./pages/patient/messages";
+import RejoindreTeleconsultation from "./pages/patient/RejoindreTeleconsultation";
 
 /* DOCTOR */
 import DoctorDirectory from "./pages/doctor/doctorDirectory";
@@ -229,6 +230,7 @@ useEffect(() => {
                       path="/teleconsultation"
                       element={<TeleConsultation darkMode={darkMode} />}
                     />
+                    <Route path="/teleconsultation/join/:rdvId" element={<RejoindreTeleconsultation darkMode={darkMode} />} />
                     <Route
                       path="/payments"
                       element={<Payments darkMode={darkMode} />}
