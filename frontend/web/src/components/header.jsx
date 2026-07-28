@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { fetchNotifications } from "../services/notificationService";
 import { onWebSocketMessage } from "../services/websocketService";
 
+import logoImg from "../assets/images/logo.png";
+
 
 export default function Header({ titre, darkMode, setDarkMode, collapsed }) {
   const navigate = useNavigate();
@@ -87,9 +89,15 @@ useEffect(() => {
     `}>
 
       {/* LOGO */}
-      <div className={`rounded-xl p-3 text-center text-sm font-semibold mb-4
-        ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-500"}`}>
-        {collapsed ? "LOGO" : "LOGO"}
+      <div 
+        onClick={() => navigate("/")} 
+        className="flex items-center cursor-pointer flex-shrink-0"
+      >
+        <img
+          src={logoImg}
+          alt="Logo"
+          className="h-14 sm:h-15 md:h-16 w-auto object-contain transition-all"
+        />
       </div>
 
       {/* RIGHT SECTION */}

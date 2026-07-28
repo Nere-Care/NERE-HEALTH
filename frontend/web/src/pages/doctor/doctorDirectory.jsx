@@ -54,7 +54,8 @@ export default function DoctorsDirectory({ darkMode }) {
   rating: doc.note,
   annees_experience: parseInt(doc.experience) || 0,
   experience: doc.experience,
-  image_url: null,
+  photo_url: doc.photo_url || null,   // ← ajouter cette ligne
+  image_url: doc.photo_url || null, 
   biographie: doc.biographie,
   description: doc.biographie || "",
   disponible: doc.disponible,
