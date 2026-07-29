@@ -736,6 +736,9 @@ class Medecin(Base):
     documents = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     langues_parlees = Column(ARRAY(String(10)), nullable=False, server_default=text("ARRAY['fr'::text]"))
     tarif_consultation = Column(Numeric(10, 2), nullable=False, server_default=text("5000.00"))
+    tarif_modification = Column(JSONB, nullable=True, server_default=text("NULL"))
+    structure_modification = Column(JSONB, nullable=True, server_default=text("NULL"))
+    methodes_retrait = Column(JSONB, nullable=True, server_default=text("NULL"))
     devise = Column(
         _enum_type(("XAF", "EUR", "USD", "GBP", "XOF"), "devise_enum"),
         nullable=False,
@@ -1100,6 +1103,37 @@ class AnalyseBiologique(Base):
     categorie = Column(String(150), nullable=False)
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Retrait(Base):
+    __tablename__ = "retraits"
+    __table_args__ = (
+        Index("ix_retraits_medecin_id", "medecin_id"),
+        Index("ix_retraits_statut", "statut"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    medecin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    montant = Column(Numeric(10, 2), nullable=False)
+    devise = Column(
+        _enum_type(("XAF", "EUR", "USD", "GBP", "XOF"), "devise_enum_retrait"),
+        nullable=False,
+        server_default=text("'XAF'::public.devise_enum_retrait"),
+    )
+    methode = Column(String(50), nullable=False)
+    statut = Column(
+        _enum_type(
+            ("en_attente", "valide", "rejete", "effectue"),
+            "statut_retrait",
+        ),
+        nullable=False,
+        server_default=text("'en_attente'::public.statut_retrait"),
+    )
+    reference = Column(String(200))
+    motif_rejet = Column(Text)
+    admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 def get_model(table_name: str):

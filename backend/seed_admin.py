@@ -2,29 +2,32 @@
 Run: python seed_admin.py
 """
 
+import os
 import uuid
 import bcrypt
 from db import SessionLocal
 from models import User
 
-ADMIN_EMAIL = "admin@nere.health"
-ADMIN_PASSWORD = "Admin123!"
-
 
 def seed():
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@nere.health")
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_password:
+        raise ValueError("ADMIN_PASSWORD environment variable is required")
+
     db = SessionLocal()
     try:
-        existing = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+        existing = db.query(User).filter(User.email == admin_email).first()
         if existing:
-            print(f"Admin déjà existant: {ADMIN_EMAIL}")
+            print(f"Admin déjà existant: {admin_email}")
             return
 
         admin = User(
             id=uuid.uuid4(),
-            email=ADMIN_EMAIL,
+            email=admin_email,
             telephone="+237 600000000",
             mot_de_passe_hash=bcrypt.hashpw(
-                ADMIN_PASSWORD.encode("utf-8"), bcrypt.gensalt()
+                admin_password.encode("utf-8"), bcrypt.gensalt()
             ).decode("utf-8"),
             role="admin",
             statut="actif",
@@ -34,7 +37,7 @@ def seed():
         )
         db.add(admin)
         db.commit()
-        print(f"Admin créé: {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
+        print(f"Admin créé: {admin_email}")
     except Exception as e:
         db.rollback()
         print(f"Erreur: {e}")

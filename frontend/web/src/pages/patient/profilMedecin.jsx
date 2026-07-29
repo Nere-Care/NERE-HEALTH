@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Star, MapPin, Clock, Heart, User, ArrowLeft, CheckCircle, Video, Stethoscope, Loader, Globe, Award, Briefcase, List, CalendarDays, GraduationCap, FileText, CreditCard, Smartphone, X } from 'lucide-react';
+import { Star, MapPin, Clock, Heart, User, ArrowLeft, CheckCircle, Video, Stethoscope, Loader, Globe, Award, Briefcase, List, CalendarDays, GraduationCap, FileText, CreditCard, Smartphone, X, AlertTriangle } from 'lucide-react';
 import { get, post, put } from '../../services/apiClient';
 import { getStoredUser } from '../../services/auth';
+import { validatePhone, phoneError } from '../../utils/validatePhone';
 import { getUserTimezone, slotToUTCISO } from '../../utils/timezone';
 import { toXAF, formatXAF } from '../../utils/currency';
+import DemandeAvisModal from '../../components/doctors/DemandeAvisModal';
 
 
 
@@ -56,6 +58,7 @@ export default function ProfilMedecin({ darkMode }) {
   const [paiementReussi, setPaiementReussi] = useState(false);
   const [paiementErreur, setPaiementErreur] = useState(null);
   const [showAvisForm, setShowAvisForm] = useState(false);
+  const [showDemandeAvisModal, setShowDemandeAvisModal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -224,6 +227,10 @@ export default function ProfilMedecin({ darkMode }) {
 
   const handlePayer = async () => {
     if (!methodePaiement || !rdvCreeId) return;
+    if ((methodePaiement === "mtn_momo" || methodePaiement === "orange_money") && telephonePaiement && !validatePhone(telephonePaiement)) {
+      setPaiementErreur(phoneError());
+      return;
+    }
     setPaiementEnCours(true);
     setPaiementErreur(null);
     try {
@@ -292,7 +299,7 @@ export default function ProfilMedecin({ darkMode }) {
         className={`flex items-center gap-2 mb-6 text-sm font-medium ${darkMode ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
       >
         <ArrowLeft size={18} />
-        Retour à l'annuaire
+        Retour
       </button>
 
       {confirme && (
@@ -373,7 +380,7 @@ export default function ProfilMedecin({ darkMode }) {
                   <div>
                     <label className="text-xs font-medium text-gray-400">Numéro de téléphone</label>
                     <input type="tel" value={telephonePaiement} onChange={e => setTelephonePaiement(e.target.value)}
-                      placeholder="6XX XXX XXX" maxLength={9}
+                      placeholder="6XX XXX XXX" maxLength={9} pattern="6[0-9]{8}"
                       className={`w-full mt-1 p-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-green-500 transition ${darkMode ? "bg-gray-700 border-gray-600" : "border-gray-300"
                         }`} />
                   </div>
@@ -422,6 +429,16 @@ export default function ProfilMedecin({ darkMode }) {
                 <div className={`absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-xs font-semibold ${medecin.disponible_maintenant ? "bg-green-500 text-white" : "bg-gray-400 text-white"}`}>
                   {medecin.disponible_maintenant ? "Disponible" : "Indisponible"}
                 </div>
+                {user?.statut === "suspendu" && (
+                  <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-500 text-white">
+                    Suspendu
+                  </div>
+                )}
+                {user?.statut === "banni" && (
+                  <div className="absolute -top-2 -left-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">
+                    Banni
+                  </div>
+                )}
               </div>
 
               <div className="flex-1">
@@ -617,8 +634,48 @@ export default function ProfilMedecin({ darkMode }) {
 
         <div className="flex flex-col gap-4">
 
-          {currentUser?.role === 'doctor' || currentUser?.role === 'medecin' ? null : (
+          {currentUser?.role === 'doctor' ? (
             <>
+              {String(currentUser?.id) === String(id) ? null : (
+                <div className={cardClass}>
+                  <h2 className={`font-bold mb-3 ${darkMode ? "text-white" : "text-gray-800"}`}>Avis médical</h2>
+                  <p className={`text-xs mb-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Demandez l'avis de ce médecin sur un cas médical.
+                  </p>
+                  <button
+                    onClick={() => setShowDemandeAvisModal(true)}
+                    disabled={!medecin.disponible_maintenant}
+                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 ${
+                      medecin.disponible_maintenant
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <Stethoscope size={16} /> Demander un avis médical
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {user?.statut === "suspendu" && (
+                <div className={`rounded-xl border p-4 flex items-center gap-3 bg-orange-500/10 border-orange-500/30 text-orange-400`}>
+                  <AlertTriangle size={20} />
+                  <div>
+                    <p className="font-semibold">Médecin indisponible</p>
+                    <p className="text-sm opacity-80">Ce médecin est actuellement suspendu. La prise de rendez-vous est temporairement désactivée.</p>
+                  </div>
+                </div>
+              )}
+              {user?.statut === "banni" && (
+                <div className={`rounded-xl border p-4 flex items-center gap-3 bg-red-500/10 border-red-500/30 text-red-400`}>
+                  <AlertTriangle size={20} />
+                  <div>
+                    <p className="font-semibold">Médecin indisponible</p>
+                    <p className="text-sm opacity-80">Ce médecin n'est plus disponible sur la plateforme.</p>
+                  </div>
+                </div>
+              )}
               {!etape && (
                 <div className={cardClass}>
                   <h2 className={`font-bold mb-4 ${darkMode ? "text-white" : "text-gray-800"}`}>Prendre rendez-vous</h2>
@@ -628,8 +685,8 @@ export default function ProfilMedecin({ darkMode }) {
                   </p>
                   <button
                     onClick={() => setEtape("pourQui")}
-                    disabled={!medecin.disponible_maintenant}
-                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${medecin.disponible_maintenant
+                    disabled={!medecin.disponible_maintenant || user?.statut === "suspendu" || user?.statut === "banni"}
+                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${medecin.disponible_maintenant && user?.statut !== "suspendu" && user?.statut !== "banni"
                       ? "bg-blue-600 hover:bg-blue-700 text-white"
                       : "bg-gray-200 text-gray-400 cursor-not-allowed"}`}
                   >
@@ -904,6 +961,10 @@ export default function ProfilMedecin({ darkMode }) {
 
         </div>
       </div>
+
+      {showDemandeAvisModal && (
+        <DemandeAvisModal darkMode={darkMode} onClose={() => setShowDemandeAvisModal(false)} />
+      )}
     </div>
   );
 }

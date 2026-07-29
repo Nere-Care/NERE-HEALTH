@@ -2,6 +2,7 @@ import { useState } from "react";
 import { UserPlus, CheckCircle, Copy } from "lucide-react";
 import { post } from "../../../services/apiClient";
 import Modal from "../../common/Modal";
+import { validatePhone, phoneError } from "../../../utils/validatePhone";
 
 export default function NewPatientModal({ darkMode, onClose, onCreated }) {
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,7 @@ export default function NewPatientModal({ darkMode, onClose, onCreated }) {
     if (!form.email.trim()) { setError("L'email est requis"); return; }
     if (!form.prenom.trim()) { setError("Le prénom est requis"); return; }
     if (!form.nom.trim()) { setError("Le nom est requis"); return; }
+    if (form.telephone.trim() && !validatePhone(form.telephone)) { setError(phoneError()); return; }
 
     setLoading(true);
     try {

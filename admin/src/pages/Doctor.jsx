@@ -154,6 +154,7 @@ export default function DoctorsPage({ darkMode }) {
 
         return {
           id: m.id,
+          code_medecin: m.code_medecin || "",
           name: userFullName ? `Dr. ${userFullName}` : `Médecin #${m.id}`,
           role: user?.role || "medecin",
           specialty: specialties.join(", ") || "Non spécifiée",
@@ -211,6 +212,35 @@ export default function DoctorsPage({ darkMode }) {
       toast.error("Erreur lors de la validation");
     }
   }, [fetchPending]);
+
+  const handleValidateTarif = useCallback(async (medecinId, action) => {
+    try {
+      await API.put(`/medecins/${medecinId}/validate-tarif`, { action });
+      toast.success(action === "approve" ? "✅ Tarif approuvé" : "❌ Tarif rejeté");
+      fetchPending();
+      setSelectedDoctor((prev) => {
+        if (!prev || String(prev.id) !== String(medecinId)) return prev;
+        return { ...prev, tarif_modification: null };
+      });
+    } catch {
+      toast.error("Erreur lors de la validation du tarif");
+    }
+  }, [fetchPending]);
+
+  const handleValidateStructure = useCallback(async (medecinId, action) => {
+    try {
+      await API.put(`/medecins/${medecinId}/validate-structure`, { action });
+      toast.success(action === "approve" ? "✅ Structure approuvée" : "❌ Structure rejetée");
+      fetchPending();
+      fetchDoctors();
+      setSelectedDoctor((prev) => {
+        if (!prev || String(prev.id) !== String(medecinId)) return prev;
+        return { ...prev, structure_modification: null };
+      });
+    } catch {
+      toast.error("Erreur lors de la validation de la structure");
+    }
+  }, [fetchPending, fetchDoctors]);
 
   /* ================= FILTERING ================= */
   const filteredDoctors = useMemo(() => {
@@ -335,6 +365,10 @@ export default function DoctorsPage({ darkMode }) {
               diplomes: full.diplomes || [],
               certifications: full.certifications || [],
               experience_history: full.experience_history || [],
+              tarif_consultation: full.tarif_consultation,
+              devise: full.devise,
+              tarif_modification: full.tarif_modification || null,
+              structure_modification: full.structure_modification || null,
             }
           : prev
       );
@@ -655,15 +689,20 @@ export default function DoctorsPage({ darkMode }) {
               {Array.from(
                 pendingChanges.reduce((acc, pc) => {
                   const key = String(pc.medecin_id);
-                  if (!acc.has(key)) acc.set(key, { medecin_id: pc.medecin_id, medecin_nom: pc.medecin_nom, count: 0, fields: [] });
+                  if (!acc.has(key)) acc.set(key, { medecin_id: pc.medecin_id, medecin_nom: pc.medecin_nom, count: 0, fields: [], tarifItem: null, structureItem: null });
                   const entry = acc.get(key);
                   entry.count += 1;
                   if (!entry.fields.includes(pc.field)) entry.fields.push(pc.field);
+                  if (pc.field === "tarif_modification" && pc.item) entry.tarifItem = pc.item;
+                  if (pc.field === "structure_modification" && pc.item) entry.structureItem = pc.item;
                   return acc;
                 }, new Map()).values()
               ).map((group) => {
-                const fieldLabels = { diplomes: "Formation", certifications: "Certification", experience_history: "Expérience" };
+                const fieldLabels = { diplomes: "Formation", certifications: "Certification", experience_history: "Expérience", tarif_modification: "Tarif", structure_modification: "Structure" };
                 const doctor = doctors.find((d) => String(d.id) === String(group.medecin_id));
+                const tarifAmount = group.tarifItem?.tarif_consultation;
+                const tarifDevise = group.tarifItem?.devise || "XAF";
+                const structureNom = group.structureItem?.structure_nom || group.structureItem?.structure_id;
                 return (
                   <button
                     key={String(group.medecin_id)}
@@ -677,10 +716,16 @@ export default function DoctorsPage({ darkMode }) {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold">{group.medecin_nom || "Médecin"}</p>
-                        <span className="text-xs text-gray-400">#{String(group.medecin_id).slice(0, 8)}…</span>
+                        {doctor?.code_medecin && <span className="text-xs text-gray-400">{doctor.code_medecin}</span>}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {group.count} modification(s) · {group.fields.map((f) => fieldLabels[f] || f).join(", ")}
+                        {tarifAmount != null && (
+                          <span className="text-amber-500 font-medium"> — {Number(tarifAmount).toLocaleString()} {tarifDevise}</span>
+                        )}
+                        {structureNom && (
+                          <span className="text-amber-500 font-medium"> — {structureNom}</span>
+                        )}
                       </p>
                     </div>
                     <span className="text-xs font-medium text-amber-500 flex-shrink-0 flex items-center gap-1">
@@ -908,7 +953,7 @@ export default function DoctorsPage({ darkMode }) {
                           </p>
 
                           <p className="text-xs text-gray-400">
-                            ID: #{d.id}
+                            {d.code_medecin || `#${String(d.id).slice(0, 8)}`}
                           </p>
                         </div>
                       </div>
@@ -1140,6 +1185,8 @@ export default function DoctorsPage({ darkMode }) {
           onSuspend={() => handleSuspend(selectedDoctor.id)}
           onActivate={() => handleActivate(selectedDoctor.id)}
           onValidateChange={handleValidateChange}
+          onValidateTarif={handleValidateTarif}
+          onValidateStructure={handleValidateStructure}
         />
       )}
 

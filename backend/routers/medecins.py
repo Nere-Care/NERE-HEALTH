@@ -2,13 +2,14 @@ import os
 import secrets
 import shutil
 import string
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, case
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
@@ -18,6 +19,7 @@ from db import get_db
 from models import Avis, Consultation, Medecin, MedecinSpecialite, Notification, Paiement, Patient, RendezVous, Specialite, Structure, User
 from schemas import AdminMedecinCreate, AdminMedecinRead, DocumentStructureCreate, MedecinCreate, MedecinRead, MedecinUpdate
 from validators import validate_phone
+from services.currency_rates import get_rates
 from timezone import to_local, DEFAULT_TZ, resolve_tz
 
 UPLOAD_DIR = "uploads/documents"
@@ -128,6 +130,10 @@ async def create_medecin_admin(
         med_spec = MedecinSpecialite(medecin_id=medecin.id, specialite_id=specialty_obj.id)
         db.add(med_spec)
 
+    if structure_id:
+        from routers.structures import sync_structure_professionnel_count
+        sync_structure_professionnel_count(db, structure_id)
+
     try:
         db.commit()
         db.refresh(user)
@@ -182,12 +188,14 @@ async def get_medecin_dashboard(
     current_user=Depends(require_role("medecin")),
 ):
     medecin_id = current_user.id
+    medecin_profile = db.get(Medecin, medecin_id)
+    devise = medecin_profile.devise if medecin_profile else "XAF"
     user_tz_name = getattr(current_user, "timezone", None) or DEFAULT_TZ
     now_local = datetime.now(timezone.utc).astimezone(resolve_tz(user_tz_name))
     today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
     today_start = today_start_local.astimezone(timezone.utc)
     today_end = today_start + timedelta(days=1)
-    week_ago = today_start - timedelta(days=6)
+    week_ago = today_start - timedelta(days=7)
     four_months_ago = today_start - timedelta(days=120)
 
     # 1. Consultations du jour
@@ -203,14 +211,34 @@ async def get_medecin_dashboard(
     consultations_aujourdhui = sum(1 for c in consultations_today if c.statut == "en_cours")
     consultations_terminees = sum(1 for c in consultations_today if c.statut == "termine")
 
-    # 2. Revenu journalier
+    # 2. Revenu journalier (normalize to XAF for aggregation using live rates)
+    _rates = get_rates()
+    _xaf_rate = case(
+        (Paiement.devise == "EUR", _rates.get("EUR", 656)),
+        (Paiement.devise == "USD", _rates.get("USD", 576)),
+        (Paiement.devise == "GBP", _rates.get("GBP", 768)),
+        (Paiement.devise == "XOF", _rates.get("XOF", 1)),
+        else_=_rates.get("XAF", 1),
+    )
     revenue_today = (
-        db.query(func.coalesce(func.sum(Paiement.montant_medecin), 0))
+        db.query(func.coalesce(func.sum(Paiement.montant_medecin * _xaf_rate), 0))
         .filter(
             Paiement.medecin_id == medecin_id,
-            Paiement.statut == "confirme",
+            Paiement.statut.in_(["confirme", "valide_manuellement"]),
             Paiement.created_at >= today_start,
             Paiement.created_at < today_end,
+        )
+        .scalar()
+    ) or 0
+
+    yesterday_start = today_start - timedelta(days=1)
+    revenue_yesterday = (
+        db.query(func.coalesce(func.sum(Paiement.montant_medecin * _xaf_rate), 0))
+        .filter(
+            Paiement.medecin_id == medecin_id,
+            Paiement.statut.in_(["confirme", "valide_manuellement"]),
+            Paiement.created_at >= yesterday_start,
+            Paiement.created_at < today_start,
         )
         .scalar()
     ) or 0
@@ -223,15 +251,15 @@ async def get_medecin_dashboard(
     ) or 0
     satisfaction = round(float(avg_note) / 5 * 100) if float(avg_note) > 0 else 0
 
-    # 4. Revenu hebdomadaire
+    # 4. Revenu hebdomadaire (normalize to XAF)
     daily_revenue = (
         db.query(
             func.date(Paiement.created_at).label("day"),
-            func.coalesce(func.sum(Paiement.montant_medecin), 0).label("amount"),
+            func.coalesce(func.sum(Paiement.montant_medecin * _xaf_rate), 0).label("amount"),
         )
         .filter(
             Paiement.medecin_id == medecin_id,
-            Paiement.statut == "confirme",
+            Paiement.statut.in_(["confirme", "valide_manuellement"]),
             Paiement.created_at >= week_ago,
         )
         .group_by(func.date(Paiement.created_at))
@@ -241,12 +269,13 @@ async def get_medecin_dashboard(
     DAYS_FR = {0: "Lun", 1: "Mar", 2: "Mer", 3: "Jeu", 4: "Ven", 5: "Sam", 6: "Dim"}
     revenue_by_day = {}
     for r in daily_revenue:
-        revenue_by_day[r.day.strftime("%Y-%m-%d")] = float(r.amount)
+        revenue_by_day[str(r.day)] = float(r.amount)
     revenue_hebdo = []
-    for i in range(7):
-        d = (today_start - timedelta(days=6 - i)).date()
+    for i in range(8):
+        d = (today_start_local - timedelta(days=7 - i)).date()
+        day_label = f"{DAYS_FR[d.weekday()]} {d.day}"
         revenue_hebdo.append({
-            "day": DAYS_FR[d.weekday()],
+            "day": day_label,
             "amount": revenue_by_day.get(d.strftime("%Y-%m-%d"), 0),
         })
 
@@ -439,13 +468,14 @@ async def get_medecin_dashboard(
              "subtitle": "Aujourd'hui", "growth": _growth_pct(consultations_today_total, consultations_yesterday_count),
              "color": "blue"},
             {"title": "Revenu journalier",
-             "value": f"{int(revenue_today):,} FCFA".replace(",", " "),
-             "subtitle": "Aujourd'hui", "growth": "+0%",
+             "value": revenue_today,
+             "subtitle": "Aujourd'hui", "growth": _growth_pct(revenue_today, revenue_yesterday),
              "color": "purple"},
             {"title": "Satisfaction patients", "value": f"{satisfaction}%",
              "subtitle": "Moyenne globale", "growth": "+0%",
              "color": "orange"},
         ],
+        "devise": devise,
         "revenue_hebdomadaire": revenue_hebdo,
         "consultations_mensuelles": consultations_mensuelles,
         "rendez_vous_aujourdhui": rdv_aujourdhui,
@@ -470,7 +500,14 @@ async def read_medecin(
     if current_user.role != "admin" and medecin.statut_verification != "verifie":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Médecin non trouvé")
 
-    if current_user.role in ("medecin", "infirmier", "sage_femme") and medecin.id != current_user.id:
+    if current_user.role == "patient":
+        pass
+    elif current_user.role == "admin":
+        pass
+    elif current_user.role in ("medecin", "infirmier", "sage_femme"):
+        if medecin.id != current_user.id and medecin.statut_verification != "verifie":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     if user and user.statut == "suspendu":
@@ -521,17 +558,101 @@ async def update_medecin(
         db.add(MedecinSpecialite(medecin_id=medecin_id, specialite_id=spec.id))
         del update_data["specialite"]
 
-    # Handle hopital update
+    # Handle hopital/structure update
+    old_structure_id = medecin.structure_id
     if "hopital" in update_data and update_data["hopital"]:
         structure = db.query(Structure).filter(Structure.nom_etablissement.ilike(f"%{update_data['hopital']}%")).first()
         if structure:
-            medecin.structure_id = structure.id
+            if current_user.role == "medecin" and structure.id != old_structure_id:
+                pending = {"structure_id": str(structure.id), "structure_nom": structure.nom_etablissement, "statut": "en_attente", "date_demande": datetime.now(timezone.utc).isoformat()}
+                medecin.structure_modification = pending
+                flag_modified(medecin, "structure_modification")
+            elif current_user.role == "admin":
+                medecin.structure_id = structure.id
         del update_data["hopital"]
+
+    if "structure_id" in update_data:
+        new_structure_id = update_data.pop("structure_id")
+        if new_structure_id and str(new_structure_id) != str(old_structure_id or ""):
+            if current_user.role == "medecin":
+                structure = db.get(Structure, new_structure_id)
+                pending = {"structure_id": str(new_structure_id), "structure_nom": structure.nom_etablissement if structure else "", "statut": "en_attente", "date_demande": datetime.now(timezone.utc).isoformat()}
+                medecin.structure_modification = pending
+                flag_modified(medecin, "structure_modification")
+            else:
+                medecin.structure_id = new_structure_id
+        elif not new_structure_id and old_structure_id:
+            if current_user.role == "medecin":
+                pending = {"structure_id": None, "structure_nom": None, "statut": "en_attente", "date_demande": datetime.now(timezone.utc).isoformat()}
+                medecin.structure_modification = pending
+                flag_modified(medecin, "structure_modification")
+            else:
+                medecin.structure_id = None
+
+    # Tariff change: doctors store as pending, admins apply directly
+    tarif_keys = ("tarif_consultation", "devise")
+    if current_user.role == "medecin" and any(k in update_data for k in tarif_keys):
+        def _to_float(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return v
+
+        has_real_change = False
+        for k in tarif_keys:
+            if k in update_data:
+                val = _to_float(update_data[k])
+                current_val = _to_float(getattr(medecin, k, None))
+                if val != current_val:
+                    has_real_change = True
+                    break
+        if has_real_change:
+            pending = dict(medecin.tarif_modification) if medecin.tarif_modification else {}
+            for k in tarif_keys:
+                if k in update_data:
+                    val = update_data.pop(k)
+                    if isinstance(val, Decimal):
+                        val = float(val)
+                    pending[k] = val
+            pending["statut"] = "en_attente"
+            pending["date_demande"] = datetime.now(timezone.utc).isoformat()
+            medecin.tarif_modification = pending
+            flag_modified(medecin, "tarif_modification")
+        else:
+            for k in tarif_keys:
+                update_data.pop(k, None)
 
     for field, value in update_data.items():
         setattr(medecin, field, value)
 
+    if current_user.role in ("medecin", "admin") and medecin.tarif_modification and medecin.tarif_modification.get("statut") == "en_attente":
+        def _to_float(v):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return v
+
+        all_match = all(
+            _to_float(medecin.tarif_modification.get(k)) == _to_float(getattr(medecin, k, None))
+            for k in tarif_keys if medecin.tarif_modification.get(k) is not None
+        )
+        if all_match:
+            medecin.tarif_modification = None
+            flag_modified(medecin, "tarif_modification")
+
+    if current_user.role in ("medecin", "admin") and medecin.structure_modification and medecin.structure_modification.get("statut") == "en_attente":
+        pending_sid = medecin.structure_modification.get("structure_id")
+        if str(pending_sid or "") == str(medecin.structure_id or ""):
+            medecin.structure_modification = None
+            flag_modified(medecin, "structure_modification")
+
     db.add(medecin)
+    db.flush()
+
+    if medecin.structure_id != old_structure_id:
+        from routers.structures import sync_structure_professionnel_count
+        sync_structure_professionnel_count(db, old_structure_id, medecin.structure_id)
+
     try:
         db.commit()
         db.refresh(medecin)
@@ -550,7 +671,15 @@ async def delete_medecin(
     medecin = db.get(Medecin, medecin_id)
     if not medecin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Médecin non trouvé")
+    old_structure_id = medecin.structure_id
+    user = db.get(User, medecin_id)
+    if user:
+        user.statut = "supprime"
+        db.add(user)
     db.delete(medecin)
+    if old_structure_id:
+        from routers.structures import sync_structure_professionnel_count
+        sync_structure_professionnel_count(db, old_structure_id)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -752,6 +881,10 @@ async def get_pending_changes(
         if pending:
             results[field_name] = pending
 
+    mod = medecin.tarif_modification
+    if isinstance(mod, dict) and mod.get("statut") == "en_attente":
+        results["tarif_modification"] = [{"index": 0, **mod}]
+
     return results
 
 
@@ -809,4 +942,130 @@ async def get_all_pending(
                         "index": i,
                         "item": item,
                     })
+        mod = m.tarif_modification
+        if isinstance(mod, dict) and mod.get("statut") == "en_attente":
+            user = db.get(User, m.id)
+            results.append({
+                "medecin_id": str(m.id),
+                "medecin_nom": f"{user.prenom or ''} {user.nom or ''}".strip() if user else "",
+                "field": "tarif_modification",
+                "index": 0,
+                "item": mod,
+            })
+        smod = m.structure_modification
+        if isinstance(smod, dict) and smod.get("statut") == "en_attente":
+            user = db.get(User, m.id)
+            results.append({
+                "medecin_id": str(m.id),
+                "medecin_nom": f"{user.prenom or ''} {user.nom or ''}".strip() if user else "",
+                "field": "structure_modification",
+                "index": 0,
+                "item": smod,
+            })
     return results
+
+
+@router.put("/medecins/{medecin_id}/validate-tarif")
+async def validate_tarif(
+    medecin_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Médecin non trouvé")
+
+    action = body.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action invalide")
+
+    mod = medecin.tarif_modification
+    if not isinstance(mod, dict) or mod.get("statut") != "en_attente":
+        raise HTTPException(status_code=400, detail="Aucune modification de tarif en attente")
+
+    if action == "approve":
+        if "tarif_consultation" in mod:
+            medecin.tarif_consultation = mod["tarif_consultation"]
+        if "devise" in mod:
+            medecin.devise = mod["devise"]
+
+    medecin.tarif_modification = None
+    flag_modified(medecin, "tarif_modification")
+    flag_modified(medecin, "tarif_consultation")
+    flag_modified(medecin, "devise")
+
+    db.add(medecin)
+    db.commit()
+    return {"ok": True, "action": action}
+
+
+@router.put("/medecins/{medecin_id}/validate-structure")
+async def validate_structure(
+    medecin_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Médecin non trouvé")
+
+    action = body.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action invalide")
+
+    mod = medecin.structure_modification
+    if not isinstance(mod, dict) or mod.get("statut") != "en_attente":
+        raise HTTPException(status_code=400, detail="Aucune modification de structure en attente")
+
+    old_structure_id = medecin.structure_id
+
+    if action == "approve":
+        new_sid = mod.get("structure_id")
+        medecin.structure_id = UUID(new_sid) if new_sid else None
+
+    medecin.structure_modification = None
+    flag_modified(medecin, "structure_modification")
+    flag_modified(medecin, "structure_id")
+
+    if medecin.structure_id != old_structure_id:
+        from routers.structures import sync_structure_professionnel_count
+        sync_structure_professionnel_count(db, old_structure_id, medecin.structure_id)
+
+    db.add(medecin)
+    db.commit()
+    return {"ok": True, "action": action}
+
+
+@router.get("/medecins/{medecin_id}/methodes-retrait")
+async def get_methodes_retrait(
+    medecin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Médecin non trouvé")
+    if current_user.role != "admin" and current_user.id != medecin_id:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    return {"methodes": medecin.methodes_retrait or []}
+
+
+@router.put("/medecins/{medecin_id}/methodes-retrait")
+async def update_methodes_retrait(
+    medecin_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Médecin non trouvé")
+    if current_user.role != "admin" and current_user.id != medecin_id:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    medecin.methodes_retrait = body.get("methodes", [])
+    flag_modified(medecin, "methodes_retrait")
+    db.add(medecin)
+    db.commit()
+    return {"ok": True, "methodes": medecin.methodes_retrait}

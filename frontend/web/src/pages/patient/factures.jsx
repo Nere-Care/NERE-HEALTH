@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { get, post } from '../../services/apiClient';
 import { getUserTimezone } from '../../utils/timezone';
 import { toXAF, formatXAF } from '../../utils/currency';
+import { validatePhone, phoneError } from '../../utils/validatePhone';
 
 const StatutBadge = ({ statut, size = 10 }) => {
   const s = (statut || '').toLowerCase();
@@ -256,6 +257,10 @@ export default function Factures({ darkMode }) {
 
   const handlePayer = async () => {
     if (!methodePaiement || !rdvPayer) return;
+    if ((methodePaiement === "mtn_momo" || methodePaiement === "orange_money") && telephonePaiement && !validatePhone(telephonePaiement)) {
+      setPaiementErreur(phoneError());
+      return;
+    }
     setPaiementEnCours(true);
     setPaiementErreur(null);
     try {
@@ -655,7 +660,7 @@ export default function Factures({ darkMode }) {
                   <div>
                     <label className="text-xs font-medium text-gray-400">Numéro de téléphone</label>
                     <input type="tel" value={telephonePaiement} onChange={e => setTelephonePaiement(e.target.value)}
-                      placeholder="6XX XXX XXX" maxLength={9}
+                      placeholder="6XX XXX XXX" maxLength={9} pattern="6[0-9]{8}"
                       className={`w-full mt-1 p-3 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-green-500 transition ${darkMode ? "bg-gray-700 border-gray-600" : "border-gray-300"
                         }`} />
                   </div>

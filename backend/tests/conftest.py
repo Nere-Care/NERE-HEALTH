@@ -39,7 +39,11 @@ def ensure_database_schema() -> None:
 def admin_auth_header() -> dict[str, str]:
     with SessionLocal() as db:
         user = db.query(User).filter(User.email == ADMIN_EMAIL).first()
-        if not user:
+        if user:
+            user.mot_de_passe_hash = get_password_hash(ADMIN_PASSWORD)
+            db.add(user)
+            db.commit()
+        else:
             user = User(
                 email=ADMIN_EMAIL,
                 prenom="Admin",
@@ -54,7 +58,7 @@ def admin_auth_header() -> dict[str, str]:
 
     client = TestClient(app)
     token_response = client.post(
-        "/auth/token",
+        "/api/auth/token",
         data={"username": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )

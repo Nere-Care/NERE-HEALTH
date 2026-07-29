@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Mail } from "lucide-react";
+import { GoogleLogin } from "@react-oauth/google";
 import Input from "../../../components/form/Input";
 import PasswordInput from "../../../components/form/PasswordInput";
-import { FcGoogle } from "react-icons/fc";
-import { login } from "../../../services/auth";
+import { login, googleLogin } from "../../../services/auth";
 
 export default function LoginStep({
   email,
@@ -39,6 +39,26 @@ export default function LoginStep({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setApiError("");
+    try {
+      const user = await googleLogin(credentialResponse.credential);
+      saveUser(user);
+      const redirectPath = redirectByRole(user.role);
+      if (redirectPath.startsWith("http")) {
+        window.location.href = redirectPath;
+      } else {
+        navigate(redirectPath);
+      }
+    } catch (err) {
+      setApiError(err.message || "Erreur lors de la connexion Google");
+    }
+  };
+
+  const handleGoogleError = () => {
+    setApiError("Connexion Google annulée ou échouée");
   };
 
   return (
@@ -93,10 +113,17 @@ export default function LoginStep({
           <div className="flex-grow border-t border-gray-300"></div>
         </div>
 
-        <button className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 p-3 rounded-xl hover:bg-gray-50 transition border border-gray-200 shadow-sm">
-          <FcGoogle className="w-5 h-5" />
-          Continue with Google
-        </button>
+        <div className="w-full">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            text="continue_with"
+            shape="rectangular"
+            size="large"
+            width="100%"
+            useOneTap
+          />
+        </div>
       </div>
 
       <p className="text-sm mt-8 text-center text-gray-600">

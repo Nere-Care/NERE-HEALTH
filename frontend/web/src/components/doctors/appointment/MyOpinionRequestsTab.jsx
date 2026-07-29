@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   CheckCircle,
   XCircle,
@@ -9,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  ExternalLink,
 } from "lucide-react";
 
 export default function MyOpinionRequestsTab({ darkMode, requests }) {
@@ -211,18 +213,38 @@ export default function MyOpinionRequestsTab({ darkMode, requests }) {
                           <div className={"flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm " + (darkMode ? "bg-gray-700" : "bg-gray-100")}>
                             <FileText size={14} className="text-blue-500 flex-shrink-0" />
                             <span className={"font-medium " + (darkMode ? "text-gray-300" : "text-gray-600")}>Dossier médical :</span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs">
-                              {req.dossierNumero}
-                            </span>
+                            {req.dossierMedicalId ? (
+                              <Link
+                                to={`/dossier/${req.dossierMedicalId}`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs hover:underline"
+                              >
+                                {req.dossierNumero}
+                                <ExternalLink size={10} />
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs">
+                                {req.dossierNumero}
+                              </span>
+                            )}
                           </div>
                         )}
                         {req.consultationNumero && (
                           <div className={"flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-sm " + (darkMode ? "bg-gray-700" : "bg-gray-100")}>
                             <FileText size={14} className="text-purple-500 flex-shrink-0" />
                             <span className={"font-medium " + (darkMode ? "text-gray-300" : "text-gray-600")}>Consultation :</span>
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs">
-                              {req.consultationNumero}
-                            </span>
+                            {req.consultationId ? (
+                              <Link
+                                to={`/consultation/${req.consultationId}`}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs hover:underline"
+                              >
+                                {req.consultationNumero}
+                                <ExternalLink size={10} />
+                              </Link>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs">
+                                {req.consultationNumero}
+                              </span>
+                            )}
                             {req.consultationMotif && (
                               <span className={"text-[10px] sm:text-xs " + (darkMode ? "text-gray-400" : "text-gray-500")}>({req.consultationMotif})</span>
                             )}

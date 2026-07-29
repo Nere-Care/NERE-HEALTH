@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Phone, Clock, Star, Share2, Heart, Navigation, Users, Shield, Calendar, MessageCircle, Copy, CheckCircle, Loader, Send, User, ShieldCheck, Languages, Briefcase } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Clock, Star, Share2, Heart, Navigation, Users, Shield, Calendar, MessageCircle, Copy, CheckCircle, Loader, Send, User, ShieldCheck, Languages, Briefcase, Search } from 'lucide-react';
 import { get, post } from '../../services/apiClient';
 import { getStoredUser } from '../../services/auth';
 import { getUserTimezone } from '../../utils/timezone';
@@ -22,6 +22,9 @@ export default function ProfilStructure({ darkMode, userRole }) {
   const [newCommentaire, setNewCommentaire] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [avisLoading, setAvisLoading] = useState(false);
+  const [medecins, setMedecins] = useState([]);
+  const [medecinsLoading, setMedecinsLoading] = useState(false);
+  const [rechercheMedecin, setRechercheMedecin] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +42,25 @@ export default function ProfilStructure({ darkMode, userRole }) {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!id || activeTab !== "professionnels") return;
+    setMedecinsLoading(true);
+    get(`/api/structures/${id}/medecins`)
+      .then(data => setMedecins(data || []))
+      .catch(console.error)
+      .finally(() => setMedecinsLoading(false));
+  }, [id, activeTab]);
+
+  const medecinsFiltres = useMemo(() => {
+    if (!rechercheMedecin.trim()) return medecins;
+    const q = rechercheMedecin.toLowerCase();
+    return medecins.filter(m =>
+      (m.nom_complet || "").toLowerCase().includes(q) ||
+      (m.specialite_principale || "").toLowerCase().includes(q) ||
+      (m.specialites || []).some(s => (s.specialite || "").toLowerCase().includes(q))
+    );
+  }, [medecins, rechercheMedecin]);
 
   const loadAvis = () => {
     setAvisLoading(true);
@@ -122,6 +144,7 @@ export default function ProfilStructure({ darkMode, userRole }) {
   const tabs = [
     { id: "infos", label: "Informations" },
     { id: "services", label: `Services (${services.length})` },
+    { id: "professionnels", label: `Professionnels (${structure.nombre_professionnels || 0})` },
     { id: "avis", label: `Avis (${totalAvis})` },
   ];
 
@@ -172,7 +195,7 @@ export default function ProfilStructure({ darkMode, userRole }) {
               </div>
             )}
             {structure.nombre_professionnels > 0 && (
-              <div className={`text-center p-3 rounded-xl ${darkMode ? "bg-gray-700" : "bg-gray-50"}`}>
+              <div onClick={() => setActiveTab("professionnels")} className={`text-center p-3 rounded-xl cursor-pointer transition-all hover:shadow-md ${darkMode ? "bg-gray-700 hover:bg-gray-650" : "bg-gray-50 hover:bg-gray-100"}`}>
                 <Users size={18} className="mx-auto mb-1 text-blue-500" />
                 <p className="text-xs font-bold">{structure.nombre_professionnels}</p>
                 <p className={`text-[10px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Professionnels de santé</p>
@@ -316,6 +339,70 @@ export default function ProfilStructure({ darkMode, userRole }) {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+          )}
+
+          {activeTab === "professionnels" && (
+            <div className="space-y-4">
+              <div className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 ${darkMode ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"}`}>
+                <Search size={16} className="text-gray-400 flex-shrink-0" />
+                <input type="text" placeholder="Rechercher par nom ou spécialité..."
+                  className={`outline-none text-sm w-full ${darkMode ? "bg-gray-700 text-white placeholder-gray-400" : ""}`}
+                  value={rechercheMedecin} onChange={(e) => setRechercheMedecin(e.target.value)} />
+              </div>
+
+              {medecinsLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader className="animate-spin text-blue-500" size={24} />
+                </div>
+              ) : medecinsFiltres.length === 0 ? (
+                <p className={`text-sm text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  {medecins.length === 0 ? "Aucun médecin dans cette structure." : "Aucun résultat pour cette recherche."}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{medecinsFiltres.length} médecin(s)</p>
+                  {medecinsFiltres.map((m) => (
+                    <div key={m.id} onClick={() => navigate(`/medecin/${m.id}`)}
+                      className={`rounded-xl p-4 cursor-pointer transition-all border ${darkMode ? "bg-gray-700 border-gray-600 hover:border-blue-500/50" : "bg-white border-gray-200 hover:border-blue-300"} hover:shadow-md`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden ${darkMode ? "bg-gray-600" : "bg-blue-50"}`}>
+                          {m.photo_url ? (
+                            <img src={m.photo_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User size={24} className="text-blue-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold truncate ${darkMode ? "text-white" : "text-gray-800"}`}>
+                            Dr. {m.nom_complet || `${m.prenom || ''} ${m.nom || ''}`.trim()}
+                          </p>
+                          <p className="text-xs text-blue-500 font-medium truncate">{m.specialite_principale || "Généraliste"}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {m.note_moyenne > 0 && (
+                              <span className="flex items-center gap-0.5 text-[11px]">
+                                <Star size={10} className="text-yellow-400 fill-yellow-400" />
+                                <span className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{m.note_moyenne.toFixed(1)}</span>
+                              </span>
+                            )}
+                            {m.annees_experience > 0 && (
+                              <span className={`text-[11px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{m.annees_experience} ans exp.</span>
+                            )}
+                            <span className={`text-[11px] ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                              {Number(m.tarif_consultation).toLocaleString()} {m.devise}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${m.disponible_maintenant ? "bg-green-100 text-green-600" : "bg-gray-200 text-gray-500"}`}>
+                            {m.disponible_maintenant ? "Disponible" : "Indisponible"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

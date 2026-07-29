@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from main import app
 
 client = TestClient(app)
+PREFIX = "/api"
 
 
 def is_backend_available() -> bool:
@@ -26,7 +27,7 @@ def test_register_and_login_flow():
         "nom": "Utilisateur",
     }
 
-    register_response = client.post("/auth/register", json=register_payload)
+    register_response = client.post(f"{PREFIX}/auth/register", json=register_payload)
     assert register_response.status_code == 200, register_response.text
     payload = register_response.json()
     assert payload["email"] == email
@@ -34,7 +35,7 @@ def test_register_and_login_flow():
     assert payload["is_active"] is True
 
     token_response = client.post(
-        "/auth/token",
+        f"{PREFIX}/auth/token",
         data={"username": email, "password": password},
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
@@ -44,7 +45,7 @@ def test_register_and_login_flow():
     assert "access_token" in token_payload
 
     auth_response = client.get(
-        "/auth/me",
+        f"{PREFIX}/auth/me",
         headers={"Authorization": f"Bearer {token_payload['access_token']}"},
     )
     assert auth_response.status_code == 200, auth_response.text

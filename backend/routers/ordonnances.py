@@ -101,6 +101,9 @@ async def create_ordonnance(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin", "patient")),
 ):
+    if current_user.role == "medecin" and current_user.statut in ("suspendu", "banni"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Votre compte est suspendu. Impossible de créer des ordonnances.")
+
     if not db.get(Patient, ordonnance_create.patient_id):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
     if ordonnance_create.consultation_id and not db.get(Consultation, ordonnance_create.consultation_id):

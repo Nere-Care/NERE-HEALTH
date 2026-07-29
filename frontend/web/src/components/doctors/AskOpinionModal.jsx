@@ -73,6 +73,7 @@ export default function AskOpinionModal({
 
   const validate = () => {
     const newErrors = {};
+    if (!doctor?.specialiteId) newErrors.specialite = "Ce médecin n'a pas de spécialité définie";
     if (!patientId) newErrors.patientId = "Le patient est requis";
     if (!motif) newErrors.motif = "Veuillez sélectionner un motif";
     if (!contexte.trim()) newErrors.contexte = "Le contexte clinique est requis";
@@ -168,6 +169,12 @@ export default function AskOpinionModal({
               l'accepter ou la refuser. Vous serez informé de sa décision.
             </p>
           </div>
+
+          {errors.specialite && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+              {errors.specialite}
+            </div>
+          )}
 
           {/* PATIENT */}
           <div>

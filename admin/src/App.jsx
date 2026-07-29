@@ -17,6 +17,7 @@ import Payments from "./pages/Payment";
 import Conversations from "./pages/Conversation";
 import Observator from "./pages/Observator";
 import Tickets from "./pages/Tickets";
+import Notifications from "./pages/Notifications";
 import MiseAJour from "./pages/MiseAJour";
 import Actualite from "./pages/Actualite";
 import { getAdminToken } from "./services/auth";
@@ -75,6 +76,7 @@ export default function App() {
                       <Route path="/payments" element={<Payments darkMode={darkMode} />} />
                       <Route path="/conversations" element={<Conversations darkMode={darkMode} />} />
                       <Route path="/tickets" element={<Tickets darkMode={darkMode} />} />
+                      <Route path="/notifications" element={<Notifications darkMode={darkMode} />} />
                       <Route path="/mises-a-jour" element={<MiseAJour darkMode={darkMode} />} />
                       <Route path="/actualites" element={<Actualite darkMode={darkMode} />} />
                     </Routes>

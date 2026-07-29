@@ -169,6 +169,9 @@ async def create_rendez_vous(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin", "patient")),
 ):
+    if current_user.role in ("patient", "medecin") and current_user.statut in ("suspendu", "banni"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Votre compte est suspendu. Impossible de créer des rendez-vous.")
+
     if current_user.role == "patient":
         patient = db.get(Patient, current_user.id)
         if not patient:
@@ -183,6 +186,8 @@ async def create_rendez_vous(
         medecin = db.get(User, rendez_vous_create.medecin_id)
         if not medecin or medecin.role != "medecin":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+        if medecin.statut in ("suspendu", "banni"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ce médecin est indisponible")
     else:
         medecin = db.get(User, rendez_vous_create.medecin_id)
         if not medecin or medecin.role != "medecin":

@@ -64,7 +64,7 @@ function mapStructure(item) {
 
 const INITIAL_FORM = {
   name: "", type: "", city: "", address: "", phone: "", email: "",
-  manager: "", professionals: "", services: [], equipements: [],
+  manager: "", services: [], equipements: [],
   langues: [], assurances: [], horaires: {},
 };
 
@@ -160,7 +160,6 @@ export default function StructuresPage({ darkMode }) {
         langues_parlees: formData.langues,
         assurances: formData.assurances,
         responsable: formData.manager || null,
-        nombre_professionnels: formData.professionals ? Number(formData.professionals) : null,
         horaires_ouverture: Object.keys(formData.horaires || {}).length > 0 ? formData.horaires : null,
       };
 

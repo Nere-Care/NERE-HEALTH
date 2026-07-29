@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   X, Building2, Phone, Mail, MapPin, FileText, CheckCircle, XCircle,
   Edit2, Trash2, Eye, Ban, PauseCircle, PlayCircle, Briefcase,
-  Award, GraduationCap, Clock, CheckSquare, AlertCircle, ChevronDown, ChevronUp,
+  Award, GraduationCap, Clock, CheckSquare, AlertCircle, ChevronDown, ChevronUp, DollarSign,
 } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
@@ -28,6 +28,8 @@ export default function ViewDoctorModal({
   onSuspend,
   onActivate,
   onValidateChange,
+  onValidateTarif,
+  onValidateStructure,
 }) {
   const isVerificationPending = doctor.status === "En attente";
   const isSuspended = doctor.userStatut === "suspendu";
@@ -236,7 +238,7 @@ export default function ViewDoctorModal({
                 )}
               </div>
               <p className="text-sm text-gray-400 truncate">
-                ID: #{String(doctor.id).slice(0, 8)}… • {doctor.specialty}
+                {doctor.code_medecin || `ID: ${String(doctor.id).slice(0, 8)}…`} • {doctor.specialty}
               </p>
             </div>
           </div>
@@ -304,6 +306,76 @@ export default function ViewDoctorModal({
               />
             </div>
           </div>
+
+          {/* TARIF */}
+          <div className={`rounded-xl border p-4 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign size={14} className="text-green-500" />
+              <span className="font-semibold text-sm">Tarif de consultation</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <p className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                {Number(doctor.tarif_consultation || 0).toLocaleString()} {doctor.devise || "XAF"}
+              </p>
+            </div>
+            {doctor.tarif_modification && doctor.tarif_modification.statut === "en_attente" && (
+              <div className={`mt-3 pt-3 border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-medium">En attente</span>
+                    <span className="font-medium text-sm text-amber-600">
+                      {Number(doctor.tarif_modification.tarif_consultation || 0).toLocaleString()} {doctor.tarif_modification.devise || doctor.devise || "XAF"}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onValidateTarif && onValidateTarif(doctor.id, "approve")}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition"
+                    >
+                      <CheckCircle size={12} /> Approuver
+                    </button>
+                    <button
+                      onClick={() => onValidateTarif && onValidateTarif(doctor.id, "reject")}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition"
+                    >
+                      <XCircle size={12} /> Rejeter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {doctor.structure_modification && doctor.structure_modification.statut === "en_attente" && (
+            <div className={`rounded-xl border p-4 ${darkMode ? "bg-slate-800 border-slate-700" : "bg-gray-50 border-gray-200"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Building2 size={14} className="text-blue-500" />
+                <span className="font-semibold text-sm">Changement de structure</span>
+              </div>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-medium">En attente</span>
+                  <span className="font-medium text-sm text-amber-600">
+                    {doctor.structure_modification.structure_nom || doctor.structure_modification.structure_id || "Aucune"}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onValidateStructure && onValidateStructure(doctor.id, "approve")}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 hover:bg-green-700 text-white transition"
+                  >
+                    <CheckCircle size={12} /> Approuver
+                  </button>
+                  <button
+                    onClick={() => onValidateStructure && onValidateStructure(doctor.id, "reject")}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white transition"
+                  >
+                    <XCircle size={12} /> Rejeter
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">

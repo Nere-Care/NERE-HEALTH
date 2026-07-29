@@ -156,6 +156,9 @@ async def create_conversation(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
+    if current_user.statut in ("suspendu", "banni"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Votre compte est suspendu. Impossible de créer des conversations.")
+
     if current_user.role == "patient":
         conversation_create.patient_id = current_user.id
     elif current_user.role == "medecin":

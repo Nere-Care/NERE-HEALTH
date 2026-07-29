@@ -8,7 +8,12 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class TokenData(BaseModel):
@@ -96,6 +101,7 @@ class PatientBase(BaseModel):
     code_patient: Optional[str] = None
     nss: Optional[str] = None
     sexe: Optional[str] = None
+    ville: Optional[str] = None
     groupe_sanguin: Optional[str] = None
     region: Optional[str] = None
     pays: Optional[str] = None
@@ -407,6 +413,38 @@ class PaiementInitierRequest(BaseModel):
 class PaiementValiderRequest(BaseModel):
     statut: str  # valide_manuellement | echoue
     motif: Optional[str] = None
+
+
+class RetraitBase(BaseModel):
+    medecin_id: UUID
+    montant: Decimal
+    devise: Optional[str] = "XAF"
+    methode: str  # mtn_momo | orange_money | virement_bancaire
+    reference: Optional[str] = None
+
+
+class RetraitCreate(BaseModel):
+    montant: Decimal
+    devise: Optional[str] = "XAF"
+    methode: str
+    reference: Optional[str] = None
+
+
+class RetraitRead(RetraitBase):
+    id: UUID
+    statut: str
+    motif_rejet: Optional[str] = None
+    admin_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RetraitValiderRequest(BaseModel):
+    statut: str  # valide | rejete | effectue
+    motif_rejet: Optional[str] = None
+    reference: Optional[str] = None
 
 
 class NotificationBase(BaseModel):
@@ -722,6 +760,9 @@ class MedecinBase(BaseModel):
     documents: Optional[List[Dict[str, object]]] = None
     langues_parlees: Optional[List[str]] = None
     tarif_consultation: Optional[Decimal] = Decimal("5000.00")
+    tarif_modification: Optional[Dict[str, object]] = None
+    structure_modification: Optional[Dict[str, object]] = None
+    methodes_retrait: Optional[List[Dict[str, object]]] = None
     devise: Optional[str] = "XAF"
     teleconsultation_active: Optional[bool] = True
     note_moyenne: Optional[Decimal] = Decimal("0.00")
@@ -751,6 +792,8 @@ class MedecinUpdate(BaseModel):
     documents: Optional[List[Dict[str, object]]] = None
     langues_parlees: Optional[List[str]] = None
     tarif_consultation: Optional[Decimal] = None
+    tarif_modification: Optional[Dict[str, object]] = None
+    methodes_retrait: Optional[List[Dict[str, object]]] = None
     devise: Optional[str] = None
     teleconsultation_active: Optional[bool] = None
     note_moyenne: Optional[Decimal] = None
@@ -901,7 +944,6 @@ class StructureBase(BaseModel):
     langues_parlees: Optional[List[str]] = None
     assurances: Optional[List[str]] = None
     responsable: Optional[str] = None
-    nombre_professionnels: Optional[int] = None
     capacite_lits: Optional[int] = None
     documents: Optional[List[Dict[str, object]]] = None
 
@@ -934,12 +976,12 @@ class StructureUpdate(BaseModel):
     langues_parlees: Optional[List[str]] = None
     assurances: Optional[List[str]] = None
     responsable: Optional[str] = None
-    nombre_professionnels: Optional[int] = None
     capacite_lits: Optional[int] = None
     documents: Optional[List[Dict[str, object]]] = None
 
 
 class StructureRead(StructureBase):
+    nombre_professionnels: Optional[int] = 0
     created_at: datetime
     updated_at: datetime
     note_moyenne: Optional[float] = None

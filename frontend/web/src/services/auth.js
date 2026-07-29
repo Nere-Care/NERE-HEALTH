@@ -58,6 +58,7 @@ export async function login(email, password) {
     telephone: me.telephone,
     photo_url: me.photo_url,
     id: me.id,
+    statut: me.statut,
     timezone: userTz,
     token: data.access_token,
   }
@@ -106,6 +107,56 @@ export async function register(userData, role) {
 export function logout() {
   localStorage.removeItem('user')
   localStorage.removeItem('token')
+}
+
+export async function googleLogin(credential) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    let detail = "Erreur lors de la connexion Google"
+    try {
+      const parsed = JSON.parse(text)
+      detail = parsed.detail || detail
+    } catch {}
+    throw new Error(detail)
+  }
+
+  const data = await response.json()
+
+  const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    headers: { 'Authorization': `Bearer ${data.access_token}` },
+  })
+
+  if (!meResponse.ok) {
+    throw new Error('Impossible de récupérer les informations utilisateur')
+  }
+
+  const me = await meResponse.json()
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const userTz = me.timezone || browserTz
+
+  const user = {
+    email: me.email,
+    role: mapRole(me.role),
+    prenom: me.prenom,
+    nom: me.nom,
+    telephone: me.telephone,
+    photo_url: me.photo_url,
+    id: me.id,
+    statut: me.statut,
+    timezone: userTz,
+    token: data.access_token,
+  }
+
+  localStorage.setItem('user', JSON.stringify(user))
+  localStorage.setItem('token', data.access_token)
+
+  return user
 }
 
 export function getToken() {

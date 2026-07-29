@@ -18,6 +18,28 @@ from validators import validate_phone
 router = APIRouter(tags=["patients"])
 
 
+@router.get("/patients/critiques")
+async def list_patients_critiques(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin", "medecin")),
+):
+    from sqlalchemy import or_
+    antecedent_cols = [
+        DossierMedical.antecedents_familiaux,
+        DossierMedical.antecedents_personnels,
+        DossierMedical.antecedents_chirurgicaux,
+        DossierMedical.antecedents_allergiques,
+        DossierMedical.antecedents_gyneco,
+    ]
+    stmt = (
+        db.query(DossierMedical.patient_id)
+        .filter(or_(*[col.isnot(None) & (col != "") for col in antecedent_cols]))
+        .distinct()
+    )
+    patient_ids = [str(row[0]) for row in stmt.all()]
+    return {"count": len(patient_ids), "patient_ids": patient_ids}
+
+
 class DoctorCreatePatientRequest(BaseModel):
     email: EmailStr
     prenom: str
@@ -286,6 +308,32 @@ async def delete_patient(
     patient = db.get(Patient, patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient non trouvé")
+    user = db.get(User, patient_id)
+    if user:
+        user.statut = "supprime"
+        db.add(user)
     db.delete(patient)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/admin/patients/{patient_id}/status")
+async def update_patient_status(
+    patient_id: UUID,
+    status_data: dict,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    user = db.get(User, patient_id)
+    if not user or user.role != "patient":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient non trouvé")
+
+    new_status = status_data.get("statut")
+    if new_status not in ("actif", "suspendu", "banni", "inactif"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Statut invalide")
+
+    user.statut = new_status
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"statut": user.statut}

@@ -2,16 +2,37 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+import secrets
+import requests as http_requests
 
-from auth import authenticate_user, create_access_token, get_password_hash, validate_password, get_current_active_user
+from auth import (
+    authenticate_user,
+    create_access_token,
+    create_refresh_token,
+    create_session,
+    decode_access_token,
+    get_current_active_user,
+    get_password_hash,
+    validate_password,
+    REFRESH_TOKEN_EXPIRE_HOURS,
+)
+import hashlib
+from config import settings
 from db import get_db
 from limiter import limiter
-from models import User
-from schemas import Token, UserCreate, UserRead, UserUpdate, PasswordChange, PatientRegister, MedecinRegister
-from models import Medecin, MedecinSpecialite, Patient, Specialite, Structure
+from models import User, Session as UserSession, Medecin, MedecinSpecialite, Patient, Specialite, Structure
+from schemas import Token, RefreshRequest, UserCreate, UserRead, UserUpdate, PasswordChange, PatientRegister, MedecinRegister
 from validators import validate_phone
+import hashlib
 
 router = APIRouter(tags=["auth"])
+
+
+def _get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 @router.post("/auth/token", response_model=Token)
@@ -28,8 +49,80 @@ async def login_for_access_token(
             detail="Identifiants incorrects",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(subject=user.email)
-    return {"access_token": access_token, "token_type": "bearer"}
+    jti = secrets.token_hex(16)
+    access_token = create_access_token(subject=user.email, jti=jti)
+    refresh_token = create_refresh_token()
+
+    create_session(
+        db=db,
+        user=user,
+        access_token_jti=jti,
+        refresh_token=refresh_token,
+        ip_address=_get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    user.last_login = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+    db.add(user)
+    db.commit()
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/auth/refresh", response_model=Token)
+@limiter.limit("20/minute")
+async def refresh_access_token(
+    request: Request,
+    body: RefreshRequest,
+    db: Session = Depends(get_db),
+):
+    old_session = (
+        db.query(UserSession)
+        .filter(UserSession.revoque == False)
+        .order_by(UserSession.created_at.desc())
+        .all()
+    )
+
+    matched_session = None
+    token_hash = hashlib.sha256(body.refresh_token.encode("utf-8")).hexdigest()
+    for s in old_session:
+        if token_hash == s.refresh_token_hash:
+            matched_session = s
+            break
+
+    if not matched_session:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token invalide")
+
+    from datetime import datetime, timezone, timedelta
+    if matched_session.expires_at and matched_session.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        matched_session.revoque = True
+        matched_session.motif_revocation = "expire"
+        db.add(matched_session)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expirée")
+
+    user = db.get(User, matched_session.utilisateur_id)
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Compte inactif")
+
+    matched_session.revoque = True
+    matched_session.motif_revocation = "refresh_rotate"
+    db.add(matched_session)
+
+    new_jti = secrets.token_hex(16)
+    new_refresh = create_refresh_token()
+    new_access = create_access_token(subject=user.email, jti=new_jti)
+
+    create_session(
+        db=db,
+        user=user,
+        access_token_jti=new_jti,
+        refresh_token=new_refresh,
+        ip_address=_get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    return {"access_token": new_access, "refresh_token": new_refresh, "token_type": "bearer"}
 
 
 @router.post("/auth/register", response_model=UserRead)
@@ -130,7 +223,6 @@ async def register_patient(
     db.add(user)
     db.flush()
 
-    import random
     max_retry = 5
     for attempt in range(max_retry):
         nss = generer_nss(patient_data, attempt)
@@ -196,9 +288,9 @@ async def register_medecin(
         )
 
     if medecin_data.date_naissance:
-        from timezone import local_today as _lt
+        from datetime import date as _date
         birth = medecin_data.date_naissance
-        today = _lt()
+        today = _date.today()
         age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
         if age < 21:
             raise HTTPException(
@@ -255,6 +347,10 @@ async def register_medecin(
                     specialite_id=specialty_obj.id,
                 )
                 db.add(med_spec)
+
+    if structure_id:
+        from routers.structures import sync_structure_professionnel_count
+        sync_structure_professionnel_count(db, structure_id)
 
     try:
         db.commit()
@@ -314,3 +410,90 @@ async def update_password(
     db.add(current_user)
     db.commit()
     return {"detail": "Mot de passe modifié avec succès"}
+
+
+@router.post("/auth/google", response_model=Token)
+@limiter.limit("10/minute")
+async def google_login(request: Request, body: dict, db: Session = Depends(get_db)):
+    credential = body.get("credential")
+    if not credential:
+        raise HTTPException(status_code=400, detail="Token Google manquant")
+
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google OAuth non configuré côté serveur")
+
+    resp = http_requests.get(
+        "https://oauth2.googleapis.com/tokeninfo",
+        params={"id_token": credential},
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Token Google invalide")
+
+    claims = resp.json()
+    audience = claims.get("aud")
+    if audience != settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Client ID Google invalide")
+
+    email = claims.get("email")
+    if not email:
+        raise HTTPException(status_code=401, detail="Email non trouvé dans le token Google")
+
+    given_name = claims.get("given_name", "")
+    family_name = claims.get("family_name", "")
+    picture = claims.get("picture", "")
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if user:
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="Compte désactivé")
+        if picture and not user.photo_url:
+            user.photo_url = picture
+            db.add(user)
+            db.commit()
+    else:
+        user = User(
+            email=email,
+            prenom=given_name or "",
+            nom=family_name or "",
+            photo_url=picture or None,
+            mot_de_passe_hash=get_password_hash(secrets.token_urlsafe(32)),
+            role="patient",
+            statut="actif",
+            email_verifie=True,
+        )
+        db.add(user)
+        db.flush()
+
+        nss = generer_nss(type("obj", (object,), {"sexe": None, "date_naissance": None})(), 0)
+        patient = Patient(
+            id=user.id,
+            code_patient=f"PAT-{secrets.token_hex(4).upper()}",
+            nss=nss,
+            sexe="Non_precise",
+            pays="CM",
+        )
+        db.add(patient)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Erreur lors de la création du compte")
+
+        db.refresh(user)
+
+    jti = secrets.token_hex(16)
+    access_token = create_access_token(subject=user.email, jti=jti)
+    refresh_token = create_refresh_token()
+
+    create_session(
+        db=db,
+        user=user,
+        access_token_jti=jti,
+        refresh_token=refresh_token,
+        ip_address=_get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}

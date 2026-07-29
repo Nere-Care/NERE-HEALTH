@@ -265,6 +265,26 @@ export default function Dashboard({ darkMode }) {
 
   return (
     <div className="min-h-screen p-3 md:p-6">
+      {(user?.statut === "suspendu" || user?.statut === "banni") && (
+        <div className={`rounded-xl border p-4 mb-6 flex items-center gap-3 ${
+          user.statut === "banni"
+            ? "bg-red-500/10 border-red-500/30 text-red-400"
+            : "bg-orange-500/10 border-orange-500/30 text-orange-400"
+        }`}>
+          <AlertTriangle size={20} />
+          <div>
+            <p className="font-semibold">
+              {user.statut === "banni" ? "Compte banni" : "Compte suspendu"}
+            </p>
+            <p className="text-sm opacity-80">
+              {user.statut === "banni"
+                ? "Votre compte a été banni. Veuillez contacter l'administration."
+                : "Votre compte est suspendu. La prise de rendez-vous est temporairement désactivée."}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-blue-500">Bienvenue, {prenom} 👋</h1>

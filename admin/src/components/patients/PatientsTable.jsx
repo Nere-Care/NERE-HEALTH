@@ -2,6 +2,9 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Ban,
+  ShieldOff,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function PatientsTable({
@@ -10,6 +13,9 @@ export default function PatientsTable({
   onView,
   onEdit,
   onDelete,
+  onSuspend,
+  onBan,
+  onActivate,
 }) {
   if (patients.length === 0) {
     return (
@@ -39,7 +45,8 @@ export default function PatientsTable({
       Inactif: "bg-gray-500/10 text-gray-500",
       "En attente":
         "bg-yellow-500/10 text-yellow-500",
-      Suspendu: "bg-red-500/10 text-red-500",
+      Suspendu: "bg-orange-500/10 text-orange-500",
+      Banni: "bg-red-500/10 text-red-500",
     };
 
     return (
@@ -147,6 +154,34 @@ export default function PatientsTable({
               >
                 <Pencil size={18} />
               </button>
+
+              {patient.userStatut === "actif" && (
+                <>
+                  <button
+                    onClick={() => onSuspend(patient)}
+                    className="p-2.5 rounded-xl hover:bg-orange-500/10 text-orange-500 transition"
+                    title="Suspendre"
+                  >
+                    <ShieldOff size={18} />
+                  </button>
+                  <button
+                    onClick={() => onBan(patient)}
+                    className="p-2.5 rounded-xl hover:bg-red-500/10 text-red-500 transition"
+                    title="Bannir"
+                  >
+                    <Ban size={18} />
+                  </button>
+                </>
+              )}
+              {(patient.userStatut === "suspendu" || patient.userStatut === "banni") && (
+                <button
+                  onClick={() => onActivate(patient)}
+                  className="p-2.5 rounded-xl hover:bg-green-500/10 text-green-500 transition"
+                  title="Activer"
+                >
+                  <ShieldCheck size={18} />
+                </button>
+              )}
 
               <button
                 onClick={() => onDelete(patient)}
@@ -271,6 +306,34 @@ export default function PatientsTable({
                     >
                       <Pencil size={18} />
                     </button>
+
+                    {patient.userStatut === "actif" && (
+                      <>
+                        <button
+                          onClick={() => onSuspend(patient)}
+                          className="p-2 rounded-xl hover:bg-orange-500/10 text-orange-500 transition"
+                          title="Suspendre"
+                        >
+                          <ShieldOff size={18} />
+                        </button>
+                        <button
+                          onClick={() => onBan(patient)}
+                          className="p-2 rounded-xl hover:bg-red-500/10 text-red-500 transition"
+                          title="Bannir"
+                        >
+                          <Ban size={18} />
+                        </button>
+                      </>
+                    )}
+                    {(patient.userStatut === "suspendu" || patient.userStatut === "banni") && (
+                      <button
+                        onClick={() => onActivate(patient)}
+                        className="p-2 rounded-xl hover:bg-green-500/10 text-green-500 transition"
+                        title="Activer"
+                      >
+                        <ShieldCheck size={18} />
+                      </button>
+                    )}
 
                     <button
                       onClick={() => onDelete(patient)}

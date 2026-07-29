@@ -8,6 +8,7 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from config import settings
 from limiter import limiter
+from audit_middleware import AuditLoggingMiddleware
 from routers.root import router as root_router
 from routers.auth import router as auth_router
 from routers.users import router as users_router
@@ -43,6 +44,7 @@ from routers.actualites import router as actualites_router
 from routers.confidentialite import router as confidentialite_router
 from routers.demandes_avis import router as demandes_avis_router
 from routers.analyses import router as analyses_router
+from routers.retraits import router as retraits_router
 from db import engine, SessionLocal
 from models import Base, CategorieTicket
 
@@ -70,12 +72,15 @@ app = FastAPI(title='Nere_app API', version='1.0.0')
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(HostValidationMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+app.add_middleware(AuditLoggingMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
 from sqlalchemy import text
 with engine.begin() as conn:
     conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'portee_enum') THEN CREATE TYPE portee_enum AS ENUM ('cameroun', 'diaspora'); END IF; END $$;"))
     conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statut_demande_avis') THEN CREATE TYPE statut_demande_avis AS ENUM ('en_attente', 'acceptee', 'refusee', 'annulee'); END IF; END $$;"))
+    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statut_retrait') THEN CREATE TYPE statut_retrait AS ENUM ('en_attente', 'valide', 'rejete', 'effectue'); END IF; END $$;"))
+    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'devise_enum_retrait') THEN CREATE TYPE devise_enum_retrait AS ENUM ('XAF', 'EUR', 'USD', 'GBP', 'XOF'); END IF; END $$;"))
 
 Base.metadata.create_all(bind=engine)
 
@@ -129,15 +134,24 @@ app.include_router(actualites_router, prefix=settings.API_PREFIX)
 app.include_router(confidentialite_router, prefix=settings.API_PREFIX)
 app.include_router(demandes_avis_router, prefix=settings.API_PREFIX)
 app.include_router(analyses_router, prefix=settings.API_PREFIX)
+app.include_router(retraits_router, prefix=settings.API_PREFIX)
 
 
 # --- Scheduler rappels médicaments ---
-from services.scheduler import scheduler, rappel_matin, rappel_midi, rappel_soir, check_rdv_reminders
+from services.scheduler import scheduler, rappel_matin, rappel_midi, rappel_soir, check_rdv_reminders, cancel_expired_unpaid_rdv
 
 scheduler.add_job(rappel_matin, hour=7, minute=30, job_id="rappel_matin")
 scheduler.add_job(rappel_midi, hour=11, minute=30, job_id="rappel_midi")
 scheduler.add_job(rappel_soir, hour=19, minute=30, job_id="rappel_soir")
 scheduler.add_interval_job(check_rdv_reminders, interval_minutes=5, job_id="rappel_rdv")
+scheduler.add_interval_job(cancel_expired_unpaid_rdv, interval_minutes=15, job_id="cancel_unpaid_rdv")
+
+# --- Preload exchange rates ---
+from services.currency_rates import get_rates as _preload_rates
+try:
+    _preload_rates()
+except Exception:
+    pass
 
 
 # --- Seed catégories tickets ---

@@ -8,6 +8,7 @@ export default function WithdrawModal({
   onConfirm,
   availableBalance = 0,
   configuredMethods = [],
+  devise = "XAF",
 }) {
   const [amount, setAmount] = useState("");
   const [selectedMethod, setSelectedMethod] = useState(
@@ -29,13 +30,14 @@ export default function WithdrawModal({
   const validate = () => {
     const newErrors = {};
     const numAmount = parseFloat(amount);
+    const minAmount = (devise === "EUR" || devise === "USD" || devise === "GBP") ? 2 : 1000;
 
     if (!amount || isNaN(numAmount) || numAmount <= 0) {
       newErrors.amount = "Montant invalide";
-    } else if (numAmount < 1000) {
-      newErrors.amount = "Minimum 1 000 XAF";
+    } else if (numAmount < minAmount) {
+      newErrors.amount = `Minimum ${minAmount.toLocaleString()} ${devise}`;
     } else if (numAmount > availableBalance) {
-      newErrors.amount = `Solde insuffisant (max: ${availableBalance} XAF)`;
+      newErrors.amount = `Solde insuffisant (max: ${availableBalance} ${devise})`;
     }
 
     if (!selectedMethod) {
@@ -61,8 +63,15 @@ export default function WithdrawModal({
     }
   };
 
-  // Montants rapides
-  const quickAmounts = [5000, 10000, 25000, 50000];
+  // Montants rapides selon la devise
+  const QUICK_AMOUNTS = {
+    XAF: [5000, 10000, 25000, 50000],
+    EUR: [5, 10, 25, 50],
+    USD: [5, 10, 25, 50],
+    GBP: [5, 10, 25, 50],
+    XOF: [5000, 10000, 25000, 50000],
+  };
+  const quickAmounts = QUICK_AMOUNTS[devise] || QUICK_AMOUNTS.XAF;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -79,7 +88,7 @@ export default function WithdrawModal({
             <div>
               <h2 className="text-lg font-semibold">Retirer des fonds</h2>
               <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                Solde disponible : <span className="font-bold text-green-500">{availableBalance} XAF</span>
+                Solde disponible : <span className="font-bold text-green-500">{availableBalance} {devise}</span>
               </p>
             </div>
           </div>
@@ -114,7 +123,7 @@ export default function WithdrawModal({
             />
             <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold
               ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-              XAF
+              {devise}
             </span>
           </div>
           {errors.amount && (
@@ -211,7 +220,7 @@ export default function WithdrawModal({
             ${darkMode ? "bg-blue-900/20 text-blue-300" : "bg-blue-50 text-blue-700"}`}>
             <p className="font-semibold">Récapitulatif</p>
             <p className="text-xs mt-1">
-              Retrait de <strong>{parseFloat(amount).toLocaleString()} XAF</strong> vers{" "}
+              Retrait de <strong>{parseFloat(amount).toLocaleString()} {devise}</strong> vers{" "}
               <strong>{getMethodLabel(selectedMethod)}</strong>
             </p>
             <p className="text-xs mt-1 opacity-80">

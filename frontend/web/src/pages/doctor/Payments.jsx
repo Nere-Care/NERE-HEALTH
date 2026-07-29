@@ -17,8 +17,10 @@ import StatsCards from "../../components/doctors/Payment/StatsCards";
 import PatientsPaymentsTable from "../../components/doctors/Payment/PatientsPaymentTable";
 import DoctorPaymentsHistory from "../../components/doctors/Payment/DoctorsPaymentsHistory";
 import WithdrawModal from "../../components/doctors/Payment/WithdrawModal";
-import { get } from "../../services/apiClient";
+import { get, post, put } from "../../services/apiClient";
 import { getUserTimezone } from "../../utils/timezone";
+import { formatCurrency, toXAF } from "../../utils/currency";
+import { getStoredUser } from "../../services/auth";
 
 const METHOD_LABELS = {
   mtn_momo: "MTN MoMo",
@@ -31,13 +33,23 @@ const METHOD_LABELS = {
   portefeuille_nere: "Portefeuille Nere",
 };
 
+const RETRAIT_METHOD_LABELS = {
+  mtn_momo: "MTN MoMo",
+  orange_money: "Orange Money",
+  virement_bancaire: "Virement bancaire",
+};
+
 const STATUS_LABELS = {
   initie: "Pending",
-  en_cours: "Pending",
-  paye: "Paid",
+  en_attente_confirmation: "Pending",
+  en_attente_validation: "Pending",
+  confirme: "Paid",
+  valide_manuellement: "Paid",
   echoue: "Failed",
   annule: "Refunded",
   rembourse: "Refunded",
+  rembourse_partiel: "Refunded",
+  expire: "Expired",
 };
 
 function transformPaiement(p, patientCodeMap) {
@@ -49,6 +61,8 @@ function transformPaiement(p, patientCodeMap) {
     medecin_id: p.medecin_id,
     service: METHOD_LABELS[p.methode] || p.fournisseur || "Consultation",
     amount: `${Number(p.montant_medecin || p.montant_total).toLocaleString()} ${p.devise || "XAF"}`,
+    amountRaw: Number(p.montant_medecin || p.montant_total),
+    devise: p.devise || "XAF",
     method: METHOD_LABELS[p.methode] || p.methode || "-",
     date: p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() }) : "-",
     status: STATUS_LABELS[p.statut] || p.statut || "Pending",
@@ -67,36 +81,47 @@ export default function Payments({ darkMode }) {
 
   const [patientPayments, setPatientPayments] = useState([]);
   const [doctorPayments, setDoctorPayments] = useState([]);
+  const [retraits, setRetraits] = useState([]);
   const [paymentStats, setPaymentStats] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
+  const [devise, setDevise] = useState("XAF");
+  const [soldeNumerique, setSoldeNumerique] = useState(0);
 
   const fetchPayments = useCallback(async () => {
     setLoadingPayments(true);
     try {
-      const [data, patientsData] = await Promise.all([
+      const stored = getStoredUser();
+      const [data, patientsData, medecinData, soldeData, retraitsData, methodesData] = await Promise.all([
         get("/api/paiements", { limit: 200 }),
         get("/api/patients", { limit: 200 }),
+        stored?.id ? get(`/api/medecins/${stored.id}`) : Promise.resolve(null),
+        stored?.id ? get("/api/retraits/solde") : Promise.resolve(null),
+        stored?.id ? get("/api/retraits", { limit: 200 }) : Promise.resolve([]),
+        stored?.id ? get(`/api/medecins/${stored.id}/methodes-retrait`).catch(() => null) : Promise.resolve(null),
       ]);
+      const devise = medecinData?.devise || "XAF";
+      setDevise(devise);
+
+      const fetchedMethods = methodesData?.methodes || [];
+      setConfiguredMethods(fetchedMethods);
+
       const patientCodeMap = {};
       for (const p of (patientsData || [])) patientCodeMap[p.id] = p.code_patient || "";
       const list = (data || []).map((p) => transformPaiement(p, patientCodeMap));
       setPatientPayments(list);
       setDoctorPayments(list);
+      setRetraits(retraitsData || []);
 
-      const totalPaid = list
-        .filter((p) => p.raw_status === "paye")
-        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
-      const totalPending = list
-        .filter((p) => p.raw_status === "initie" || p.raw_status === "en_cours")
-        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
-      const totalFailed = list
-        .filter((p) => p.raw_status === "echoue")
-        .reduce((s, p) => s + Number(p.amount.replace(/[^0-9]/g, "")), 0);
+      const totalGagne = soldeData?.total_gagne || 0;
+      const dejaRetire = soldeData?.deja_retire || 0;
+      const aRetirer = soldeData?.a_retirer || 0;
+      const aRetirerDevise = soldeData?.a_retirer_devise ?? (devise === "EUR" ? Math.round((aRetirer / 656) * 100) / 100 : aRetirer);
 
+      setSoldeNumerique(aRetirerDevise);
       setPaymentStats([
-        { id: 1, title: "Withdrawn Amount", amount: `${totalPaid.toLocaleString()} XAF` },
-        { id: 2, title: "Ready To Withdraw", amount: `${totalPending.toLocaleString()} XAF` },
-        { id: 3, title: "Settlements", amount: `${totalFailed.toLocaleString()} XAF` },
+        { id: 1, title: "Total gagné", amount: formatCurrency(totalGagne, devise) },
+        { id: 2, title: "Déjà retiré", amount: formatCurrency(dejaRetire, devise) },
+        { id: 3, title: "À retirer", amount: formatCurrency(aRetirer, devise) },
       ]);
     } catch (err) {
       console.error("Erreur chargement paiements:", err);
@@ -113,14 +138,23 @@ export default function Payments({ darkMode }) {
   };
 
   // Sauvegarder les méthodes configurées
-  const handleSaveMethods = (methods) => {
-    setConfiguredMethods(methods);
-    setShowSetup(false);
-    showToast(
-      methods.length > 1
-        ? `${methods.length} méthodes de paiement configurées`
-        : "Méthode de paiement configurée"
-    );
+  const handleSaveMethods = async (methods) => {
+    try {
+      const stored = getStoredUser();
+      if (stored?.id) {
+        await put(`/api/medecins/${stored.id}/methodes-retrait`, { methodes: methods });
+      }
+      setConfiguredMethods(methods);
+      setShowSetup(false);
+      showToast(
+        methods.length > 1
+          ? `${methods.length} méthodes de paiement configurées`
+          : "Méthode de paiement configurée"
+      );
+    } catch (err) {
+      console.error("Erreur sauvegarde méthodes:", err);
+      showToast("Erreur lors de la sauvegarde", "error");
+    }
   };
 
   // Demande de retrait
@@ -134,9 +168,19 @@ export default function Payments({ darkMode }) {
   };
 
   // Confirmer le retrait
-  const handleConfirmWithdraw = (amount, method) => {
-    showToast(`Retrait de ${amount} XAF vers ${method.label} en cours`);
-    setShowWithdraw(false);
+  const handleConfirmWithdraw = async (amount, method) => {
+    try {
+      await post("/api/retraits", {
+        montant: amount,
+        devise: devise || "XAF",
+        methode: method.type === "momo" ? "mtn_momo" : method.type === "orange" ? "orange_money" : "virement_bancaire",
+      });
+      showToast(`Demande de retrait de ${amount.toLocaleString()} ${devise || "XAF"} envoyée`);
+      setShowWithdraw(false);
+      fetchPayments();
+    } catch (err) {
+      showToast(err?.message || "Erreur lors de la demande de retrait", "error");
+    }
   };
 
   const handleDownload = (url) => {
@@ -201,8 +245,9 @@ export default function Payments({ darkMode }) {
         setOpen={setShowWithdraw}
         darkMode={darkMode}
         onConfirm={handleConfirmWithdraw}
-        availableBalance={paymentStats?.find(s => s.title === "Ready To Withdraw")?.amount || 0}
+        availableBalance={soldeNumerique}
         configuredMethods={configuredMethods}
+        devise={devise}
       />
 
       {/* PAYMENT DETAILS MODAL */}
@@ -391,7 +436,7 @@ export default function Payments({ darkMode }) {
         {/* CONTENT */}
         <div className="w-full overflow-hidden">
           {showHistory ? (
-            <DoctorPaymentsHistory payments={doctorPayments} darkMode={darkMode} />
+            <DoctorPaymentsHistory payments={doctorPayments} retraits={retraits} darkMode={darkMode} />
           ) : (
             <PatientsPaymentsTable
               payments={patientPayments}

@@ -221,6 +221,7 @@ export default function Appointment({ darkMode }) {
           reponse: d.reponse,
           medecinDemandeurId: d.medecin_demandeur_id,
           medecinAccepteurId: d.medecin_accepteur_id,
+          patientId: d.patient_id || null,
           dossierNumero: d.dossier_numero || "",
           dossierMedicalId: d.dossier_medical_id || null,
           consultationNumero: d.consultation_numero || "",
@@ -455,25 +456,10 @@ export default function Appointment({ darkMode }) {
       );
 
       if (newStatus === "acceptee" && data.meetingDate) {
-        const request = opinionRequests.find(r => r.id === id);
-        const newAppointment = {
-          id: Date.now(),
-          type: "opinion_meeting",
-          patientName: `Dr. ${request?.requesterName || "confrère"}`,
-          patientImage: null,
-          date: new Date(data.meetingDate).toLocaleDateString("fr-FR"),
-          time: new Date(data.meetingDate).toLocaleTimeString("fr-FR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          status: "Confirmed",
-          category: "upcoming",
-          mode: data.mode,
-        };
-        setColleagueAppointments(prev => [...prev, newAppointment]);
+        fetchRdvs();
       }
     } catch (err) {
-      console.error("Erreur mise à jour demande d'avis:", err);
+      console.error("Erreur mise a jour demande d'avis:", err);
     }
   };
 

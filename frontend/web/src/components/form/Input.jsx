@@ -3,7 +3,8 @@ export default function Input({  icon,
   type = "text",
   value,
   onChange,
-  error, }) {
+  error,
+  ...rest }) {
   return (
     <div>
       <div className={`
@@ -28,6 +29,7 @@ export default function Input({  icon,
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          {...rest}
           className="
             w-full
             outline-none

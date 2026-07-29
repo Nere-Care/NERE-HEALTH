@@ -68,6 +68,9 @@ async def create_consultation(
     if not patient:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient introuvable")
 
+    if current_user.role == "medecin" and current_user.statut in ("suspendu", "banni"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Votre compte est suspendu. Impossible de créer des consultations.")
+
     payload = consultation_create.dict()
     if current_user.role == "medecin":
         payload["medecin_id"] = current_user.id

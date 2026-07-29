@@ -29,10 +29,10 @@ import {
   doctorSpecialities,
   nurseSpecialities,
   cities,
-  hospitals,
 } from "../../constants/medicalOptions";
 
 import { register } from "../../services/auth";
+import { validatePhone, phoneError } from "../../utils/validatePhone";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -91,6 +91,7 @@ export default function Auth() {
       newErrors.password = "Doit contenir un caractère spécial";
     }
     if (password !== confirmPassword) newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
+    if (telephone && !validatePhone(telephone)) newErrors.telephone = phoneError();
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
     setStepTwo(true);
@@ -131,13 +132,23 @@ export default function Auth() {
     setLoading(true);
     setErrors({});
     try {
+      if (!dateNaissance) {
+        setErrors({ dateNaissance: "La date de naissance est requise" });
+        setLoading(false);
+        return;
+      }
       const birthDate = new Date(dateNaissance);
+      if (isNaN(birthDate.getTime())) {
+        setErrors({ dateNaissance: "Date de naissance invalide" });
+        setLoading(false);
+        return;
+      }
       const today = new Date();
       let age = today.getFullYear() - birthDate.getFullYear();
       const monthDiff = today.getMonth() - birthDate.getMonth();
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
       if (age < 21) {
-        setErrors({ api: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
+        setErrors({ dateNaissance: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
         setLoading(false);
         return;
       }
@@ -149,13 +160,14 @@ export default function Auth() {
         nom,
         telephone: telephone || undefined,
         ville: ville || undefined,
+        district: district || undefined,
         date_naissance: dateNaissance || undefined,
         specialites: specialite ? [specialite] : undefined,
         numero_ordre: numeroOrdre,
         annees_experience: experience,
         structure_nom: hopital || undefined,
         biographie: presentation || undefined,
-        adresse: [hopital, ville, district].filter(Boolean).join(', ') || undefined,
+        adresse: [ville, district].filter(Boolean).join(', ') || undefined,
       };
       const user = await register(userData, "medecin");
       // Upload documents after successful registration
@@ -377,13 +389,13 @@ export default function Auth() {
                   setStepThree={setStepThree}
                   loading={loading}
                   errors={errors}
+                  setErrors={setErrors}
                 />
               )}
 
               {/* ================= STEP 3 ================= */}
               {stepThree && (
                 <SignupStep3
-                  hospitals={hospitals}
                   hopital={hopital}
                   setHopital={setHopital}
                   numeroOrdre={numeroOrdre}

@@ -26,12 +26,33 @@ export default function SignupStep2({
   setStepThree,
   loading,
   errors,
+  setErrors,
 }) {
   const availableDistricts = getDistrictsForCity(ville);
 
   const handleCityChange = (e) => {
     setVille(e.target.value);
     setDistrict("");
+  };
+
+  const handleContinue = () => {
+    setErrors({});
+    if (selectedRole === "doctor" || selectedRole === "nurse") {
+      if (!dateNaissance) {
+        setErrors({ dateNaissance: "La date de naissance est requise" });
+        return;
+      }
+      const birth = new Date(dateNaissance);
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+      if (age < 21) {
+        setErrors({ dateNaissance: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
+        return;
+      }
+    }
+    setStepThree(true);
   };
 
   return (
@@ -110,7 +131,7 @@ export default function SignupStep2({
           </button>
         ) : (
           <button
-            onClick={() => setStepThree(true)}
+            onClick={handleContinue}
             className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8]"
           >
             Continue

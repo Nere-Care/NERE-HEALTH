@@ -5,11 +5,12 @@ import {
   LogOut, FileText, ChevronRight, ChevronDown, ChevronUp,
   Activity, Heart, AlertCircle, History, CheckCircle2,
   Camera, Save, X, CheckCircle, Loader, Pencil, Phone, UserPlus,
-  Briefcase, GraduationCap, Star, Stethoscope, DollarSign, Trash2, Plus, Calendar, Paperclip, Upload,
+  Briefcase, GraduationCap, Star, Stethoscope, DollarSign, Trash2, Plus, Calendar, Paperclip, Upload, Clock,
 } from 'lucide-react';
 import { get, put, post, del } from '../../services/apiClient';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8100';
 import { getStoredUser, logout } from '../../services/auth';
+import { validatePhone, phoneError } from '../../utils/validatePhone';
 
 const GROUPES_SANGUINS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Inconnu'];
 
@@ -88,6 +89,7 @@ export default function Parametres({ darkMode }) {
     structure_id: '',
   });
   const originalRef = useRef({ formations: [], certifications: [], experience: [] });
+  const [tarifModification, setTarifModification] = useState(null);
   const [activeMonthPicker, setActiveMonthPicker] = useState(null);
   const monthPickerRef = useRef(null);
 
@@ -198,6 +200,7 @@ export default function Parametres({ darkMode }) {
             experience: e,
             structure_id: m.structure_id || '',
           });
+          setTarifModification(m.tarif_modification && m.tarif_modification.statut === 'en_attente' ? m.tarif_modification : null);
         }).catch(() => {}),
         get('/api/specialites').then(s => setSpecialites(s || [])).catch(() => {}),
         get('/api/structures').then(s => setStructures(s || [])).catch(() => {}),
@@ -298,6 +301,11 @@ export default function Parametres({ darkMode }) {
     setSaving(true);
     setSaveError(null);
     try {
+      if (form.telephone && !validatePhone(form.telephone)) {
+        setSaveError(phoneError());
+        setSaving(false);
+        return;
+      }
       const userPayload = {};
       if (form.prenom) userPayload.prenom = form.prenom;
       if (form.nom) userPayload.nom = form.nom;
@@ -783,10 +791,22 @@ export default function Parametres({ darkMode }) {
                   {/* TARIF */}
                   <MedecinSection icon={DollarSign} title="Tarif de consultation" sectionKey="tarif"
                     expanded={expandedSections.tarif} toggle={toggleSection} darkMode={darkMode}>
+                    {tarifModification && (
+                      <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-sm flex items-center gap-2">
+                        <Clock size={16} />
+                        <span>
+                          Modification en attente de validation admin :{" "}
+                          <strong>{Number(tarifModification.tarif_consultation || medecinForm.tarif_consultation).toLocaleString()} {tarifModification.devise || medecinForm.devise}</strong>
+                        </span>
+                      </div>
+                    )}
+                    <div className={`p-3 rounded-xl mb-4 text-sm ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"}`}>
+                      Tarif actuel : <strong>{Number(medecinForm.tarif_consultation || 5000).toLocaleString()} {medecinForm.devise || "XAF"}</strong>
+                    </div>
                     {editing ? (
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                          <label className={labelClass}>Tarif</label>
+                          <label className={labelClass}>Nouveau tarif</label>
                           <input type="number" min="0" value={medecinForm.tarif_consultation}
                             onChange={(e) => handleMedecinChange('tarif_consultation', e.target.value)}
                             className={inputClass} />

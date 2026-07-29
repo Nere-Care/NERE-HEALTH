@@ -36,6 +36,7 @@ services:
       ENVIRONMENT: development
       API_PREFIX: /api
       SECRET_KEY: change-me
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "8100:8000"
     volumes:
@@ -47,6 +48,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: http://localhost:8100
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
       - backend

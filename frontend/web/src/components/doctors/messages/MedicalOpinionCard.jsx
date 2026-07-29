@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ClipboardList, ExternalLink, X, Loader } from "lucide-react";
 import { get } from "../../../services/apiClient";
 
@@ -99,17 +100,39 @@ function AvisDetailModal({ darkMode, avis, onClose }) {
               {avis.dossier_numero && (
                 <div className="flex items-center gap-2 text-sm">
                   <span className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Dossier médical :</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs">
-                    {avis.dossier_numero}
-                  </span>
+                  {avis.dossier_medical_id ? (
+                    <Link
+                      to={`/dossier/${avis.dossier_medical_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs hover:underline"
+                    >
+                      {avis.dossier_numero}
+                      <ExternalLink size={10} />
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium text-xs">
+                      {avis.dossier_numero}
+                    </span>
+                  )}
                 </div>
               )}
               {avis.consultation_numero && (
                 <div className="flex items-center gap-2 text-sm">
                   <span className={`font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Consultation :</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs">
-                    {avis.consultation_numero}
-                  </span>
+                  {avis.consultation_id ? (
+                    <Link
+                      to={`/consultation/${avis.consultation_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs hover:underline"
+                    >
+                      {avis.consultation_numero}
+                      <ExternalLink size={10} />
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium text-xs">
+                      {avis.consultation_numero}
+                    </span>
+                  )}
                   {avis.consultation_motif && (
                     <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>({avis.consultation_motif})</span>
                   )}

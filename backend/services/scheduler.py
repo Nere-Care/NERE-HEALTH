@@ -328,6 +328,66 @@ def check_rdv_reminders():
         db.close()
 
 
+# ---------------------------------------------------------------------------
+# Annulation automatique des RDVs en attente de paiement (>24h)
+# ---------------------------------------------------------------------------
+
+_LOCK_KEY_CANCEL_UNPAID = 110003
+
+
+def cancel_expired_unpaid_rdv():
+    """Annule les RDVs en attente de paiement depuis plus de 24h après leur heure de fin."""
+    logger.info("Vérification des RDVs en attente de paiement expirés...")
+    db = SessionLocal()
+    cancelled = 0
+    try:
+        with _pg_advisory_lock(db, _LOCK_KEY_CANCEL_UNPAID) as acquired:
+            if not acquired:
+                logger.info("Annulation RDV impayés: un autre worker tient le verrou, skip.")
+                return
+
+            now_utc = datetime.now(timezone.utc)
+            cutoff = now_utc - timedelta(hours=24)
+
+            expired_rdvs = db.query(RendezVous).filter(
+                RendezVous.statut == "en_attente_paiement",
+                RendezVous.created_at < cutoff,
+            ).all()
+
+            for rdv in expired_rdvs:
+                rdv.statut = "annule_systeme"
+                rdv.motif_annulation = "Paiement non recu sous 24h apres la creation du rendez-vous"
+                rdv.date_annulation = now_utc
+                cancelled += 1
+
+                patient_user = db.get(User, rdv.patient_id)
+                patient_name = f"{patient_user.prenom or ''} {patient_user.nom or ''}".strip() if patient_user else ""
+                motif = rdv.motif_consultation or "Consultation"
+
+                if rdv.patient_id:
+                    notification_service.send_notification(
+                        db=db,
+                        utilisateur_id=rdv.patient_id,
+                        type_notif="annulation_rdv",
+                        canal="in_app",
+                        titre="RDV annule — paiement non recu",
+                        contenu=(
+                            f"Votre rendez-vous ({motif}) "
+                            f"prevu le {rdv.date_heure_debut.strftime('%d/%m/%Y a %H:%M') if rdv.date_heure_debut else ''} "
+                            f"a ete automatiquement annule car le paiement n'a pas ete effectue sous 24h."
+                        ),
+                        donnees={"rdv_id": str(rdv.id), "motif": "paiement_expire"},
+                    )
+
+            if cancelled:
+                db.commit()
+            logger.info("%d RDV(s) impaye(s) annule(s).", cancelled)
+    except Exception:
+        logger.exception("Erreur lors de l'annulation des RDVs impayes")
+    finally:
+        db.close()
+
+
 
 class _CronScheduler:
     """Scheduler léger basé sur threading — aucune dépendance externe."""

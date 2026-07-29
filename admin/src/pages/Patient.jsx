@@ -26,9 +26,10 @@ function mapPatient(p, userMap) {
     groupe: p.groupe_sanguin || "Inconnu",
     assurance: p.couverture_assurance || "Aucune",
     medecin: "—",
-    statut: user.role === "actif" ? "Actif" : "Actif",
+    statut: user.statut === "actif" ? "Actif" : user.statut === "suspendu" ? "Suspendu" : user.statut === "banni" ? "Banni" : user.statut === "inactif" ? "Inactif" : "Actif",
+    userStatut: user.statut || "actif",
     email: user.email || "",
-    adresse: p.adresse || p.ville || "—",
+    adresse: user.adresse || p.ville || "—",
     antecedents: p.antecedents_medicaux || "Aucun",
     derniereConnexion: "—",
   };
@@ -39,6 +40,7 @@ export default function PatientsPage({ darkMode }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState([]);
+  const [critiqueIds, setCritiqueIds] = useState(new Set());
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -58,10 +60,11 @@ export default function PatientsPage({ darkMode }) {
   async function fetchData() {
     setLoading(true);
     try {
-      const [patientsRes, usersRes, consultationsRes] = await Promise.allSettled([
+      const [patientsRes, usersRes, consultationsRes, critiquesRes] = await Promise.allSettled([
         API.get("/patients?limit=200"),
         API.get("/users"),
         API.get("/consultations?limit=20"),
+        API.get("/patients/critiques"),
       ]);
 
       const pList = patientsRes.status === "fulfilled" ? patientsRes.value.data : [];
@@ -70,14 +73,22 @@ export default function PatientsPage({ darkMode }) {
       setPatients(pList);
       setUsers(uList);
 
+      const critIds = critiquesRes.status === "fulfilled"
+        ? new Set(critiquesRes.value.data.patient_ids)
+        : new Set();
+      setCritiqueIds(critIds);
+
       const userMap = {};
       uList.forEach((u) => { userMap[u.id] = u; });
+
+      const patientMap = {};
+      pList.forEach((p) => { patientMap[p.id] = p; });
 
       const notifs = consultationsRes.status === "fulfilled"
         ? consultationsRes.value.data.slice(0, 4).map((c, i) => ({
             id: i + 1,
             action: "Nouvelle consultation",
-            patient: userMap[c.patient_id]?.email || `#${c.patient_id}`,
+            patient: patientMap[c.patient_id]?.code_patient || userMap[c.patient_id]?.email || `#${c.patient_id}`,
             time: c.created_at
               ? timeAgo(new Date(c.created_at))
               : "Récemment",
@@ -99,8 +110,14 @@ export default function PatientsPage({ darkMode }) {
   }, [users]);
 
   const enrichedPatients = useMemo(
-    () => patients.map((p) => mapPatient(p, userMap)),
-    [patients, userMap]
+    () => patients.map((p) => {
+      const mapped = mapPatient(p, userMap);
+      if (critiqueIds.has(p.id)) {
+        mapped.antecedents = "Critique";
+      }
+      return mapped;
+    }),
+    [patients, userMap, critiqueIds]
   );
 
   const filteredPatients = useMemo(() => {
@@ -169,6 +186,46 @@ export default function PatientsPage({ darkMode }) {
     }
   }, []);
 
+  const addActivity = useCallback((action, patientName) => {
+    setActivities((prev) => [
+      { id: Date.now(), action, patient: patientName, time: "À l'instant" },
+      ...prev.slice(0, 9),
+    ]);
+  }, []);
+
+  const handleSuspend = useCallback(async (patient) => {
+    try {
+      await API.put(`/admin/patients/${patient.id}/status`, { statut: "suspendu" });
+      toast.success("Patient suspendu");
+      addActivity("Patient suspendu", patient.code_patient || patient.nom);
+      fetchData();
+    } catch {
+      toast.error("Erreur lors de la suspension");
+    }
+  }, [fetchData, addActivity]);
+
+  const handleBan = useCallback(async (patient) => {
+    try {
+      await API.put(`/admin/patients/${patient.id}/status`, { statut: "banni" });
+      toast.success("Patient banni");
+      addActivity("Patient banni", patient.code_patient || patient.nom);
+      fetchData();
+    } catch {
+      toast.error("Erreur lors du bannissement");
+    }
+  }, [fetchData, addActivity]);
+
+  const handleActivate = useCallback(async (patient) => {
+    try {
+      await API.put(`/admin/patients/${patient.id}/status`, { statut: "actif" });
+      toast.success("Patient activé");
+      addActivity("Patient réactivé", patient.code_patient || patient.nom);
+      fetchData();
+    } catch {
+      toast.error("Erreur lors de l'activation");
+    }
+  }, [fetchData, addActivity]);
+
   const confirmDelete = useCallback((patient) => {
     setPatientToDelete(patient);
     setShowDeleteConfirm(true);
@@ -224,6 +281,9 @@ export default function PatientsPage({ darkMode }) {
         onView={openDetails}
         onEdit={openEdit}
         onDelete={confirmDelete}
+        onSuspend={handleSuspend}
+        onBan={handleBan}
+        onActivate={handleActivate}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

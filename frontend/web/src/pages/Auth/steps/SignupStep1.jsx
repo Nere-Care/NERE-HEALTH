@@ -95,6 +95,7 @@ export default function SignupStep1({
             onChange={(e) => setTelephone(e.target.value)}
             maxLength={9}
             pattern="6[0-9]{8}"
+            error={errors.telephone}
           />
 
           <PasswordInput

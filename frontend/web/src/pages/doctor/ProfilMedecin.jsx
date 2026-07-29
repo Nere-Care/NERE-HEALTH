@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import {
   User, Save, Camera, Loader, CheckCircle, AlertCircle,
   Plus, Trash2, FileText, Briefcase, GraduationCap, Star,
-  Stethoscope, DollarSign, ChevronDown, ChevronUp,
+  Stethoscope, DollarSign, ChevronDown, ChevronUp, Clock,
 } from "lucide-react";
 import { get, put } from "../../services/apiClient";
 import { getStoredUser } from "../../services/auth";
+import { validatePhone, phoneError } from "../../utils/validatePhone";
 
 const ACTES_PAR_SPECIALITE = {
   "Généraliste": ["Consultation générale", "Bilan de santé", "Prescription médicale", "Certificat médical", "Suivi chronique"],
@@ -29,6 +30,7 @@ export default function ProfilMedecin({ darkMode }) {
   const [user, setUser] = useState(null);
   const [medecin, setMedecin] = useState(null);
   const [specialites, setSpecialites] = useState([]);
+  const [tarifModification, setTarifModification] = useState(null);
 
   const [form, setForm] = useState({
     prenom: "", nom: "", email: "", telephone: "",
@@ -61,6 +63,7 @@ export default function ProfilMedecin({ darkMode }) {
         setUser(u);
         setMedecin(m);
         setSpecialites(specs || []);
+        setTarifModification(m.tarif_modification && m.tarif_modification.statut === "en_attente" ? m.tarif_modification : null);
         setForm({
           prenom: u.prenom || "",
           nom: u.nom || "",
@@ -86,6 +89,11 @@ export default function ProfilMedecin({ darkMode }) {
   const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = async () => {
+    if (form.telephone && !validatePhone(form.telephone)) {
+      setToast({ type: "error", msg: phoneError() });
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
     setSaving(true);
     try {
       await put("/api/auth/me", {
@@ -394,9 +402,21 @@ export default function ProfilMedecin({ darkMode }) {
           <SectionHeader icon={DollarSign} title="Tarif de consultation" sectionKey="tarif" />
           {expandedSections.tarif && (
             <div className="px-5 pb-5">
+              {tarifModification && (
+                <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-sm flex items-center gap-2">
+                  <Clock size={16} />
+                  <span>
+                    Modification en attente de validation admin :{" "}
+                    <strong>{Number(tarifModification.tarif_consultation || medecin.tarif_consultation).toLocaleString()} {tarifModification.devise || medecin.devise}</strong>
+                  </span>
+                </div>
+              )}
+              <div className={`p-3 rounded-xl mb-4 text-sm ${darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"}`}>
+                Tarif actuel : <strong>{Number(medecin.tarif_consultation || 5000).toLocaleString()} {medecin.devise || "XAF"}</strong>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={labelClass}>Tarif (XAF)</label>
+                  <label className={labelClass}>Nouveau tarif</label>
                   <input
                     className={inputClass}
                     type="number"

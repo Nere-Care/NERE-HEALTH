@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import API from "../services/api";
 
 export default function Header({
   titre = "Administration Panel",
@@ -14,6 +16,23 @@ export default function Header({
   collapsed,
 }) {
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await API.get("/notifications", { statut: "envoye", limit: 100 });
+      const list = Array.isArray(res.data) ? res.data : [];
+      setUnreadCount(list.filter((n) => n.statut !== "lu").length);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
 
   return (
     <header
@@ -132,7 +151,7 @@ export default function Header({
 
           <button
             onClick={() =>
-              navigate("/admin/notifications")
+              navigate("/notifications")
             }
             className={`
               relative p-2 rounded-xl transition
@@ -153,14 +172,18 @@ export default function Header({
               }
             />
 
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </button>
 
           {/* SETTINGS */}
 
           <button
             onClick={() =>
-              navigate("/admin/settings")
+              navigate("/settings")
             }
             className={`
               p-2 rounded-xl transition
@@ -186,7 +209,7 @@ export default function Header({
 
           <div
             onClick={() =>
-              navigate("/admin/profile")
+              navigate("/settings")
             }
             className={`
               flex items-center gap-2 md:gap-3

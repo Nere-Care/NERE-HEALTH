@@ -194,13 +194,6 @@ export default function AddStructureModal({ darkMode, formData, setFormData, isS
               <input name="manager" value={formData.manager} onChange={handleChange}
                 placeholder="Dr. Ndzi" className={inputClass} />
             </div>
-            <div>
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Users size={14} className="text-gray-400" /> Nombre de professionnels
-              </label>
-              <input type="number" name="professionals" value={formData.professionals} onChange={handleChange}
-                placeholder="120" min="0" className={inputClass} />
-            </div>
           </div>
 
           <hr className="border-t dark:border-slate-700" />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import "./style.css";
 
@@ -38,6 +39,8 @@ import Patient from "./pages/doctor/Patient";
 import TeleConsultation from "./pages/doctor/TeleConsultation";
 import Payments from "./pages/doctor/Payments";
 import Dashboard from "./pages/doctor/Dashboard";
+import ConsultationDetail from "./pages/doctor/ConsultationDetail";
+import DossierDetail from "./pages/doctor/DossierDetail";
 
 /* OBSERVER */
 import ObserverDashboard from "./pages/observer/Dashboard";
@@ -134,6 +137,8 @@ function AppLayout({ darkMode, setDarkMode, collapsed, setCollapsed, role }) {
             <Route path="/teleconsultation" element={<TeleConsultation darkMode={darkMode} />} />
             <Route path="/payments" element={<Payments darkMode={darkMode} />} />
             <Route path="/doctor-dashboard" element={<Dashboard darkMode={darkMode} />} />
+            <Route path="/consultation/:id" element={<ConsultationDetail darkMode={darkMode} />} />
+            <Route path="/dossier/:id" element={<DossierDetail darkMode={darkMode} />} />
 
             {/* ══════════ OBSERVER ══════════ */}
             <Route path="/observer-dashboard" element={<ObserverDashboard darkMode={darkMode} />} />
@@ -165,26 +170,28 @@ function App() {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* LOGIN */}
-        <Route path="/" element={<Auth />} />
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
+      <BrowserRouter>
+        <Routes>
+          {/* LOGIN */}
+          <Route path="/" element={<Auth />} />
 
-        {/* ALL OTHER PAGES */}
-        <Route
-          path="*"
-          element={
-            <AppLayout
-              darkMode={darkMode}
-              setDarkMode={setDarkMode}
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              role={role}
-            />
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+          {/* ALL OTHER PAGES */}
+          <Route
+            path="*"
+            element={
+              <AppLayout
+                darkMode={darkMode}
+                setDarkMode={setDarkMode}
+                collapsed={collapsed}
+                setCollapsed={setCollapsed}
+                role={role}
+              />
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
 

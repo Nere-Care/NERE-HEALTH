@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import get_current_active_user
+from crypto import encrypt, decrypt
 from db import get_db
 from models import Conversation, DemandeAvisMedical, Message
 from schemas import MessageCreate, MessageRead
@@ -42,7 +43,16 @@ async def list_messages(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux utilisateurs authentifiés")
 
     messages = db.execute(stmt.order_by(Message.created_at.asc()).limit(limit)).scalars().all()
-    return messages
+
+    result = []
+    for msg in messages:
+        try:
+            decrypted = decrypt(msg.contenu_chiffre)
+        except Exception:
+            decrypted = msg.contenu_chiffre
+        msg.contenu_chiffre = decrypted
+        result.append(msg)
+    return result
 
 
 @router.post("/messages", response_model=MessageRead, status_code=status.HTTP_201_CREATED)
@@ -51,6 +61,9 @@ async def create_message(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
+    if current_user.statut in ("suspendu", "banni"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Votre compte est suspendu. Impossible d'envoyer des messages.")
+
     conversation = db.get(Conversation, message_create.conversation_id)
     if not conversation:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Conversation introuvable")
@@ -60,8 +73,12 @@ async def create_message(
     if conversation.statut == "fermee" and current_user.role == "patient":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La conversation a été fermée par le médecin")
 
+    raw_content = message_create.contenu_chiffre
+    encrypted = encrypt(raw_content)
+
     message = Message(
-        **message_create.dict(exclude_unset=True),
+        **message_create.dict(exclude_unset=True, exclude={"contenu_chiffre"}),
+        contenu_chiffre=encrypted,
         expediteur_id=current_user.id,
     )
     db.add(message)
@@ -71,6 +88,8 @@ async def create_message(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du message") from exc
+
+    message.contenu_chiffre = raw_content
     return message
 
 
@@ -83,6 +102,10 @@ async def read_message(
     message = db.get(Message, message_id)
     if not message:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message non trouvé")
+    try:
+        message.contenu_chiffre = decrypt(message.contenu_chiffre)
+    except Exception:
+        pass
     return message
 
 
