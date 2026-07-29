@@ -14,9 +14,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE TYPE moment_journee_prise AS ENUM ('MATIN', 'MIDI', 'SOIR')")
-    op.execute("CREATE TYPE statut_prise AS ENUM ('A_PRENDRE', 'PRIS', 'OUBLIE')")
-
     op.create_table(
         "prise_medicaments",
         sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), primary_key=True),
@@ -26,12 +23,12 @@ def upgrade() -> None:
         sa.Column("heure_prise_prevue", sa.Time(), nullable=True),
         sa.Column(
             "moment_journee",
-            sa.Enum("MATIN", "MIDI", "SOIR", name="moment_journee_prise", create_type=False),
+            sa.Enum("MATIN", "MIDI", "SOIR", name="moment_journee_prise"),
             nullable=False,
         ),
         sa.Column(
             "statut",
-            sa.Enum("A_PRENDRE", "PRIS", "OUBLIE", name="statut_prise", create_type=False),
+            sa.Enum("A_PRENDRE", "PRIS", "OUBLIE", name="statut_prise"),
             nullable=False,
             server_default=sa.text("'A_PRENDRE'::public.statut_prise"),
         ),
