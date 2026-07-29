@@ -28,7 +28,7 @@ from db import Base
 
 
 def _enum_type(values: tuple[str, ...], name: str):
-    return ENUM(*values, name=name, create_type=False)
+    return ENUM(*values, name=name, create_type=True)
 
 
 class User(Base):

@@ -75,13 +75,6 @@ app.add_middleware(HostValidationMiddleware, allowed_hosts=settings.ALLOWED_HOST
 app.add_middleware(AuditLoggingMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
-from sqlalchemy import text
-with engine.begin() as conn:
-    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'portee_enum') THEN CREATE TYPE portee_enum AS ENUM ('cameroun', 'diaspora'); END IF; END $$;"))
-    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statut_demande_avis') THEN CREATE TYPE statut_demande_avis AS ENUM ('en_attente', 'acceptee', 'refusee', 'annulee'); END IF; END $$;"))
-    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statut_retrait') THEN CREATE TYPE statut_retrait AS ENUM ('en_attente', 'valide', 'rejete', 'effectue'); END IF; END $$;"))
-    conn.execute(text("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'devise_enum_retrait') THEN CREATE TYPE devise_enum_retrait AS ENUM ('XAF', 'EUR', 'USD', 'GBP', 'XOF'); END IF; END $$;"))
-
 Base.metadata.create_all(bind=engine)
 
 # Serve uploaded files
