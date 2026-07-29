@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Eye, CreditCard, CheckCircle, Clock, XCircle, X, Loader, Smartphone, CalendarDays, User } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { get, post } from '../../services/apiClient';
 import { getUserTimezone } from '../../utils/timezone';
 import { toXAF, formatXAF } from '../../utils/currency';
@@ -35,7 +33,7 @@ const STATUT_MAP = {
 
 function formatStatut(s) { return STATUT_MAP[s?.toLowerCase()] || s || '-'; }
 
-const dessinerFacture = (doc, reference, date, methode, montantXAF, statut, patientNom, startY) => {
+const dessinerFacture = (doc, autoTable, reference, date, methode, montantXAF, statut, patientNom, startY) => {
   doc.setDrawColor(59, 130, 246);
   doc.setLineWidth(0.5);
   doc.line(20, startY, 190, startY);
@@ -63,7 +61,9 @@ const dessinerFacture = (doc, reference, date, methode, montantXAF, statut, pati
   return doc.lastAutoTable.finalY + 20;
 };
 
-const telechargerFacture = (entry, patientNom) => {
+const telechargerFacture = async (entry, patientNom) => {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF();
   doc.setFontSize(22);
   doc.setTextColor(59, 130, 246);
@@ -75,14 +75,16 @@ const telechargerFacture = (entry, patientNom) => {
   doc.setLineWidth(0.8);
   doc.line(20, 33, 190, 33);
   const dateStr = entry.created_at ? new Date(entry.created_at).toLocaleDateString('fr-FR', { timeZone: getUserTimezone() }) : '-';
-  dessinerFacture(doc, entry.reference, dateStr, entry.methode, toXAF(entry.montant, entry.devise), entry.statut, patientNom, 40);
+  dessinerFacture(doc, autoTable, entry.reference, dateStr, entry.methode, toXAF(entry.montant, entry.devise), entry.statut, patientNom, 40);
   doc.setFontSize(9);
   doc.setTextColor(150);
   doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })} — Néré Health`, 20, 285);
   doc.save(`facture-${entry.reference || entry.id}.pdf`);
 };
 
-const telechargerToutes = (entries, patientNom) => {
+const telechargerToutes = async (entries, patientNom) => {
+  const { default: jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF();
   const pageHeight = doc.internal.pageSize.getHeight();
   doc.setFontSize(26);
@@ -113,7 +115,7 @@ const telechargerToutes = (entries, patientNom) => {
     doc.setLineWidth(0.3);
     doc.line(20, 29, 190, 29);
     const dateStr = e.created_at ? new Date(e.created_at).toLocaleDateString('fr-FR', { timeZone: getUserTimezone() }) : '-';
-    dessinerFacture(doc, e.reference, dateStr, e.methode, toXAF(e.montant, e.devise), e.statut, patientNom, 36);
+    dessinerFacture(doc, autoTable, e.reference, dateStr, e.methode, toXAF(e.montant, e.devise), e.statut, patientNom, 36);
     doc.setFontSize(8);
     doc.setTextColor(180);
     doc.text(`Néré Health — ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })}`, 20, pageHeight - 10);

@@ -11,6 +11,8 @@ import {
 import { get, put } from '../../services/apiClient';
 import { getStoredUser } from '../../services/auth';
 import PatientCallScreen from '../../components/patient/PatientCallScreen';
+import AccountStatusBanner from '../../components/ui/AccountStatusBanner';
+import NotificationBanner from '../../components/ui/NotificationBanner';
 import { getUserTimezone } from '../../utils/timezone';
 
 const SPEC_ICONS = {
@@ -265,25 +267,10 @@ export default function Dashboard({ darkMode }) {
 
   return (
     <div className="min-h-screen p-3 md:p-6">
-      {(user?.statut === "suspendu" || user?.statut === "banni") && (
-        <div className={`rounded-xl border p-4 mb-6 flex items-center gap-3 ${
-          user.statut === "banni"
-            ? "bg-red-500/10 border-red-500/30 text-red-400"
-            : "bg-orange-500/10 border-orange-500/30 text-orange-400"
-        }`}>
-          <AlertTriangle size={20} />
-          <div>
-            <p className="font-semibold">
-              {user.statut === "banni" ? "Compte banni" : "Compte suspendu"}
-            </p>
-            <p className="text-sm opacity-80">
-              {user.statut === "banni"
-                ? "Votre compte a été banni. Veuillez contacter l'administration."
-                : "Votre compte est suspendu. La prise de rendez-vous est temporairement désactivée."}
-            </p>
-          </div>
-        </div>
-      )}
+      <AccountStatusBanner 
+        statut={user?.statut} 
+        suspendMessage="Votre compte est suspendu. La prise de rendez-vous est temporairement désactivée." 
+      />
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
@@ -350,28 +337,13 @@ export default function Dashboard({ darkMode }) {
         })}
       </div>
 
-      {notifVisible && notifCount > 0 && (
-        <div onClick={handleNotifClick}
-          className={`mb-6 p-4 rounded-2xl border-l-4 border-orange-500 shadow-sm flex items-center justify-between cursor-pointer hover:opacity-90 transition-all ${darkMode ? "bg-gray-800" : "bg-orange-50"}`}>
-          <div className="flex items-center gap-3">
-            <ShieldAlert className="text-orange-500 flex-shrink-0" size={20} />
-            <div>
-              <div className="flex items-center gap-2">
-                <p className={`text-sm font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Notifications importantes</p>
-                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{notifCount}</span>
-              </div>
-              <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                Vous avez {notifCount} notification{notifCount > 1 ? 's' : ''} non lue{notifCount > 1 ? 's' : ''}.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ChevronRight size={16} className="text-orange-500" />
-            <button onClick={(e) => { e.stopPropagation(); setNotifVisible(false); }}
-              className="text-orange-500 hover:text-red-500 text-lg font-bold px-2">✕</button>
-          </div>
-        </div>
-      )}
+      <NotificationBanner 
+        notifCount={notifCount} 
+        notifVisible={notifVisible} 
+        onClose={() => setNotifVisible(false)} 
+        onClick={handleNotifClick} 
+        darkMode={darkMode} 
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 flex flex-col gap-6">

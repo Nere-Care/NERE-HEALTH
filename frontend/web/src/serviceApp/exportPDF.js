@@ -1,7 +1,6 @@
-    import { jsPDF } from "jspdf";
-    import autoTable from "jspdf-autotable";
-
-    export function exportToPdf(data = {}) {
+    export async function exportToPdf(data = {}) {
+    const { jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
     const doc = new jsPDF();
 
     /* ================= HEADER ================= */

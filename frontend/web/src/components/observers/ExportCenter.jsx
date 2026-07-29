@@ -1,7 +1,6 @@
-import { jsPDF } from "jspdf";
-
 export default function ExportCenter({ darkMode }) {
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     doc.text("Health Observatory Report", 10, 10);
     doc.text("Generated statistics for NGO / Government", 10, 20);
