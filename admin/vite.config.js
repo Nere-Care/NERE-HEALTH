@@ -39,6 +39,9 @@ function stripTwPolyfills() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), stripTwPolyfills()],
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   server: {
     host: '0.0.0.0',
     port: 4174,

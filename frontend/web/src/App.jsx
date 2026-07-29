@@ -159,9 +159,25 @@ function AppLayout({ darkMode, setDarkMode, collapsed, setCollapsed, role }) {
               <Route path="/structure-dashboard" element={<DashboardStructure darkMode={darkMode} />} />
               <Route path="/structure/profil" element={<ProfilStructure darkMode={darkMode} />} />
               <Route path="/structure/personnel" element={<PersonnelStructure darkMode={darkMode} />} />
-              <Route path="/structure/demandes" element={<DemandesStructure darkMode={darkMode} />} />
-              <Route path="/structure/aide" element={<AideStructure darkMode={darkMode} />} />
-              <Route path="/structure/parametres" element={<ParametresStructure darkMode={darkMode} />} />
+              {/* ══════════ 404 NOT FOUND ══════════ */}
+              <Route
+                path="*"
+                element={
+                  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
+                    <h1 className="text-6xl font-extrabold text-indigo-600 mb-4">404</h1>
+                    <h2 className={`text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>Page introuvable</h2>
+                    <p className={`mb-6 max-w-md ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                      La page que vous recherchez n'existe pas ou a été déplacée.
+                    </p>
+                    <a
+                      href="/dashboard"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-md"
+                    >
+                      Retour au tableau de bord
+                    </a>
+                  </div>
+                }
+              />
             </Routes>
           </Suspense>
         </main>

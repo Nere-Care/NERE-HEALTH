@@ -35,7 +35,7 @@ services:
       CORS_ORIGINS: "http://localhost:4173,http://localhost:4174"
       ENVIRONMENT: development
       API_PREFIX: /api
-      SECRET_KEY: change-me
+      SECRET_KEY: ${SECRET_KEY}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "8100:8000"

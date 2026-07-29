@@ -1,0 +1,15 @@
+{$DOMAIN_API:api.nerehealth.com} {
+    # Redirige toutes les requêtes API vers le container Backend FastAPI
+    reverse_proxy backend:8000
+
+    # Sécurité headers HTTP
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Compression Gzip / Zstd automatique
+    encode zstd gzip
+}
