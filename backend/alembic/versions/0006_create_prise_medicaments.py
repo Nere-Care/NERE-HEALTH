@@ -26,12 +26,12 @@ def upgrade() -> None:
         sa.Column("heure_prise_prevue", sa.Time(), nullable=True),
         sa.Column(
             "moment_journee",
-            sa.Enum("MATIN", "MIDI", "SOIR", name="moment_journee_prise"),
+            sa.Enum("MATIN", "MIDI", "SOIR", name="moment_journee_prise", create_type=False),
             nullable=False,
         ),
         sa.Column(
             "statut",
-            sa.Enum("A_PRENDRE", "PRIS", "OUBLIE", name="statut_prise"),
+            sa.Enum("A_PRENDRE", "PRIS", "OUBLIE", name="statut_prise", create_type=False),
             nullable=False,
             server_default=sa.text("'A_PRENDRE'::public.statut_prise"),
         ),
