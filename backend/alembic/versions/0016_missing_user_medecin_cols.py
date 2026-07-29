@@ -5,13 +5,13 @@ added to the database via migration.
 Uses ALTER TABLE ... ADD COLUMN IF NOT EXISTS so the migration
 is idempotent (create_all() may have already created them).
 
-Revision ID: 0016_add_missing_user_medecin_columns
+Revision ID: 0016_missing_user_medecin_cols
 Revises: 0015_add_methodes_retrait
 Create Date: 2026-07-29
 """
 from alembic import op
 
-revision = "0016_add_missing_user_medecin_columns"
+revision = "0016_missing_user_medecin_cols"
 down_revision = "0015_add_methodes_retrait"
 branch_labels = None
 depends_on = None
