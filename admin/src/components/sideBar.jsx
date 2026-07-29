@@ -15,10 +15,12 @@ import {
   LifeBuoy,
   Megaphone,
   Images,
+  LogOut,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { logoutAdmin, getAdminUser } from "../services/auth";
 
 const items = [
   {
@@ -101,6 +103,7 @@ export default function Sidebar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const adminUser = getAdminUser();
 
   const [open, setOpen] = useState(false);
 
@@ -305,6 +308,71 @@ export default function Sidebar({
               })}
             </div>
           </nav>
+
+          {/* ================= FOOTER / DÉCONNEXION ================= */}
+
+          <div
+            className={`p-3 border-t ${
+              darkMode ? "border-gray-800" : "border-gray-200"
+            }`}
+          >
+            {/* Infos utilisateur (masqué si collapsed) */}
+            {!collapsed && adminUser && (
+              <div
+                className={`flex items-center gap-3 px-3 py-2 mb-2 rounded-2xl ${
+                  darkMode ? "bg-gray-800" : "bg-gray-50"
+                }`}
+              >
+                <div
+                  className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center
+                  text-white text-sm font-bold flex-shrink-0"
+                >
+                  {(adminUser.prenom?.[0] ?? adminUser.email?.[0] ?? "A").toUpperCase()}
+                </div>
+                <div className="overflow-hidden">
+                  <p
+                    className={`text-xs font-semibold truncate ${
+                      darkMode ? "text-gray-100" : "text-gray-800"
+                    }`}
+                  >
+                    {adminUser.prenom
+                      ? `${adminUser.prenom} ${adminUser.nom ?? ""}`
+                      : adminUser.email}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate capitalize">
+                    {adminUser.role}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Bouton déconnexion */}
+            <button
+              onClick={logoutAdmin}
+              className={`
+                w-full flex items-center gap-3
+                px-3 py-3 rounded-2xl
+                text-sm font-medium
+                transition-all duration-200
+                group
+                ${collapsed ? "md:justify-center" : ""}
+                ${
+                  darkMode
+                    ? "text-gray-400 hover:bg-red-900/30 hover:text-red-400"
+                    : "text-gray-500 hover:bg-red-50 hover:text-red-600"
+                }
+              `}
+              title="Se déconnecter"
+            >
+              <LogOut
+                size={20}
+                className="flex-shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5"
+              />
+              {!collapsed && (
+                <span>Se déconnecter</span>
+              )}
+            </button>
+          </div>
         </div>
       </aside>
     </>

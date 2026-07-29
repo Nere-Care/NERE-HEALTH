@@ -71,6 +71,12 @@ services:
       - backend
     ports:
       - "4174:4174"
+    volumes:
+      - ./admin/src:/app/src
+      - ./admin/public:/app/public
+      - ./admin/index.html:/app/index.html
+      - ./admin/vite.config.js:/app/vite.config.js
+
 
 volumes:
   db_data:

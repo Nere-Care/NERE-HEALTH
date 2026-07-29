@@ -1,0 +1,17 @@
+{
+  "name": "Nere Health",
+  "short_name": "Nere",
+  "description": "Plateforme de santé numérique Nere Health",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1D7BE0",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

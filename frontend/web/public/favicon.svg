@@ -1,34 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 512 512"
-     fill="none">
-
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="nereGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1D7BE0"/>
-      <stop offset="100%" stop-color="#22C7A8"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E8EF5"/>
+      <stop offset="100%" stop-color="#0A4FA8"/>
     </linearGradient>
   </defs>
 
-  <!-- N cursif -->
-  <path
-    d="M120 390
-       C120 240 150 120 185 120
-       C210 120 215 170 220 235
-       C225 295 250 355 305 395
-       C275 305 295 170 390 95"
-    fill="none"
-    stroke="url(#nereGradient)"
-    stroke-width="34"
-    stroke-linecap="round"
-    stroke-linejoin="round"/>
+  <!-- Fond arrondi -->
+  <rect width="512" height="512" rx="110" ry="110" fill="url(#bg)"/>
 
-  <!-- swoosh -->
-  <path
-    d="M145 430
-       C220 405 315 405 390 425"
-    fill="none"
-    stroke="url(#nereGradient)"
-    stroke-width="18"
-    stroke-linecap="round"/>
-
+  <!-- Lettre N bold centrée — attributs SVG purs sans CSS ambigu -->
+  <text
+    x="256"
+    y="370"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="340px"
+    font-weight="900"
+    fill="white"
+    text-anchor="middle">N</text>
 </svg>

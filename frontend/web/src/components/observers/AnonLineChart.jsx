@@ -96,7 +96,7 @@ export default function AnonLineChart({
               borderRadius: "12px",
               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
               color: darkMode ? "#f8fafc" : "#0f172a",
-              fontSize: "13px",
+              fontSize: 13,
               padding: "10px 14px",
             }}
             formatter={(value) => [

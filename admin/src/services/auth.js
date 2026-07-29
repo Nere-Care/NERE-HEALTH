@@ -1,11 +1,13 @@
 import { API_BASE_URL } from "./api";
 
+const API_URL = `${API_BASE_URL}/api`;
+
 export async function loginAdmin(email, password) {
   const formData = new URLSearchParams();
   formData.append("username", email);
   formData.append("password", password);
 
-  const response = await fetch(`${API_BASE_URL}/auth/token`, {
+  const response = await fetch(`${API_URL}/auth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: formData,
@@ -23,7 +25,7 @@ export async function loginAdmin(email, password) {
 
   const data = await response.json();
 
-  const meResponse = await fetch(`${API_BASE_URL}/auth/me`, {
+  const meResponse = await fetch(`${API_URL}/auth/me`, {
     headers: { Authorization: `Bearer ${data.access_token}` },
   });
 

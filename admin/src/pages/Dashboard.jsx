@@ -299,22 +299,24 @@ export default function Dashboard({ darkMode }) {
                 </div>
                 <CalendarCheck className="text-blue-500 flex-shrink-0" />
               </div>
-              <div className="h-[260px] sm:h-[320px] lg:h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={consultationsData}>
-                    <defs>
-                      <linearGradient id="colorConsult" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#E5E7EB"} />
-                    <XAxis dataKey="month" stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
-                    <YAxis stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="consultations" stroke="#3B82F6" fillOpacity={1} fill="url(#colorConsult)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col h-[260px] sm:h-[320px] lg:h-[350px] min-h-0 min-w-0 w-full">
+                <div className="flex-1 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={consultationsData}>
+                      <defs>
+                        <linearGradient id="colorConsult" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#E5E7EB"} />
+                      <XAxis dataKey="month" stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
+                      <YAxis stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="consultations" stroke="#3B82F6" fillOpacity={1} fill="url(#colorConsult)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
@@ -323,17 +325,19 @@ export default function Dashboard({ darkMode }) {
                 <h2 className={`text-lg sm:text-xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Répartition utilisateurs</h2>
                 <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Vue globale des comptes</p>
               </div>
-              <div className="h-[260px] sm:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={usersData} dataKey="value" cx="50%" cy="50%" outerRadius={window.innerWidth < 640 ? 70 : 100} label>
-                      {usersData.map((entry, index) => (
-                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col h-[260px] sm:h-[300px] min-h-0 min-w-0 w-full">
+                <div className="flex-1 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={usersData} dataKey="value" cx="50%" cy="50%" outerRadius={window.innerWidth < 640 ? 70 : 100} label>
+                        {usersData.map((entry, index) => (
+                          <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
@@ -345,16 +349,18 @@ export default function Dashboard({ darkMode }) {
                 <h2 className={`text-lg sm:text-xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Patients par ville</h2>
                 <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Répartition géographique</p>
               </div>
-              <div className="h-[260px] sm:h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={hospitalData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#E5E7EB"} />
-                    <XAxis dataKey="hospital" stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
-                    <YAxis stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
-                    <Tooltip />
-                    <Bar dataKey="patients" fill="#3B82F6" radius={[10, 10, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="flex flex-col h-[260px] sm:h-[320px] min-h-0 min-w-0 w-full">
+                <div className="flex-1 min-h-0 min-w-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hospitalData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#374151" : "#E5E7EB"} />
+                      <XAxis dataKey="hospital" stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
+                      <YAxis stroke={darkMode ? "#9CA3AF" : "#6B7280"} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="patients" fill="#3B82F6" radius={[10, 10, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 

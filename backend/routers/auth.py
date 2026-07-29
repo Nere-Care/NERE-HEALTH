@@ -23,7 +23,6 @@ from limiter import limiter
 from models import User, Session as UserSession, Medecin, MedecinSpecialite, Patient, Specialite, Structure
 from schemas import Token, RefreshRequest, UserCreate, UserRead, UserUpdate, PasswordChange, PatientRegister, MedecinRegister
 from validators import validate_phone
-import hashlib
 
 router = APIRouter(tags=["auth"])
 
