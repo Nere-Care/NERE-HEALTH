@@ -7,24 +7,33 @@ import RecentPatients from "../../components/doctors/dashboard/RecentPatient";
 import NewsPanel from "../../components/doctors/dashboard/NewsPanel";
 import AccountStatusBanner from "../../components/ui/AccountStatusBanner";
 import NotificationBanner from "../../components/ui/NotificationBanner";
+import ProfileCompletionBanner from "../../components/ui/ProfileCompletionBanner";
 import { get } from "../../services/apiClient";
 import { getStoredUser } from "../../services/auth";
+import { getProfileCompletion } from "../../utils/profileCompletion";
 import { formatCurrency } from "../../utils/currency";
 
 export default function Dashboard({ darkMode }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [doctorProfile, setDoctorProfile] = useState(null);
   const currentUser = getStoredUser();
   const isSuspended = currentUser?.statut === "suspendu";
   const isBanned = currentUser?.statut === "banni";
   const [notifVisible, setNotifVisible] = useState(true);
 
   const fetchData = useCallback(() => {
-    get("/api/medecins/dashboard")
-      .then(setData)
+    Promise.all([
+      get("/api/medecins/dashboard"),
+      get(`/api/medecins/${currentUser?.id}`).catch(() => null),
+    ])
+      .then(([dashboardData, profile]) => {
+        setData(dashboardData);
+        setDoctorProfile(profile);
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     fetchData();
@@ -64,6 +73,8 @@ export default function Dashboard({ darkMode }) {
         statut={currentUser?.statut} 
         suspendMessage="Votre compte est suspendu. La création de consultations et de rendez-vous est désactivée." 
       />
+
+      {doctorProfile && <ProfileCompletionBanner percent={getProfileCompletion(currentUser, doctorProfile).percent} />}
 
       <p
         className={`text-sm sm:text-base mt-1 ${
