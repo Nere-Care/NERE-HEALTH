@@ -45,6 +45,8 @@ from routers.confidentialite import router as confidentialite_router
 from routers.demandes_avis import router as demandes_avis_router
 from routers.analyses import router as analyses_router
 from routers.retraits import router as retraits_router
+from sqlalchemy import text
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from db import engine, SessionLocal
 from models import Base, CategorieTicket
 
@@ -75,6 +77,21 @@ app.add_middleware(HostValidationMiddleware, allowed_hosts=settings.ALLOWED_HOST
 app.add_middleware(AuditLoggingMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
+with engine.begin() as conn:
+    created_types = set()
+    for table in Base.metadata.tables.values():
+        for column in table.columns:
+            col_type = column.type
+            if isinstance(col_type, PG_ENUM) and col_type.name and col_type.name not in created_types:
+                created_types.add(col_type.name)
+                values = ", ".join(f"'{v}'" for v in col_type.enums)
+                conn.execute(text(f"""
+                    DO $$ BEGIN
+                        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '{col_type.name}') THEN
+                            CREATE TYPE {col_type.name} AS ENUM ({values});
+                        END IF;
+                    END $$;
+                """))
 Base.metadata.create_all(bind=engine)
 
 # Serve uploaded files
