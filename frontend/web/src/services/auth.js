@@ -109,24 +109,25 @@ export function logout() {
   localStorage.removeItem('token')
 }
 
-export async function googleLogin(credential) {
+export async function googleLogin(credential, role) {
+  const body = role ? { credential, role } : { credential }
   const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ credential }),
+    body: JSON.stringify(body),
   })
 
+  const data = await response.json()
+
   if (!response.ok) {
-    const text = await response.text()
     let detail = "Erreur lors de la connexion Google"
-    try {
-      const parsed = JSON.parse(text)
-      detail = parsed.detail || detail
-    } catch {}
+    detail = data.detail || detail
     throw new Error(detail)
   }
 
-  const data = await response.json()
+  if (data.needs_role) {
+    return { needs_role: true, ...data }
+  }
 
   const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
     headers: { 'Authorization': `Bearer ${data.access_token}` },

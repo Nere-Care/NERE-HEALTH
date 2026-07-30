@@ -1,9 +1,17 @@
 import { useState } from "react";
-import { Mail } from "lucide-react";
+import { Mail, User, Stethoscope, BriefcaseMedical, Eye, Building2 } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
 import Input from "../../../components/form/Input";
 import PasswordInput from "../../../components/form/PasswordInput";
 import { login, googleLogin } from "../../../services/auth";
+
+const ROLES = [
+  { key: "patient", label: "Patient", icon: User, desc: "Accéder à mes données médicales" },
+  { key: "medecin", label: "Médecin", icon: Stethoscope, desc: "Suivi et consultation de patients" },
+  { key: "infirmier", label: "Infirmier", icon: BriefcaseMedical, desc: "Soins et assistance médicale" },
+  { key: "observateur", label: "Observateur", icon: Eye, desc: "Consultation en lecture seule" },
+  { key: "structure", label: "Structure", icon: Building2, desc: "Établissement de santé" },
+];
 
 export default function LoginStep({
   email,
@@ -19,6 +27,9 @@ export default function LoginStep({
 }) {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [googleCredential, setGoogleCredential] = useState(null);
+  const [googleInfo, setGoogleInfo] = useState(null);
+  const [selectedRole, setSelectedRole] = useState("");
 
   const handleLogin = async () => {
     if (!validateForm()) return;
@@ -43,8 +54,34 @@ export default function LoginStep({
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setApiError("");
+    setLoading(true);
     try {
-      const user = await googleLogin(credentialResponse.credential);
+      const result = await googleLogin(credentialResponse.credential);
+      if (result.needs_role) {
+        setGoogleCredential(credentialResponse.credential);
+        setGoogleInfo(result);
+      } else {
+        saveUser(result);
+        const redirectPath = redirectByRole(result.role);
+        if (redirectPath.startsWith("http")) {
+          window.location.href = redirectPath;
+        } else {
+          navigate(redirectPath);
+        }
+      }
+    } catch (err) {
+      setApiError(err.message || "Erreur lors de la connexion Google");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleRoleConfirm = async () => {
+    if (!selectedRole) return;
+    setLoading(true);
+    setApiError("");
+    try {
+      const user = await googleLogin(googleCredential, selectedRole);
       saveUser(user);
       const redirectPath = redirectByRole(user.role);
       if (redirectPath.startsWith("http")) {
@@ -53,13 +90,64 @@ export default function LoginStep({
         navigate(redirectPath);
       }
     } catch (err) {
-      setApiError(err.message || "Erreur lors de la connexion Google");
+      setApiError(err.message || "Erreur lors de la création du compte");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleError = () => {
     setApiError("Connexion Google annulée ou échouée");
   };
+
+  if (googleInfo) {
+    return (
+      <>
+        <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
+          <div className="text-center mb-6">
+            {googleInfo.photo_url && (
+              <img src={googleInfo.photo_url} alt="" className="w-16 h-16 rounded-full mx-auto mb-3" />
+            )}
+            <h3 className="text-lg font-semibold text-gray-800">
+              Bienvenue {googleInfo.prenom}
+            </h3>
+            <p className="text-sm text-gray-500">{googleInfo.email}</p>
+            <p className="text-sm text-gray-500 mt-2">Choisissez votre type de compte</p>
+          </div>
+
+          <div className="space-y-2">
+            {ROLES.map(({ key, label, icon: Icon, desc }) => (
+              <button
+                key={key}
+                onClick={() => setSelectedRole(key)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition text-left ${
+                  selectedRole === key
+                    ? "border-[#2F80ED] bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div className={`p-2 rounded-lg ${selectedRole === key ? "bg-[#2F80ED] text-white" : "bg-gray-100 text-gray-600"}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">{label}</p>
+                  <p className="text-xs text-gray-500">{desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleGoogleRoleConfirm}
+            disabled={!selectedRole || loading}
+            className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50"
+          >
+            {loading ? "Création du compte..." : "Continuer"}
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -411,12 +411,13 @@ async def update_password(
     return {"detail": "Mot de passe modifié avec succès"}
 
 
-@router.post("/auth/google", response_model=Token)
+@router.post("/auth/google")
 @limiter.limit("10/minute")
 async def google_login(request: Request, body: dict, db: Session = Depends(get_db)):
     credential = body.get("credential")
     if not credential:
         raise HTTPException(status_code=400, detail="Token Google manquant")
+    desired_role = body.get("role") or None
 
     if not settings.GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=503, detail="Google OAuth non configuré côté serveur")
@@ -451,29 +452,51 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
             user.photo_url = picture
             db.add(user)
             db.commit()
-    else:
+    elif not desired_role:
+        return {
+            "needs_role": True,
+            "email": email,
+            "prenom": given_name or "",
+            "nom": family_name or "",
+            "photo_url": picture or None,
+        }
+
+    if not user:
+        valid_roles = {"patient", "medecin", "infirmier", "sage_femme", "structure", "admin", "observateur"}
+        if desired_role not in valid_roles:
+            raise HTTPException(status_code=400, detail="Rôle invalide")
+
         user = User(
             email=email,
             prenom=given_name or "",
             nom=family_name or "",
             photo_url=picture or None,
             mot_de_passe_hash=get_password_hash(secrets.token_urlsafe(32)),
-            role="patient",
+            role=desired_role,
             statut="actif",
             email_verifie=True,
         )
         db.add(user)
         db.flush()
 
-        nss = generer_nss(type("obj", (object,), {"sexe": None, "date_naissance": None})(), 0)
-        patient = Patient(
-            id=user.id,
-            code_patient=f"PAT-{secrets.token_hex(4).upper()}",
-            nss=nss,
-            sexe="Non_precise",
-            pays="CM",
-        )
-        db.add(patient)
+        if desired_role == "patient":
+            nss = generer_nss(type("obj", (object,), {"sexe": None, "date_naissance": None})(), 0)
+            patient = Patient(
+                id=user.id,
+                code_patient=f"PAT-{secrets.token_hex(4).upper()}",
+                nss=nss,
+                sexe="Non_precise",
+                pays="CM",
+            )
+            db.add(patient)
+        elif desired_role == "medecin":
+            medecin = Medecin(
+                id=user.id,
+                code_medecin=f"DOC-{secrets.token_hex(4).upper()}",
+                statut_verification="en_attente",
+            )
+            db.add(medecin)
+
         try:
             db.commit()
         except IntegrityError:
