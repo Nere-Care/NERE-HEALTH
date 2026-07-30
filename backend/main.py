@@ -94,6 +94,12 @@ with engine.begin() as conn:
                 """))
 Base.metadata.create_all(bind=engine)
 
+import seed_admin as _seed
+try:
+    _seed.seed()
+except ValueError:
+    pass
+
 # Serve uploaded files
 import os
 os.makedirs("uploads/documents", exist_ok=True)
