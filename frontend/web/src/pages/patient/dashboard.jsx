@@ -13,6 +13,8 @@ import { getStoredUser } from '../../services/auth';
 import PatientCallScreen from '../../components/patient/PatientCallScreen';
 import AccountStatusBanner from '../../components/ui/AccountStatusBanner';
 import NotificationBanner from '../../components/ui/NotificationBanner';
+import ProfileCompletionBanner from '../../components/ui/ProfileCompletionBanner';
+import { getProfileCompletion } from '../../utils/profileCompletion';
 import { getUserTimezone } from '../../utils/timezone';
 
 const SPEC_ICONS = {
@@ -271,6 +273,8 @@ export default function Dashboard({ darkMode }) {
         statut={user?.statut} 
         suspendMessage="Votre compte est suspendu. La prise de rendez-vous est temporairement désactivée." 
       />
+
+      {patientData && <ProfileCompletionBanner percent={getProfileCompletion(user, patientData).percent} />}
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>

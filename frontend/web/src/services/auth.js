@@ -60,6 +60,8 @@ export async function login(email, password) {
     id: me.id,
     statut: me.statut,
     timezone: userTz,
+    adresse: me.adresse,
+    date_naissance: me.date_naissance,
     token: data.access_token,
   }
 
@@ -151,6 +153,8 @@ export async function googleLogin(credential, role) {
     id: me.id,
     statut: me.statut,
     timezone: userTz,
+    adresse: me.adresse,
+    date_naissance: me.date_naissance,
     token: data.access_token,
   }
 
