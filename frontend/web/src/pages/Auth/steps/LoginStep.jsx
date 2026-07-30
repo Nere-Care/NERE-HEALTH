@@ -206,8 +206,6 @@ export default function LoginStep({
             text="continue_with"
             shape="rectangular"
             size="large"
-            width="100%"
-            useOneTap
           />
         </div>
       </div>
