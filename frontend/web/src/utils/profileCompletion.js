@@ -39,6 +39,9 @@ export function getProfileCompletion(user, extra) {
       extra?.biographie,
       extra?.langues_parlees,
       tarifSet ? tc : null,
+      extra?.diplomes,
+      extra?.certifications,
+      extra?.experience_history,
     ]
   } else {
     specific = []
