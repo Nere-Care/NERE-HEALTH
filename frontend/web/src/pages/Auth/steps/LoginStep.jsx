@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, User, Stethoscope, BriefcaseMedical, Eye, Building2 } from "lucide-react";
+import { Mail, User, Stethoscope, BriefcaseMedical } from "lucide-react";
 import { GoogleLogin } from "@react-oauth/google";
 import Input from "../../../components/form/Input";
 import PasswordInput from "../../../components/form/PasswordInput";
@@ -9,8 +9,6 @@ const ROLES = [
   { key: "patient", label: "Patient", icon: User, desc: "Accéder à mes données médicales" },
   { key: "medecin", label: "Médecin", icon: Stethoscope, desc: "Suivi et consultation de patients" },
   { key: "infirmier", label: "Infirmier", icon: BriefcaseMedical, desc: "Soins et assistance médicale" },
-  { key: "observateur", label: "Observateur", icon: Eye, desc: "Consultation en lecture seule" },
-  { key: "structure", label: "Structure", icon: Building2, desc: "Établissement de santé" },
 ];
 
 export default function LoginStep({
