@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   User, Save, Camera, Loader, CheckCircle, AlertCircle,
   Plus, Trash2, FileText, Briefcase, GraduationCap, Star,
-  Stethoscope, DollarSign, ChevronDown, ChevronUp, Clock,
+  Stethoscope, DollarSign, ChevronDown, ChevronUp, Clock, Globe,
 } from "lucide-react";
 import { get, put } from "../../services/apiClient";
 import { getStoredUser } from "../../services/auth";
@@ -41,6 +41,7 @@ export default function ProfilMedecin({ darkMode }) {
     experience: [],
     annees_experience: "0",
     photo_url: "",
+    langues_parlees: [],
   });
 
   const [expandedSections, setExpandedSections] = useState({
@@ -80,6 +81,7 @@ export default function ProfilMedecin({ darkMode }) {
           experience: m.experience_history || [],
           annees_experience: String(m.annees_experience || "0"),
           photo_url: u.photo_url || "",
+          langues_parlees: m.langues_parlees || [],
         });
       })
       .catch(console.error)
@@ -115,6 +117,7 @@ export default function ProfilMedecin({ darkMode }) {
         certifications: form.certifications,
         experience_history: form.experience,
         annees_experience: Number(form.annees_experience),
+        langues_parlees: form.langues_parlees,
       });
       setToast({ type: "success", msg: "Profil mis à jour avec succès" });
     } catch (err) {
@@ -309,6 +312,45 @@ export default function ProfilMedecin({ darkMode }) {
               />
             </div>
           )}
+        </div>
+
+        {/* LANGUES PARLÉES */}
+        <div className={`rounded-2xl border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+          <div className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600"
+              }`}>
+                <Globe size={20} />
+              </div>
+              <h3 className="font-semibold text-sm">Langues parlées</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["Français","Anglais","Allemand","Arabe","Espagnol","Portugais","Chinois","Italien","Bassa","Duala","Bamiléké","Fang","Ewondo","Haoussa","Peul"].map((lang) => {
+                const selected = form.langues_parlees.includes(lang);
+                return (
+                  <button
+                    key={lang}
+                    onClick={() =>
+                      set("langues_parlees", selected
+                        ? form.langues_parlees.filter((l) => l !== lang)
+                        : [...form.langues_parlees, lang]
+                      )
+                    }
+                    className={`px-3 py-2 rounded-xl text-xs font-medium border transition ${
+                      selected
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : darkMode
+                        ? "bg-gray-700 text-gray-300 border-gray-600 hover:border-blue-500"
+                        : "bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-500"
+                    }`}
+                  >
+                    {lang}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* EXPERTISES */}
