@@ -493,6 +493,7 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
             medecin = Medecin(
                 id=user.id,
                 code_medecin=f"DOC-{secrets.token_hex(4).upper()}",
+                numero_ordre="",
                 statut_verification="en_attente",
             )
             db.add(medecin)
