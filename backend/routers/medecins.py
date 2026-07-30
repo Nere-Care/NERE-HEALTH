@@ -497,7 +497,7 @@ async def read_medecin(
     if user and user.statut == "banni":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Médecin non trouvé")
 
-    if current_user.role != "admin" and medecin.statut_verification != "verifie":
+    if current_user.role != "admin" and medecin.statut_verification != "verifie" and current_user.id != medecin.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Médecin non trouvé")
 
     if current_user.role == "patient":
