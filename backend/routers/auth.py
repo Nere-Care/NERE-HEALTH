@@ -489,7 +489,7 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
                 pays="CM",
             )
             db.add(patient)
-        elif desired_role == "medecin":
+        elif desired_role in ("medecin", "infirmier", "sage_femme"):
             medecin = Medecin(
                 id=user.id,
                 code_medecin=f"DOC-{secrets.token_hex(4).upper()}",
