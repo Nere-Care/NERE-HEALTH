@@ -32,7 +32,7 @@ services:
       start_period: 10s
     environment:
       DATABASE_URL: postgresql://nere_user:nere_pass@db:5432/nere_db
-      CORS_ORIGINS: "http://localhost:4173,http://localhost:4174"
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4173,http://localhost:4174}
       ENVIRONMENT: development
       API_PREFIX: /api
       SECRET_KEY: ${SECRET_KEY}
@@ -48,7 +48,7 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:8100
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8100}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
@@ -66,7 +66,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: http://localhost:8100
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8100}
     restart: unless-stopped
     depends_on:
       - backend

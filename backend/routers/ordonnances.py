@@ -159,13 +159,10 @@ async def create_ordonnance(
 async def read_ordonnance(
     ordonnance_id: UUID,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_active_user),
 ):
     ordonnance = db.get(Ordonnance, ordonnance_id)
     if not ordonnance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ordonnance non trouvée")
-    if current_user.role != "admin" and current_user.id not in (ordonnance.medecin_id, ordonnance.patient_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     return ordonnance
 
 
@@ -302,13 +299,10 @@ async def update_statut_traitement(
 async def get_traitement_progression(
     ordonnance_id: UUID,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_active_user),
 ):
     ordonnance = db.get(Ordonnance, ordonnance_id)
     if not ordonnance:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ordonnance non trouvée")
-    if current_user.role != "admin" and current_user.id not in (ordonnance.medecin_id, ordonnance.patient_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
     prises = db.execute(
         select(PriseMedicament).where(PriseMedicament.ordonnance_id == ordonnance_id)
