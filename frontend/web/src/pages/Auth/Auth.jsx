@@ -77,6 +77,8 @@ export default function Auth() {
     setStepThree(false);
     setErrors({});
     setGlobalError(null);
+    setInscriptionEnAttente(false);   // ← ligne manquante, c'est le bug exact
+
   };
 
   // ============================================

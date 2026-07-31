@@ -101,6 +101,16 @@ useEffect(() => {
   /* SIDEBAR COLLAPSE */
   const [collapsed, setCollapsed] = useState(false);
 
+useEffect(() => {
+  const debloquerAudio = () => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+    document.removeEventListener("click", debloquerAudio);
+  };
+  document.addEventListener("click", debloquerAudio);
+  return () => document.removeEventListener("click", debloquerAudio);
+}, []);
+
   return (
     <BrowserRouter>
       <Routes>

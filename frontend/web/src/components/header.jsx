@@ -6,6 +6,8 @@ import { onWebSocketMessage } from "../services/websocketService";
 import logoVideo from "../assets/images/NERE.mp4"; // Adaptez le chemin/nom de votre vidéo .mp4
 
 import logoImg from "../assets/images/logo.png";
+import { jouerSonNotification } from "../services/notificationSound";
+
 
 
 export default function Header({ titre, darkMode, setDarkMode, collapsed }) {
@@ -41,14 +43,31 @@ useEffect(() => {
 
   // Charger le nombre de notifications non lues
   const chargerNonLues = useCallback(async () => {
-    try {
-      const data = await fetchNotifications();
-      const count = (data ?? []).filter(n => n.statut !== "lu").length;
-      setNonLues(count);
-    } catch {
-      // Silencieux — pas d'affichage d'erreur sur le header
+  try {
+    const data = await fetchNotifications();
+    const count = (data ?? []).filter(n => n.statut !== "lu").length;
+    setNonLues((ancienCount) => {
+      if (count > ancienCount) {
+        jouerSonNotification();   // ← une nouvelle notif est apparue depuis le dernier check
+      }
+      return count;
+    });
+  } catch {
+    // Silencieux
+  }
+}, []);
+
+
+useEffect(() => {
+  const unsubscribe = onWebSocketMessage((data) => {
+    if (data.event === "nouvelle_notification" || data.event === "nouveau_message") {
+      jouerSonNotification();
+      setNonLues((prev) => prev + 1);
     }
-  }, []);
+  });
+  return unsubscribe;
+}, []);
+
 
   // Chargement initial
   useEffect(() => {
