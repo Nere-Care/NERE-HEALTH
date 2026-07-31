@@ -34,6 +34,7 @@ services:
       ENVIRONMENT: production
       API_PREFIX: /api
       SECRET_KEY: ${SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-https://neon-frangipane-27698e.netlify.app}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     volumes:
       - backend_prod_uploads:/app/uploads

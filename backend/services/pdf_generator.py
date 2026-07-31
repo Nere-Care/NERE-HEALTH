@@ -10,7 +10,7 @@ import qrcode
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads", "pdfs")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://nere-health.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://neon-frangipane-27698e.netlify.app")
 
 FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 FALLBACK_FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fonts")
@@ -122,12 +122,12 @@ def _unite_quantite(forme: str) -> str:
 
 
 def _build_qr_data(ordonnance) -> str:
-    numero = getattr(ordonnance, "numero", "") or ""
+    ordonnance_id = getattr(ordonnance, "id", "") or ""
     frontend_url = FRONTEND_URL.rstrip("/")
-    url = f"{frontend_url}/prescription/{numero}"
+    url = f"{frontend_url}/prescription/{ordonnance_id}"
     payload = {
         "type": "nere_ordonnance",
-        "numero": numero,
+        "numero": getattr(ordonnance, "numero", "") or "",
         "url": url,
     }
     return json.dumps(payload, ensure_ascii=False)
