@@ -48,6 +48,9 @@ from routers.retraits import router as retraits_router
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from db import engine, SessionLocal
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 from models import Base, CategorieTicket
 
 
@@ -94,11 +97,23 @@ with engine.begin() as conn:
                 """))
 Base.metadata.create_all(bind=engine)
 
-import seed_admin as _seed
 try:
-    _seed.seed()
-except ValueError:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TYPE forme_medicament ADD VALUE IF NOT EXISTS 'suspension_buvable'"))
+except Exception:
     pass
+
+import seed_admin as _seed_admin
+import seed_medicaments as _seed_medicaments
+import seed_analyses as _seed_analyses
+
+for _name, _seed in (("admin", _seed_admin.seed), ("medicaments", _seed_medicaments.seed), ("analyses", _seed_analyses.seed)):
+    try:
+        _seed()
+    except ValueError as e:
+        logger.warning("Seed %s ignoré : %s", _name, e)
+    except Exception as e:
+        logger.error("Erreur pendant le seed %s : %s", _name, e)
 
 # Serve uploaded files
 import os

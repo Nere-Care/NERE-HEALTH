@@ -111,7 +111,7 @@ export const hospitals = [
 export const FORMES = [
   "comprimes", "gelules", "sirop", "injectable",
   "creme", "pommade", "gouttes", "suppositoire",
-  "patch", "inhalateur", "autre",
+  "suspension_buvable", "patch", "inhalateur", "autre",
 ];
 
 export const MOMENTS_PRISE = [

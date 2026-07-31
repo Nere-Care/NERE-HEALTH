@@ -271,6 +271,7 @@ class OrdonnanceLigne(Base):
                 "pommade",
                 "gouttes",
                 "suppositoire",
+                "suspension_buvable",
                 "patch",
                 "inhalateur",
                 "autre",
