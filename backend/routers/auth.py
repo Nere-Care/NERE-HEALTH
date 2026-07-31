@@ -7,7 +7,8 @@ from auth import authenticate_user, create_access_token, get_password_hash, vali
 from db import get_db
 from limiter import limiter
 from schemas import Token, UserCreate, UserRead, GoogleAuth
-import uuid as uuid_module
+import uuid as uuid_module  # deja importe en haut du fichier normalement
+
 from datetime import datetime
 from models import User, Patient, Medecin, Structure, DossierMedical
 
@@ -137,13 +138,49 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
         db.add(patient)
 
     elif db_role == "medecin":
+        from models import MedecinSpecialite, Specialite
+        from sqlalchemy import func as sqlfunc
+
+    # ── Structure : recherche insensible a la casse, creation si introuvable ──
         structure_id = None
-        if user_create.hospital:
+        if user_create.hospital and user_create.hospital.strip():
+            nom_structure = user_create.hospital.strip()
             structure = db.query(Structure).filter(
-                Structure.nom_etablissement == user_create.hospital
+                sqlfunc.lower(Structure.nom_etablissement) == nom_structure.lower()
             ).first()
+
             if structure:
                 structure_id = structure.id
+            else:
+        # La table structures herite de users (meme pattern que patients/medecins)
+        # Il faut d'abord creer le User de base avant la Structure
+                email_structure = f"structure.{uuid_module.uuid4().hex[:12]}@nere-health.local"
+
+                user_structure = User(
+                    id=uuid_module.uuid4(),
+                    email=email_structure,
+                    mot_de_passe_hash=get_password_hash(str(uuid_module.uuid4())),  # mot de passe aleatoire, compte non utilise pour se connecter
+                    role="structure",
+                    statut="en_attente",
+                    prenom=nom_structure,
+                    nom="",
+                    email_verifie=False,
+                )
+                db.add(user_structure)
+                db.flush()
+
+                nouvelle_structure = Structure(
+                    id=user_structure.id,
+                    nom_etablissement=nom_structure,
+                    type="clinique",
+                    statut_verification="en_attente",
+                    adresse="Non renseignee",
+                    ville=user_create.city or "Non renseignee",
+                    pays="CM",
+                )
+                db.add(nouvelle_structure)
+                db.flush()
+                structure_id = nouvelle_structure.id
 
         medecin = Medecin(
             id=user.id,
@@ -152,12 +189,31 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
             annees_experience=user_create.experience or 0,
             tarif_consultation=5000,
             structure_id=structure_id,
-            disponible_maintenant=False,  # invisible dans l'annuaire tant que non verifie
+            disponible_maintenant=False,
         )
         db.add(medecin)
         db.flush()
 
-        # Stocker les documents justificatifs (plusieurs fichiers)
+    # ── Specialite : recherche insensible a la casse ──────────────────────────
+        if user_create.speciality and user_create.speciality.strip():
+            nom_specialite = user_create.speciality.strip()
+            specialite_obj = db.query(Specialite).filter(
+                sqlfunc.lower(Specialite.libelle_fr) == nom_specialite.lower()
+            ).first()
+
+            if specialite_obj:
+                medecin_specialite = MedecinSpecialite(
+                    medecin_id=medecin.id,
+                    specialite_id=specialite_obj.id,
+                    principale=True,
+                    annees_pratique=user_create.experience or 0,
+                    certifie=False,
+                )
+                db.add(medecin_specialite)
+            else:
+                print(f"[REGISTER] Specialite '{nom_specialite}' introuvable en base — non liee au medecin {user.email}")
+
+    # Stocker les documents justificatifs (plusieurs fichiers)
         if user_create.documents:
             import hashlib, base64
             from models import DocumentMedical
@@ -184,9 +240,10 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
                     )
                     db.add(document)
                 except Exception:
+                    print(f"[REGISTER] Erreur lors du traitement du document {doc.nom_fichier}")
                     continue
 
-        # Notifier tous les admins qu'un nouveau medecin attend validation
+    # Notifier tous les admins qu'un nouveau medecin attend validation
         admins = db.query(User).filter(User.role == "admin").all()
         from models import Notification
         for admin in admins:

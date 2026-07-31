@@ -7,7 +7,6 @@ import { FcGoogle } from "react-icons/fc";
 
 const GOOGLE_CLIENT_ID = "370116629692-j2f64k7n783qus34pv23la583g7vag22.apps.googleusercontent.com";
 
-
 function FieldError({ message }) {
   if (!message) return null;
   return (
@@ -49,7 +48,7 @@ export default function LoginStep({
   const handleGoogleResponse = async (response) => {
     try {
       if (!response?.credential) {
-        setGoogleError("Aucun credential reçu de Google");
+        setGoogleError("Aucun identifiant reçu de Google");
         return;
       }
 
@@ -135,7 +134,6 @@ export default function LoginStep({
     if (realGoogleButton) {
       realGoogleButton.click();
     } else {
-      // Fallback : utiliser le prompt
       window.google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed()) {
           console.log("Google prompt not displayed:", notification.getNotDisplayedReason());
@@ -145,79 +143,48 @@ export default function LoginStep({
   };
 
   // ============================================
-  // GESTIONNAIRE LOGIN EMAIL/PASSWORD
+  // GESTIONNAIRE LOGIN EMAIL/MOT DE PASSE
   // ============================================
- const handleLoginClick = async () => {
-  try {
-    // Validation formulaire
-    // Validation formulaire
-if (validateForm && typeof validateForm === "function") {
-  const isValid = validateForm();
-  if (!isValid) {
-    setLocalError("Veuillez corriger les erreurs dans le formulaire.");
-    return;
-  }
+  const handleLoginClick = async () => {
+    try {
+      if (validateForm && typeof validateForm === "function") {
+        const isValid = validateForm();
+        if (!isValid) {
+          setLocalError("Veuillez corriger les erreurs dans le formulaire.");
+          return;
+        }
+      } else if (!email?.trim() || !password) {
+        setLocalError("Email et mot de passe requis.");
+        return;
+      }
 
-    } else if (!email?.trim() || !password) {
-      setLocalError("Email et mot de passe requis.");
-      return;
+      setLocalLoading(true);
+      setLocalError(null);
+
+      if (setServerError) {
+        setServerError(null);
+      }
+
+      const tokenData = await login(email.trim(), password);
+      localStorage.setItem("token", tokenData.access_token);
+
+      const user = await getCurrentUser(tokenData.access_token);
+      saveUser(user);
+      localStorage.setItem("role", user.role);
+
+      navigate(redirectByRole(user.role));
+
+    } catch (err) {
+      console.error("Login error:", err);
+      const finalMessage = err.message || "Identifiants incorrects.";
+      setLocalError(finalMessage);
+      if (setServerError) {
+        setServerError(finalMessage);
+      }
+    } finally {
+      setLocalLoading(false);
     }
-
-    setLocalLoading(true);
-    setLocalError(null);
-
-    // Si le parent possède une fonction pour effacer les erreurs serveur
-    if (setServerError) {
-      setServerError(null);
-    }
-
-    // Connexion
-    const tokenData = await login(
-      email.trim(),
-      password
-    );
-
-    localStorage.setItem(
-      "token",
-      tokenData.access_token
-    );
-
-    // Récupération du profil complet
-    const user = await getCurrentUser(
-      tokenData.access_token
-    );
-
-    // Sauvegarde utilisateur
-    saveUser(user);
-
-    localStorage.setItem(
-      "role",
-      user.role
-    );
-
-    // Redirection
-    console.log("Sur le point de naviguer vers:", redirectByRole(user.role));
-console.log("typeof navigate:", typeof navigate);
-navigate(redirectByRole(user.role));
-console.log("Navigate appelé");
-
-  } catch (err) {
-    console.error("Login error:", err);
-
-    // 1. On extrait proprement le message textuel
-    const finalMessage = err.message || "Identifiants incorrects.";
-
-    // 2. On met à jour l'erreur locale
-    setLocalError(finalMessage);
-
-    // 3. Si le parent utilise un setter général, on le met aussi à jour au cas où
-    if (setServerError) {
-      setServerError(finalMessage);
-    }
-  } finally {
-    setLocalLoading(false);
-  }
-};
+  };
 
   return (
     <>
@@ -228,12 +195,11 @@ console.log("Navigate appelé");
             placeholder="Email"
             type="email"
             value={email}
-            // Pour l'input Email
-              onChange={(e) => {
-                 setEmail(e.target.value);
-                  setLocalError(null); // Plus de condition floue, on reset uniquement à la frappe
-                  if (errors?.email) setErrors?.({ ...errors, email: null });
-                }}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setLocalError(null);
+              if (errors?.email) setErrors?.({ ...errors, email: null });
+            }}
           />
 
           {errors?.email && (
@@ -241,11 +207,11 @@ console.log("Navigate appelé");
           )}
 
           <PasswordInput
-            placeholder="Password"
+            placeholder="Mot de passe"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              if (localError) setLocalError(null); // Clear l'erreur dès qu'on tape
+              if (localError) setLocalError(null);
               if (errors?.password) setErrors?.({ ...errors, password: null });
             }}
           />
@@ -255,7 +221,6 @@ console.log("Navigate appelé");
           )}
         </div>
 
-        {/* ERREUR GOOGLE */}
         {googleError && (
           <div className="mt-4 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
@@ -263,15 +228,14 @@ console.log("Navigate appelé");
           </div>
         )}
 
-
         {localError && (
-  <div className="mt-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2">
-    <AlertCircle size={14} className="flex-shrink-0" />
-    {localError}
-  </div>
-)}
+          <div className="mt-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2">
+            <AlertCircle size={14} className="flex-shrink-0" />
+            {localError}
+          </div>
+        )}
 
-        {/* BOUTON LOGIN */}
+        {/* BOUTON CONNEXION */}
         <button
           className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           onClick={handleLoginClick}
@@ -283,13 +247,13 @@ console.log("Navigate appelé");
               Connexion...
             </>
           ) : (
-            "Login"
+            "Se connecter"
           )}
         </button>
 
         <div className="flex items-center my-8">
           <div className="flex-grow border-t border-gray-300"></div>
-          <span className="mx-4 text-gray-500 text-sm">or</span>
+          <span className="mx-4 text-gray-500 text-sm">ou</span>
           <div className="flex-grow border-t border-gray-300"></div>
         </div>
 
@@ -321,12 +285,11 @@ console.log("Navigate appelé");
           ) : (
             <>
               <FcGoogle className="w-5 h-5" />
-              Continue with Google
+              Continuer avec Google
             </>
           )}
         </button>
 
-        {/* Indicateur de statut Google */}
         {!googleReady && !googleError && (
           <p className="text-xs text-center text-gray-400 mt-2">
             Chargement de Google Sign-In...
@@ -335,12 +298,12 @@ console.log("Navigate appelé");
       </div>
 
       <p className="text-sm mt-8 text-center text-gray-600">
-        Don't have an account yet?{" "}
+        Vous n'avez pas encore de compte ?{" "}
         <span
           onClick={() => setIsLogin(false)}
           className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
         >
-          Sign up
+          Créer un compte
         </span>
       </p>
     </>

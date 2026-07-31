@@ -10,15 +10,14 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
 
   const touch = (field) => setTouched(t => ({ ...t, [field]: true }));
 
-  // Validations en temps réel
   const firstNameError = touched.firstName ? validateName(formData.firstName, "Prénom") : null;
   const lastNameError = touched.lastName ? validateName(formData.lastName, "Nom") : null;
   const emailError = touched.email ? validateEmail(formData.email) : null;
   const passwordError = touched.password ? validatePassword(formData.password) : null;
-  const confirmPasswordError = touched.confirmPassword 
-    ? validateConfirmPassword(formData.password, formData.confirmPassword) 
+  const confirmPasswordError = touched.confirmPassword
+    ? validateConfirmPassword(formData.password, formData.confirmPassword)
     : null;
-  
+
   const passwordStrength = getPasswordStrength(formData.password);
   const strengthColors = {
     gray: "bg-gray-200", red: "bg-red-500", orange: "bg-orange-500",
@@ -37,19 +36,19 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
             active={formData.role === "patient"}
             onClick={() => updateForm("role", "patient")}
             icon={<HeartPulse className="w-7 h-7" />}
-            text="I am a Patient"
+            text="Je suis Patient(e)"
           />
           <RoleCard
             active={formData.role === "doctor"}
             onClick={() => updateForm("role", "doctor")}
             icon={<Stethoscope className="w-7 h-7" />}
-            text="I am a Doctor"
+            text="Je suis Médecins & Spécialistes"
           />
           <RoleCard
             active={formData.role === "nurse"}
             onClick={() => updateForm("role", "nurse")}
             icon={<BriefcaseMedical className="w-7 h-7" />}
-            text="I am a Nurse"
+            text="Je suis Paramédical & Soins"
           />
         </div>
         {errors.role && (
@@ -65,7 +64,7 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                placeholder="First Name"
+                placeholder="Prénom"
                 value={formData.firstName}
                 onChange={(e) => updateForm("firstName", e.target.value)}
                 onBlur={() => touch("firstName")}
@@ -82,7 +81,7 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                placeholder="Last Name"
+                placeholder="Nom"
                 value={formData.lastName}
                 onChange={(e) => updateForm("lastName", e.target.value)}
                 onBlur={() => touch("lastName")}
@@ -112,13 +111,13 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
             )}
           </div>
 
-          {/* PASSWORD */}
+          {/* MOT DE PASSE */}
           <div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type={showPassword ? "text" : "password"}
-                placeholder="Password"
+                placeholder="Mot de passe"
                 value={formData.password}
                 onChange={(e) => updateForm("password", e.target.value)}
                 onBlur={() => touch("password")}
@@ -133,8 +132,7 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            
-            {/* Indicateur de force */}
+
             {formData.password && (
               <div className="mt-2">
                 <div className="flex gap-1 mb-1">
@@ -149,19 +147,19 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
                 </div>
               </div>
             )}
-            
+
             {(passwordError || errors.password) && (
               <p className="text-red-500 text-xs mt-1 ml-1">{passwordError || errors.password}</p>
             )}
           </div>
 
-          {/* CONFIRM PASSWORD */}
+          {/* CONFIRMER MOT DE PASSE */}
           <div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type={showConfirm ? "text" : "password"}
-                placeholder="Confirm Password"
+                placeholder="Confirmer le mot de passe"
                 value={formData.confirmPassword}
                 onChange={(e) => updateForm("confirmPassword", e.target.value)}
                 onBlur={() => touch("confirmPassword")}
@@ -188,14 +186,14 @@ export default function SignupStep1({ handleNext, resetToLogin, updateForm, form
           disabled={loading}
           className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50"
         >
-          {loading ? "Validation..." : "Next"}
+          {loading ? "Validation..." : "Suivant"}
         </button>
       </div>
 
       <p className="text-sm mt-8 text-center text-gray-600">
-        Already have an account?{" "}
+        Vous avez déjà un compte ?{" "}
         <span onClick={resetToLogin} className="text-[#2F80ED] cursor-pointer font-medium hover:underline">
-          Login
+          Se connecter
         </span>
       </p>
     </>

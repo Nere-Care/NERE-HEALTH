@@ -36,7 +36,7 @@ export default function SignupStep2({
           {/* VILLE */}
           <div>
             <SelectInput
-              placeholder="Select City"
+              placeholder="Sélectionnez une ville"
               options={cities}
               value={formData.city || ""}
               onChange={(val) => updateForm("city", val)}
@@ -48,10 +48,10 @@ export default function SignupStep2({
             )}
           </div>
 
-          {/* DISTRICT */}
+          {/* QUARTIER */}
           <div>
             <SelectInput
-              placeholder={formData.city ? "Select District" : "Select a city first"}
+              placeholder={formData.city ? "Sélectionnez un quartier" : "Sélectionnez d'abord une ville"}
               options={availableDistricts}
               value={formData.district || ""}
               onChange={(val) => updateForm("district", val)}
@@ -82,11 +82,11 @@ export default function SignupStep2({
             )}
           </div>
 
-          {/* SPÉCIALITÉ (doctor/nurse) */}
+          {/* SPÉCIALITÉ (médecin/infirmier) */}
           {(formData.role === "doctor" || formData.role === "nurse") && (
             <div>
               <SelectInput
-                placeholder="Select Speciality"
+                placeholder="Sélectionnez une spécialité"
                 options={formData.role === "doctor" ? doctorSpecialities : nurseSpecialities}
                 value={formData.speciality || ""}
                 onChange={(val) => updateForm("speciality", val)}
@@ -106,21 +106,21 @@ export default function SignupStep2({
           disabled={loading}
           className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium disabled:opacity-50"
         >
-          {loading 
-            ? "Traitement..." 
-            : formData.role === "patient" 
-              ? "Sign Up" 
-              : "Continue"}
+          {loading
+            ? "Traitement..."
+            : formData.role === "patient"
+              ? "S'inscrire"
+              : "Continuer"}
         </button>
       </div>
 
       <p className="text-sm mt-8 text-center text-gray-600">
-        Already have an account?{" "}
+        Vous avez déjà un compte ?{" "}
         <span
           onClick={() => setStepThree(false)}
           className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
         >
-          Login
+          Se connecter
         </span>
       </p>
     </>
