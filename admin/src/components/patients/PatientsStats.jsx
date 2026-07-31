@@ -2,7 +2,7 @@ import { Users, Activity, AlertTriangle, ClipboardList } from "lucide-react";
 
 export default function PatientsStats({ darkMode, patients = [] }) {
   // Calcul dynamique basé sur les patients réels
-  const total = patients.length > 0 ? patients.length : 2540;
+  const total = patients.length;
   const consultations = Math.floor(total * 0.3);
   const incomplets = Math.floor(total * 0.05);
   const critiques = patients.filter(p => p.antecedents !== "Aucun").length;
