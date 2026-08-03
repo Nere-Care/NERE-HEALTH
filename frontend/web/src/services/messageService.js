@@ -50,3 +50,22 @@ export async function envoyerMessage(convId, texte) {
     body: JSON.stringify({ texte }),
   });
 }
+
+
+
+export async function envoyerFichier(convId, file) {
+  const formData = new FormData();
+  formData.append("fichier", file);
+
+  const response = await fetch(`${BASE_URL}/mes-conversations/${convId}/messages/fichier`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof data.detail === "string" ? data.detail : `Erreur ${response.status}`);
+  }
+  return data;
+}

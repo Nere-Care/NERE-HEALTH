@@ -11,6 +11,7 @@ import PatientConsultationDetails from "../../components/doctors/patient/Patient
 import {
   fetchMesPatients,
   fetchPatientConsultations,
+  telechargerDossierPatient,
 } from "../../services/patientService";
 
 export default function Patients({ darkMode }) {
@@ -27,6 +28,9 @@ export default function Patients({ darkMode }) {
   const [loading, setLoading] = useState(true);
   const [loadingConsultations, setLoadingConsultations] = useState(false);
   const [erreur, setErreur] = useState(null);
+
+  const [telechargement, setTelechargement] = useState(false);
+
 
   const chargerPatients = useCallback(async () => {
     try {
@@ -63,6 +67,17 @@ export default function Patients({ darkMode }) {
       setLoadingConsultations(false);
     }
   };
+
+  const handleTelecharger = async () => {
+  try {
+    setTelechargement(true);
+    await telechargerDossierPatient(selectedPatient.id);
+  } catch (err) {
+    setErreur(err.message);
+  } finally {
+    setTelechargement(false);
+  }
+};
 
   const filteredPatients = patients.filter((p) => {
     if (activeTab === "Male") return p.sexe === "M";
@@ -201,6 +216,15 @@ export default function Patients({ darkMode }) {
               >
                 + Nouvelle consultation
               </button>
+              <button
+  onClick={handleTelecharger}
+  disabled={telechargement}
+  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition disabled:opacity-50
+    ${darkMode ? "bg-gray-700 text-gray-200 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+>
+  <Download size={16} />
+  {telechargement ? "Génération..." : "Télécharger le dossier"}
+</button>
             </div>
           </div>
 

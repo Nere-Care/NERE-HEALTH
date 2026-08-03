@@ -4,8 +4,9 @@ import {
   Search, Send, ArrowLeft, Video, Paperclip,
   MoreVertical, Flag, Trash2, AlertTriangle, X, CheckCircle, XCircle,
 } from 'lucide-react';
-import { fetchConversations, fetchMessages, envoyerMessage } from '../../services/messageService';
 import { connectWebSocket, onWebSocketMessage } from '../../services/websocketService';
+import { fetchConversations, fetchMessages, envoyerMessage, envoyerFichier } from '../../services/messageService';
+import { FileText, Download, Image as ImageIcon } from 'lucide-react';
 
 export default function Messages({ darkMode }) {
   const navigate = useNavigate();
@@ -25,6 +26,52 @@ export default function Messages({ darkMode }) {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+
+
+
+
+
+
+// Remplace gererPieceJointe :
+const [uploadEnCours, setUploadEnCours] = useState(false);
+
+const gererPieceJointe = () => {
+  if (!convActive) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*,.pdf,.doc,.docx';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      afficherToast("Fichier trop volumineux (max 10 Mo)", "error");
+      return;
+    }
+
+    try {
+      setUploadEnCours(true);
+      const msg = await envoyerFichier(convActive.id, file);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      setConversations(prev =>
+        prev.map(c => c.id === convActive.id
+          ? { ...c, dernier_message: msg.texte }
+          : c
+        )
+      );
+    } catch (err) {
+      afficherToast(err.message, "error");
+    } finally {
+      setUploadEnCours(false);
+    }
+  };
+  input.click();
+};
+
+
 
   // Ref pour garder la trace de la conversation active dans l'abonnement WebSocket
   const convActiveRef = useRef(convActive);
@@ -147,16 +194,7 @@ export default function Messages({ darkMode }) {
     }
   };
 
-  const gererPieceJointe = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,.pdf,.doc,.docx';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) afficherToast(`Fichier "${file.name}" — upload à implémenter`);
-    };
-    input.click();
-  };
+
 
   const lancerTeleconsultation = () => {
     if (convActive) {
@@ -340,45 +378,81 @@ export default function Messages({ darkMode }) {
           </div>
 
           {/* MESSAGES */}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-            {loadingMsgs ? (
-              <div className="flex justify-center py-10">
-                <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  Aucun message. Commencez la conversation !
-                </p>
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.est_moi ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm
-                    ${msg.est_moi
-                      ? "bg-blue-500 text-white"
-                      : darkMode ? "bg-gray-700 text-white" : "bg-white shadow"}`}>
-                    <p>{msg.texte}</p>
-                    <p className={`text-[10px] mt-1 text-right
-                      ${msg.est_moi ? "text-blue-100" : "text-gray-400"}`}>
-                      {msg.heure}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+          {/* MESSAGES */}
+<div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+  {loadingMsgs ? (
+    <div className="flex justify-center py-10">
+      <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  ) : messages.length === 0 ? (
+    <div className="flex-1 flex items-center justify-center">
+      <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+        Aucun message. Commencez la conversation !
+      </p>
+    </div>
+  ) : (
+    messages.map((msg) => (
+      <div key={msg.id} className={`flex ${msg.est_moi ? "justify-end" : "justify-start"}`}>
+        <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm
+          ${msg.est_moi
+            ? "bg-blue-600 text-white shadow-sm"
+            : darkMode ? "bg-gray-700 text-white" : "bg-white text-gray-800 shadow-sm"}`}>
+
+          {/* 1. Affichage Image */}
+          {msg.type === "image" && msg.fichier_url && (
+            <img
+              src={msg.fichier_url}
+              alt={msg.fichier_nom || "Image"}
+              className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer mb-1 hover:opacity-95 transition"
+              onClick={() => window.open(msg.fichier_url, "_blank")}
+            />
+          )}
+
+          {/* 2. Affichage Fichier (PDF, DOCX, etc.) */}
+          {msg.type === "fichier" && msg.fichier_url && (
+            <a
+              href={msg.fichier_url}
+              download={msg.fichier_nom || "Fichier"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition mb-1
+                ${msg.est_moi 
+                  ? "bg-blue-700 text-white hover:bg-blue-800" 
+                  : darkMode ? "bg-gray-600 text-white hover:bg-gray-500" : "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
+            >
+              <FileText size={18} className="flex-shrink-0" />
+              <span className="text-xs truncate max-w-[180px] font-medium">{msg.fichier_nom || "Document"}</span>
+              <Download size={14} className="flex-shrink-0 opacity-80" />
+            </a>
+          )}
+
+          {/* 3. Texte du message (s'il existe) */}
+          {msg.texte && <p className="break-words">{msg.texte}</p>}
+
+          {/* Horodatage */}
+          <p className={`text-[10px] mt-1 text-right select-none ${msg.est_moi ? "text-blue-200" : "text-gray-400"}`}>
+            {msg.heure}
+          </p>
+        </div>
+      </div>
+    ))
+  )}
+  <div ref={messagesEndRef} />
+</div>
 
           {/* INPUT */}
           <div className={`p-3 border-t flex items-center gap-3
             ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <button
-              onClick={gererPieceJointe}
-              className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
-            >
-              <Paperclip size={20} className="text-gray-400" />
-            </button>
+  onClick={gererPieceJointe}
+  disabled={uploadEnCours}
+  className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"} disabled:opacity-50`}
+>
+  {uploadEnCours
+    ? <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+    : <Paperclip size={20} className="text-gray-400" />
+  }
+</button>
             <input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}

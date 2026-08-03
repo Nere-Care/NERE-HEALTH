@@ -35,6 +35,8 @@ import PrescriptionDetail from "./pages/patient/PrescriptionDetail";
 import ProfilStructurePatient from "./pages/patient/profilStructure";
 import MessagesPatient from "./pages/patient/messages";
 import RejoindreTeleconsultation from "./pages/patient/RejoindreTeleconsultation";
+import MesConsultations from "./pages/patient/mesConsultations";
+
 
 /* DOCTOR */
 import DoctorDirectory from "./pages/doctor/doctorDirectory";
@@ -218,6 +220,7 @@ useEffect(() => {
                       path="/messages"
                       element={<MessagesPatient darkMode={darkMode} />}
                     />
+                    <Route path="/mes-consultations" element={<MesConsultations darkMode={darkMode} />} />
 
                     {/* ========== DOCTOR ========== */}
                     <Route

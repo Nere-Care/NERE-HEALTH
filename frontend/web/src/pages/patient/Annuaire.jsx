@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, Star, MapPin, Clock, Heart, Video, User } from 'lucide-react';
+import { useSearchParams } from "react-router-dom";
+
 import { useNavigate } from 'react-router-dom';
 import { fetchAnnuaire } from '../../services/medecinService';
 
@@ -13,6 +15,26 @@ export default function Annuaire({ darkMode }) {
   const [favoris, setFavoris] = useState({});
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
+
+
+
+
+// Dans le composant Annuaire :
+const [searchParams] = useSearchParams();
+
+const [specialite, setSpecialite] = useState(searchParams.get("specialite") || "Toutes");
+
+useEffect(() => {
+  const specialiteUrl = searchParams.get("specialite");
+  if (specialiteUrl) {
+    setSpecialite(specialiteUrl);
+  }
+}, [searchParams]);
+
+// Assure-toi que fetchAnnuaire({ specialite }) est bien rappele quand `specialite` change
+
+
+
 
   const chargerMedecins = useCallback(async () => {
     try {

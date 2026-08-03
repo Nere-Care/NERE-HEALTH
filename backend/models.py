@@ -680,6 +680,9 @@ class Medecin(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     photo_url = Column(Text)
+    fichier_url = Column(Text, nullable=True)
+    fichier_nom = Column(String(500))
+    fichier_mime = Column(String(100))
 
 
 

@@ -35,3 +35,5 @@ email-validator==2.3.0
 tzdata==2026.1
 
 google-auth==2.40.3
+
+fpdf2==2.7.9

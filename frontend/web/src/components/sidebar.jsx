@@ -20,6 +20,7 @@ import {
   CircleHelp,
   FileText,
   Receipt,
+  Stethoscope,
 } from "lucide-react";
 
 const menuByRole = {
@@ -28,6 +29,7 @@ const menuByRole = {
     { icon: Users, label: "Annuaire Médecins", path: "/annuaire" },
     { icon: Building2, label: "Structures de Santé", path: "/structures" },
     { icon: FolderOpen, label: "Dossiers Patient", path: "/dossiers" },
+    { icon: Stethoscope, label: "Mes consultations", path: "/mes-consultations" },  // ← ajouter
     { icon: FileText, label: "Prescriptions", path: "/prescriptions" },
     { icon: Receipt, label: "Factures", path: "/factures" },
     { icon: MessageSquare, label: "Messages", path: "/messages" },

@@ -188,6 +188,9 @@ async def messages_conversation(
             "est_moi": msg.expediteur_id == current_user.id,
             "texte": texte,
             "type": msg.type or "texte",
+            "fichier_url": msg.fichier_url,
+            "fichier_nom": msg.fichier_nom,
+            "fichier_mime": msg.fichier_mime,
             "heure": msg.created_at.strftime("%H:%M"),
             "lu": msg.lu_par_destinataire or False,
         })
@@ -292,6 +295,138 @@ async def envoyer_message(
         "est_moi": True,
         "texte": texte,
         "type": "texte",
+        "heure": msg.created_at.strftime("%H:%M"),
+        "lu": False,
+    }
+
+
+
+
+
+
+
+
+
+from fastapi import UploadFile, File
+import base64
+
+TYPES_AUTORISES = {
+    "image/jpeg", "image/jpg", "image/png", "image/webp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+TAILLE_MAX = 10 * 1024 * 1024  # 10 Mo
+
+@router.post("/mes-conversations/{conv_id}/messages/fichier")
+async def envoyer_fichier(
+    conv_id: UUID,
+    fichier: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    conv = db.get(Conversation, conv_id)
+    if not conv:
+        raise HTTPException(404, "Conversation introuvable")
+
+    participants = [p for p in [conv.patient_id, conv.medecin_id, conv.medecin_id_2] if p is not None]
+    if current_user.id not in participants:
+        raise HTTPException(403, "Acces refuse")
+
+    if fichier.content_type not in TYPES_AUTORISES:
+        raise HTTPException(400, "Type de fichier non autorise (image, PDF ou Word uniquement)")
+
+    contenu = await fichier.read()
+    if len(contenu) > TAILLE_MAX:
+        raise HTTPException(400, "Fichier trop volumineux (max 10 Mo)")
+
+    b64 = base64.b64encode(contenu).decode("utf-8")
+    data_uri = f"data:{fichier.content_type};base64,{b64}"
+
+    est_image = fichier.content_type.startswith("image/")
+    type_message = "image" if est_image else "fichier"
+
+    # Texte de previsualisation chiffre (pour la liste des conversations)
+    from sqlalchemy import text as sql_text
+    apercu = "Image" if est_image else f"Fichier : {fichier.filename}"
+    row = db.execute(
+        sql_text("SELECT pgp_sym_encrypt(:texte, 'cle_demo_nere') AS chiffre"),
+        {"texte": apercu}
+    ).fetchone()
+
+    msg = Message(
+        conversation_id=conv_id,
+        expediteur_id=current_user.id,
+        contenu_chiffre=row.chiffre,
+        type=type_message,
+        fichier_url=data_uri,
+        fichier_nom=fichier.filename,
+        fichier_mime=fichier.content_type,
+        lu_par_destinataire=False,
+    )
+    db.add(msg)
+
+    conv.dernier_message_preview = apercu
+    from datetime import datetime, timezone
+    conv.dernier_message_at = datetime.now(timezone.utc)
+
+    destinataire_id = None
+    if conv.patient_id == current_user.id:
+        conv.nb_messages_non_lus_medecin = (conv.nb_messages_non_lus_medecin or 0) + 1
+        destinataire_id = conv.medecin_id
+    elif conv.medecin_id == current_user.id:
+        conv.nb_messages_non_lus_patient = (conv.nb_messages_non_lus_patient or 0) + 1
+        destinataire_id = conv.patient_id or conv.medecin_id_2
+    elif conv.medecin_id_2 == current_user.id:
+        destinataire_id = conv.medecin_id
+
+    db.commit()
+    db.refresh(msg)
+
+    message_data = {
+        "id": str(msg.id),
+        "expediteur_id": str(msg.expediteur_id),
+        "expediteur_nom": f"{current_user.prenom} {current_user.nom}",
+        "est_moi": False,
+        "texte": apercu,
+        "type": type_message,
+        "fichier_url": data_uri,
+        "fichier_nom": fichier.filename,
+        "fichier_mime": fichier.content_type,
+        "heure": msg.created_at.strftime("%H:%M"),
+        "lu": False,
+    }
+
+    if destinataire_id:
+        from ws_manager import manager
+        await manager.send_to_user(str(destinataire_id), {
+            "event": "nouveau_message",
+            "conversation_id": str(conv_id),
+            "message": message_data,
+        })
+
+        if not manager.is_online(str(destinataire_id)):
+            notif = Notification(
+                utilisateur_id=destinataire_id,
+                type="nouveau_message",
+                canal="in_app",
+                statut="en_attente",
+                titre=f"Nouveau message de {current_user.prenom} {current_user.nom}",
+                contenu=apercu,
+                donnees_supplementaires={"type": "nouveau_message", "conversation_id": str(conv_id)},
+            )
+            db.add(notif)
+            db.commit()
+
+    return {
+        "id": str(msg.id),
+        "expediteur_id": str(msg.expediteur_id),
+        "est_moi": True,
+        "texte": apercu,
+        "type": type_message,
+        "fichier_url": data_uri,
+        "fichier_nom": fichier.filename,
+        "fichier_mime": fichier.content_type,
         "heure": msg.created_at.strftime("%H:%M"),
         "lu": False,
     }

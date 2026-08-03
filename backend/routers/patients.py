@@ -8,8 +8,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
-from models import Patient, DossierMedical, User
-from datetime import date, datetime, timedelta
+from fastapi.responses import StreamingResponse
+from fpdf import FPDF
+import io
+
+
+
+from models import Patient, DossierMedical, User, User as UserModel, Ordonnance, OrdonnanceLigne, Consultation
+from datetime import date, datetime, timedelta, date as date_type
 
 from auth import get_current_active_user, require_role
 from db import get_db
@@ -520,6 +526,10 @@ async def medecin_mes_patients(
     return result
 
 
+
+
+
+
 @router.get("/medecin/patients/{patient_id}/consultations")
 async def patient_consultations(
     patient_id: UUID,
@@ -529,45 +539,357 @@ async def patient_consultations(
     if current_user.role != "medecin":
         raise HTTPException(403, "Reserve aux medecins")
 
-    from models import Consultation, Ordonnance, OrdonnanceLigne
-
     consultations = db.query(Consultation).filter(
         Consultation.patient_id == patient_id,
         Consultation.medecin_id == current_user.id,
     ).order_by(Consultation.date_heure_debut.desc()).all()
 
-    result = []
-    for c in consultations:
-        # Ordonnances liees
-        ordonnances = db.query(Ordonnance).filter(
-            Ordonnance.consultation_id == c.id
-        ).all()
+    return [_serialiser_consultation(c, db) for c in consultations]
 
-        prescriptions = []
-        for ord in ordonnances:
-            lignes = db.query(OrdonnanceLigne).filter(
-                OrdonnanceLigne.ordonnance_id == ord.id
-            ).all()
-            for ligne in lignes:
-                prescriptions.append({
-                    "id": str(ligne.id),
-                    "nom": f"{ligne.medicament_nom} {ligne.dosage}",
-                    "dosage": ligne.dosage,
-                    "frequence": ligne.posologie,
-                    "duree": f"{ligne.duree_jours} jours",
-                })
 
-        result.append({
-            "id": str(c.id),
-            "motif": c.motif or "",
-            "diagnostic": c.diagnostic_principal or "",
-            "plan_traitement": c.plan_traitement or "",
-            "notes": c.observations or "",
-            "date": c.date_heure_debut.strftime("%d/%m/%Y") if c.date_heure_debut else "",
-            "heure": c.date_heure_debut.strftime("%H:%M") if c.date_heure_debut else "",
-            "statut": c.statut,
-            "prescriptions": prescriptions,
-            "documents": [],
-        })
+def _serialiser_consultation(c, db):
+    """Serialise une consultation avec le nom du medecin et les prescriptions."""
+    medecin_user = db.get(UserModel, c.medecin_id)
+    medecin_nom = f"Dr. {medecin_user.prenom} {medecin_user.nom}" if medecin_user else "Medecin inconnu"
 
-    return result
+    ordonnances = db.query(Ordonnance).filter(Ordonnance.consultation_id == c.id).all()
+    prescriptions = []
+    for ordo in ordonnances:
+        lignes = db.query(OrdonnanceLigne).filter(OrdonnanceLigne.ordonnance_id == ordo.id).all()
+        for ligne in lignes:
+            prescriptions.append({
+                "id": str(ligne.id),
+                "name": ligne.medicament_nom,
+                "dosage": ligne.dosage,
+                "frequency": ligne.posologie,
+                "duration": f"{ligne.duree_jours} jours" if ligne.duree_jours else "",
+            })
+
+    return {
+        "id": str(c.id),
+        "numero_consultation": c.numero_consultation,
+        "reason": c.motif or "",
+        "doctor": medecin_nom,
+        "diagnosis": c.diagnostic_principal or "Diagnostic en attente",
+        "treatment": c.plan_traitement or "",
+        "notes": c.observations or "",
+        "date": c.date_heure_debut.strftime("%d/%m/%Y") if c.date_heure_debut else "",
+        "time": c.date_heure_debut.strftime("%H:%M") if c.date_heure_debut else "",
+        "statut": c.statut,
+        "prescriptions": prescriptions,
+        "labResults": [],
+        # Alias francais conserves pour compatibilite
+        "motif": c.motif or "",
+        "medecin_nom": medecin_nom,
+        "diagnostic": c.diagnostic_principal or "",
+        "plan_traitement": c.plan_traitement or "",
+    }
+
+
+@router.get("/patients/me/consultations")
+async def mes_consultations(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Vue patient : toutes ses consultations, tous medecins confondus."""
+    if current_user.role != "patient":
+        raise HTTPException(403, "Reserve aux patients")
+
+    consultations = db.query(Consultation).filter(
+        Consultation.patient_id == current_user.id,
+    ).order_by(Consultation.date_heure_debut.desc()).all()
+
+    return [_serialiser_consultation(c, db) for c in consultations]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BLEU_PRINCIPAL = (37, 99, 235)
+BLEU_CLAIR = (239, 246, 255)
+VERT = (22, 163, 74)
+GRIS_TEXTE = (55, 65, 81)
+GRIS_CLAIR = (243, 244, 246)
+GRIS_LABEL = (156, 163, 175)
+
+
+def _texte_pdf(valeur, defaut="Non renseigné"):
+    if valeur is None:
+        return defaut
+    texte = str(valeur).strip()
+    if not texte:
+        return defaut
+    remplacements = {
+        "’": "'", "‘": "'", """: '"', """: '"',
+        "–": "-", "—": "-", "…": "...",
+    }
+    for ancien, nouveau in remplacements.items():
+        texte = texte.replace(ancien, nouveau)
+    return texte.encode("latin-1", "replace").decode("latin-1")
+
+
+class DossierPDF(FPDF):
+    def __init__(self, patient_nom):
+        super().__init__(format="A4")
+        self.patient_nom = patient_nom
+        self.set_auto_page_break(auto=True, margin=20)
+        self.set_left_margin(15)
+        self.set_right_margin(15)
+
+    def header(self):
+        # Ignorer le bandeau sur la toute premiere page (deja gere manuellement)
+        if self.page_no() == 1:
+            return
+        self.set_fill_color(*BLEU_PRINCIPAL)
+        self.rect(0, 0, 210, 16, "F")
+        self.set_text_color(255, 255, 255)
+        self.set_font("Helvetica", "B", 10)
+        self.set_xy(15, 4)
+        self.cell(0, 8, f"NERE Health - Dossier de {self.patient_nom}")
+        self.ln(20)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(*GRIS_LABEL)
+        self.cell(0, 10, f"Page {self.page_no()} - Document confidentiel", align="C")
+
+
+def _section_titre(pdf, texte, icone_texte=""):
+    pdf.ln(3)
+    pdf.set_x(pdf.l_margin)
+    pdf.set_fill_color(*BLEU_CLAIR)
+    pdf.set_text_color(*BLEU_PRINCIPAL)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 10, f"  {icone_texte} {texte}", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(*GRIS_TEXTE)
+    pdf.ln(2)
+
+
+def _ligne_info(pdf, label, valeur, largeur_label=45):
+    pdf.set_x(pdf.l_margin)
+    pdf.set_font("Helvetica", "B", 9.5)
+    pdf.set_text_color(*GRIS_LABEL)
+    pdf.cell(largeur_label, 6, _texte_pdf(label))
+    pdf.set_font("Helvetica", "", 9.5)
+    pdf.set_text_color(*GRIS_TEXTE)
+    pdf.multi_cell(0, 6, _texte_pdf(valeur))
+
+
+def generer_pdf_dossier(patient_user, patient, dossier, consultations_data) -> bytes:
+    nom_complet = f"{_texte_pdf(patient_user.prenom)} {_texte_pdf(patient_user.nom)}"
+    pdf = DossierPDF(nom_complet)
+    pdf.add_page()
+
+    # ── BANDEAU D'EN-TETE (page 1 uniquement, plus grand) ────────────────
+    pdf.set_fill_color(*BLEU_PRINCIPAL)
+    pdf.rect(0, 0, 210, 45, "F")
+
+    pdf.set_xy(15, 12)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.cell(0, 12, "NERE HEALTH")
+
+    pdf.set_xy(15, 26)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, "Dossier medical patient")
+
+    pdf.set_xy(15, 36)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(0, 6, f"Genere le {date_type.today().strftime('%d/%m/%Y')} - Document confidentiel")
+
+    pdf.set_y(55)
+    pdf.set_text_color(*GRIS_TEXTE)
+
+    # ── CARTE IDENTITE PATIENT ────────────────────────────────────────────
+    y_carte = pdf.get_y()
+    pdf.set_fill_color(*GRIS_CLAIR)
+    pdf.rect(15, y_carte, 180, 24, "F")
+
+    pdf.set_xy(20, y_carte + 4)
+    pdf.set_font("Helvetica", "B", 15)
+    pdf.set_text_color(*GRIS_TEXTE)
+    pdf.cell(0, 8, nom_complet)
+
+    numero = patient.numero_patient if patient else "N/A"
+    pdf.set_xy(20, y_carte + 13)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*GRIS_LABEL)
+    pdf.cell(0, 6, f"N. dossier : {_texte_pdf(numero)}")
+
+    pdf.set_y(y_carte + 30)
+
+    # ── INFORMATIONS PERSONNELLES ─────────────────────────────────────────
+    _section_titre(pdf, "Informations personnelles")
+
+    if patient:
+        try:
+            date_naissance = patient.date_naissance.strftime("%d/%m/%Y") if patient.date_naissance else None
+        except Exception:
+            date_naissance = None
+
+        allergies = ", ".join(patient.allergies) if patient.allergies else None
+
+        for label, valeur in [
+            ("Date de naissance", date_naissance),
+            ("Sexe", "Masculin" if patient.sexe == "M" else "Feminin" if patient.sexe == "F" else None),
+            ("Groupe sanguin", patient.groupe_sanguin),
+            ("Ville", patient.ville),
+            ("Telephone", patient_user.telephone),
+            ("Allergies", allergies),
+        ]:
+            _ligne_info(pdf, label, valeur)
+
+    # ── ANTECEDENTS ────────────────────────────────────────────────────────
+    if dossier and any([dossier.antecedents_personnels, dossier.antecedents_familiaux, dossier.antecedents_chirurgicaux]):
+        _section_titre(pdf, "Antecedents medicaux")
+        for label, valeur in [
+            ("Personnels", dossier.antecedents_personnels),
+            ("Familiaux", dossier.antecedents_familiaux),
+            ("Chirurgicaux", dossier.antecedents_chirurgicaux),
+        ]:
+            if valeur:
+                _ligne_info(pdf, label, valeur)
+
+    # ── CONSULTATIONS ──────────────────────────────────────────────────────
+    _section_titre(pdf, f"Historique des consultations ({len(consultations_data)})")
+
+    if not consultations_data:
+        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_text_color(*GRIS_LABEL)
+        pdf.cell(0, 8, "Aucune consultation enregistree.")
+    else:
+        for i, c in enumerate(consultations_data):
+            try:
+                # Garder le bloc de consultation groupe sur la meme page si possible
+                if pdf.get_y() > 250:
+                    pdf.add_page()
+
+                y_debut = pdf.get_y()
+                hauteur_estimee = 22 + (len(c.get("prescriptions") or []) * 5)
+                pdf.set_fill_color(255, 255, 255)
+                pdf.set_draw_color(*BLEU_PRINCIPAL)
+                pdf.rect(15, y_debut, 180, hauteur_estimee, "D")
+
+                pdf.set_xy(19, y_debut + 3)
+                pdf.set_font("Helvetica", "B", 10.5)
+                pdf.set_text_color(*BLEU_PRINCIPAL)
+                pdf.cell(0, 6, _texte_pdf(f"{c.get('date')}  -  {c.get('reason')}"))
+
+                pdf.set_xy(19, y_debut + 9)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*GRIS_LABEL)
+                pdf.cell(0, 5, _texte_pdf(f"Medecin : {c.get('doctor')}"))
+
+                pdf.set_xy(19, y_debut + 14)
+                pdf.set_text_color(*GRIS_TEXTE)
+                diagnostic = _texte_pdf(c.get("diagnosis"))
+                traitement = c.get("treatment")
+                ligne_diag = f"Diagnostic : {diagnostic}"
+                if traitement:
+                    ligne_diag += f"   |   Traitement : {_texte_pdf(traitement)}"
+                pdf.set_font("Helvetica", "", 9)
+                pdf.cell(0, 5, ligne_diag[:110])
+
+                y_meds = y_debut + 19
+                prescriptions = c.get("prescriptions") or []
+                if prescriptions:
+                    pdf.set_xy(19, y_meds)
+                    pdf.set_font("Helvetica", "B", 8.5)
+                    pdf.set_text_color(*VERT)
+                    pdf.cell(0, 5, "Prescriptions :")
+                    for med in prescriptions:
+                        y_meds += 5
+                        pdf.set_xy(23, y_meds)
+                        pdf.set_font("Helvetica", "", 8.5)
+                        pdf.set_text_color(*GRIS_TEXTE)
+                        ligne_med = f"- {_texte_pdf(med.get('name'))} : {_texte_pdf(med.get('frequency'), '')}"
+                        pdf.cell(0, 5, ligne_med[:100])
+
+                pdf.set_y(y_debut + hauteur_estimee + 5)
+
+            except Exception as e:
+                print(f"[PDF WARNING] Consultation ignoree: {e}")
+                continue
+
+    return bytes(pdf.output())
+
+
+@router.get("/medecin/patients/{patient_id}/dossier/pdf")
+async def telecharger_dossier_medecin(
+    patient_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "medecin":
+        raise HTTPException(403, "Reserve aux medecins")
+
+    a_consulte = db.query(Consultation).filter(
+        Consultation.patient_id == patient_id,
+        Consultation.medecin_id == current_user.id,
+    ).first()
+    if not a_consulte:
+        raise HTTPException(403, "Vous n'avez jamais consulte ce patient")
+
+    patient_user = db.get(UserModel, patient_id)
+    patient = db.get(Patient, patient_id)
+    if not patient_user or not patient:
+        raise HTTPException(404, "Patient introuvable")
+
+    from models import DossierMedical
+    dossier = db.query(DossierMedical).filter(DossierMedical.patient_id == patient_id).first()
+
+    consultations = db.query(Consultation).filter(
+        Consultation.patient_id == patient_id
+    ).order_by(Consultation.date_heure_debut.desc()).all()
+    consultations_data = [_serialiser_consultation(c, db) for c in consultations]
+
+    pdf_bytes = generer_pdf_dossier(patient_user, patient, dossier, consultations_data)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=dossier_{patient.numero_patient}.pdf"},
+    )
+
+
+@router.get("/patients/me/dossier/pdf")
+async def telecharger_mon_dossier(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    if current_user.role != "patient":
+        raise HTTPException(403, "Reserve aux patients")
+
+    patient = db.get(Patient, current_user.id)
+    if not patient:
+        raise HTTPException(404, "Profil patient introuvable")
+
+    from models import DossierMedical
+    dossier = db.query(DossierMedical).filter(DossierMedical.patient_id == current_user.id).first()
+
+    consultations = db.query(Consultation).filter(
+        Consultation.patient_id == current_user.id
+    ).order_by(Consultation.date_heure_debut.desc()).all()
+    consultations_data = [_serialiser_consultation(c, db) for c in consultations]
+
+    pdf_bytes = generer_pdf_dossier(current_user, patient, dossier, consultations_data)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=mon_dossier_medical.pdf"},
+    )

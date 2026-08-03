@@ -197,3 +197,39 @@ export async function supprimerDocument(documentId) {
 
 
 
+
+
+
+
+
+export async function fetchMesConsultationsPatient() {
+  return apiFetch(`${BASE_URL}/patients/me/consultations`) ?? [];
+}
+
+export async function telechargerMonDossier() {
+  const response = await fetch(`${BASE_URL}/patients/me/dossier/pdf`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!response.ok) throw new Error("Erreur lors de la génération du PDF");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "mon_dossier_medical.pdf";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function telechargerDossierPatient(patientId) {
+  const response = await fetch(`${BASE_URL}/medecin/patients/${patientId}/dossier/pdf`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!response.ok) throw new Error("Erreur lors de la génération du PDF");
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "dossier_patient.pdf";
+  a.click();
+  URL.revokeObjectURL(url);
+}

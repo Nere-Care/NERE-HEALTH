@@ -7,17 +7,20 @@ export default function PatientConsultationCard({ consultation = {}, darkMode })
 
       <div>
         <h3 className={`text-sm sm:text-base font-semibold ${darkMode ? "text-white" : "text-gray-800"}`}>
-          {consultation.motif || "Consultation"}
+          {consultation.reason || consultation.motif || "Consultation"}
         </h3>
-        <p className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          Consultation medicale
-        </p>
+        <div className="flex items-center gap-1.5 mt-1">
+          <User size={12} className="text-blue-500 flex-shrink-0" />
+          <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            {consultation.doctor || consultation.medecin_nom || "Medecin"}
+          </p>
+        </div>
       </div>
 
-      <div className={`mt-4 flex flex-col sm:flex-row justify-between gap-2 text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+      <div className={`mt-3 flex flex-col sm:flex-row justify-between gap-2 text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
         <div className="flex items-center gap-2">
           <Activity className={`w-4 h-4 ${darkMode ? "text-green-400" : "text-green-600"}`} />
-          <span className="truncate">{consultation.diagnostic || "Diagnostic en attente"}</span>
+          <span className="truncate">{consultation.diagnosis || consultation.diagnostic || "Diagnostic en attente"}</span>
         </div>
       </div>
 
@@ -28,7 +31,7 @@ export default function PatientConsultationCard({ consultation = {}, darkMode })
         </div>
         <div className="flex items-center gap-2">
           <Clock3 className="w-4 h-4" />
-          <span>{consultation.heure || "--"}</span>
+          <span>{consultation.time || consultation.heure || "--"}</span>
         </div>
       </div>
 
@@ -39,6 +42,12 @@ export default function PatientConsultationCard({ consultation = {}, darkMode })
             <p className="line-clamp-2">{consultation.notes}</p>
           </div>
         </div>
+      )}
+
+      {consultation.prescriptions?.length > 0 && (
+        <p className={`mt-2 text-xs ${darkMode ? "text-purple-300" : "text-purple-600"}`}>
+          {consultation.prescriptions.length} medicament(s) prescrit(s)
+        </p>
       )}
 
       <button className={`w-full mt-4 py-2 rounded-lg text-sm transition
