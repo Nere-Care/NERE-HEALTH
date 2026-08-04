@@ -11,7 +11,6 @@ export default function Annuaire({ darkMode }) {
   const [medecins, setMedecins] = useState([]);
   const [specialites, setSpecialites] = useState(["Toutes"]);
   const [recherche, setRecherche] = useState("");
-  const [filtreSpec, setFiltreSpec] = useState("Toutes");
   const [favoris, setFavoris] = useState({});
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
@@ -19,19 +18,21 @@ export default function Annuaire({ darkMode }) {
 
 
 
-// Dans le composant Annuaire :
-const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams(); // ✅ Utile si on veut changer l'URL au clic des boutons
 
-const [specialite, setSpecialite] = useState(searchParams.get("specialite") || "Toutes");
+  
+  // ✅ 1. Utiliser le paramètre d'URL direct comme valeur initiale
+  const [filtreSpec, setFiltreSpec] = useState(searchParams.get("specialite") || "Toutes");
+  
+ 
 
-useEffect(() => {
-  const specialiteUrl = searchParams.get("specialite");
-  if (specialiteUrl) {
-    setSpecialite(specialiteUrl);
-  }
-}, [searchParams]);
-
-// Assure-toi que fetchAnnuaire({ specialite }) est bien rappele quand `specialite` change
+  // ✅ 2. Écouter les changements dans l'URL (si l'utilisateur est redirigé depuis le SymptomCheckerModal)
+  useEffect(() => {
+    const specUrl = searchParams.get("specialite");
+    if (specUrl) {
+      setFiltreSpec(specUrl);
+    }
+  }, [searchParams]);
 
 
 
@@ -103,23 +104,33 @@ useEffect(() => {
       </div>
 
       {/* Spécialités */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {specialites.map((spec) => (
-          <button
-            key={spec}
-            onClick={() => setFiltreSpec(spec)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all
-              ${filtreSpec === spec
-                ? "bg-blue-600 text-white"
-                : darkMode
-                  ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600"
-                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-              }`}
-          >
-            {spec}
-          </button>
-        ))}
-      </div>
+      {/* Spécialités */}
+<div className="flex gap-2 flex-wrap mb-6">
+  {specialites.map((spec) => (
+    <button
+      key={spec}
+      onClick={() => {
+        setFiltreSpec(spec);
+        // Optionnel : met à jour l'URL dynamiquement sans recharger
+        if (spec === "Toutes") {
+          searchParams.delete("specialite");
+        } else {
+          searchParams.set("specialite", spec);
+        }
+        setSearchParams(searchParams);
+      }}
+      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all
+        ${filtreSpec === spec
+          ? "bg-blue-600 text-white"
+          : darkMode
+            ? "bg-gray-800 text-gray-300 hover:bg-gray-700 border border-gray-600"
+            : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+        }`}
+    >
+      {spec}
+    </button>
+  ))}
+</div>
 
       {/* Loading */}
       {loading && (

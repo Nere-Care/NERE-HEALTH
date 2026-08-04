@@ -57,6 +57,9 @@ export default function SymptomCheckerModal({ darkMode, open, onClose }) {
     onClose();
   };
 
+
+  
+
   const urgenceConfig = {
     faible: { label: "Non urgent", color: "text-green-600 bg-green-50" },
     moyen: { label: "A consulter rapidement", color: "text-orange-600 bg-orange-50" },
