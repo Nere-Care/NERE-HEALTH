@@ -20,6 +20,7 @@ import ViewDoctorModal from "../components/doctors/ViewDoctorModal";
 import AddDoctorModal from "../components/doctors/AddDoctorModal";
 import DocumentsModal from "../components/doctors/DocumentsModal";
 import DeleteConfirmModal from "../components/doctors/DeleteConfirmModal";
+import RejectDoctorModal from "../components/doctors/RejectDoctorModal";
 
 import {
   fetchAdminDoctors,
@@ -69,6 +70,12 @@ export default function DoctorsPage({ darkMode }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+
+const [showRejectModal, setShowRejectModal] = useState(false);
+
+
+
+
   /* ================= CHARGEMENT DES DONNÉES ================= */
   const loadDoctors = useCallback(async () => {
     try {
@@ -110,6 +117,31 @@ export default function DoctorsPage({ darkMode }) {
   useEffect(() => {
     loadDoctors();
   }, [loadDoctors]);
+
+
+
+
+const handleRejectDoctor = useCallback(async (motif) => {
+  if (!medecinDetail) return;
+  setIsVerifying(true);
+  try {
+    // Appel backend avec le statut 'rejete' et le motif d'instruction
+    await updateDoctorStatus(medecinDetail.id, "rejete", motif);
+    
+    toast.success("❌ Notification de refus envoyée au médecin.");
+    setShowRejectModal(false);
+    setShowDocuments(false);
+    setMedecinDetail(null);
+    loadDoctors();
+  } catch (err) {
+    toast.error(err.message || "Erreur lors du rejet");
+  } finally {
+    setIsVerifying(false);
+  }
+}, [medecinDetail, loadDoctors]);
+
+
+
 
 
   
@@ -573,9 +605,20 @@ export default function DoctorsPage({ darkMode }) {
           documents={docsActuels}
           onClose={() => { setShowDocuments(false); setMedecinDetail(null); }}
           onValidate={handleValidateDoctor}
+           onReject={() => setShowRejectModal(true)}
           isSubmitting={isVerifying}
         />
       )}
+
+{showRejectModal && medecinDetail && (
+  <RejectDoctorModal
+    darkMode={darkMode}
+    doctor={medecinDetail}
+    onClose={() => setShowRejectModal(false)}
+    onConfirm={handleRejectDoctor}
+    isSubmitting={isVerifying}
+  />
+)}
 
       {showDeleteConfirm && selectedDoctor && (
         <DeleteConfirmModal

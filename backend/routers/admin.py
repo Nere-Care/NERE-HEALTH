@@ -3,7 +3,7 @@
 
 from typing import Optional, List
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone, date, timedelta
@@ -17,7 +17,7 @@ from services.email_service import envoyer_email, email_medecin_valide, email_me
 import asyncio
 
 
-
+from pydantic import BaseModel
 
 
 
@@ -1334,22 +1334,31 @@ async def admin_ban_user(
 from services.email_service import envoyer_email, email_medecin_valide, email_medecin_rejete
 import asyncio
 
+class UpdateDoctorStatusSchema(BaseModel):
+    statut: str
+    motif: Optional[str] = ""
+
 @router.patch("/admin/medecins/{medecin_id}/statut")
 async def admin_update_medecin_statut(
     medecin_id: UUID,
-    payload: dict,
+    payload: UpdateDoctorStatusSchema,
+    background_tasks: BackgroundTasks, # 2. Ajout des tâches d'arrière-plan pour les e-mails
     db: Session = Depends(get_db),
-    current_user=Depends(require_admin),
+    current_user = Depends(require_admin),
 ):
     medecin = db.get(Medecin, medecin_id)
-    user    = db.get(User,    medecin_id)
+    user = db.get(User, medecin_id)
+    
     if not medecin or not user:
-        raise HTTPException(404, "Médecin introuvable")
+        raise HTTPException(status_code=404, detail="Médecin introuvable")
 
-    nouveau_statut = payload.get("statut")
-    motif = payload.get("motif", "")
+    nouveau_statut = payload.statut
+    motif = payload.motif or ""
 
-    if nouveau_statut in ("verifie", "rejete", "en_attente", "suspendu"):
+    # Statuts valides pour le processus de vérification
+    STATUTS_VERIF = {"verifie", "rejete", "en_attente", "suspendu"}
+
+    if nouveau_statut in STATUTS_VERIF:
         ancien_statut = medecin.statut_verification
         medecin.statut_verification = nouveau_statut
 
@@ -1358,9 +1367,11 @@ async def admin_update_medecin_statut(
                 user.statut = "actif"
                 medecin.disponible_maintenant = True
 
-                sujet = "Votre compte NERE Health a été approuvé"
+                sujet = "Votre compte NÉRÉ Health a été approuvé"
                 corps = email_medecin_valide(user.prenom, user.nom)
-                envoyer_email(user.email, sujet, corps)
+                
+                # Envoi asynchrone hors de la boucle principale
+                background_tasks.add_task(envoyer_email, user.email, sujet, corps)
 
                 notif = Notification(
                     utilisateur_id=user.id,
@@ -1376,9 +1387,11 @@ async def admin_update_medecin_statut(
                 user.statut = "inactif"
                 medecin.disponible_maintenant = False
 
-                sujet = "Votre demande NERE Health nécessite des corrections"
+                sujet = "Votre demande NÉRÉ Health nécessite des corrections"
                 corps = email_medecin_rejete(user.prenom, user.nom, motif)
-                envoyer_email(user.email, sujet, corps)
+                
+                # Envoi asynchrone hors de la boucle principale
+                background_tasks.add_task(envoyer_email, user.email, sujet, corps)
 
                 notif = Notification(
                     utilisateur_id=user.id,
@@ -1390,12 +1403,13 @@ async def admin_update_medecin_statut(
                 )
                 db.add(notif)
 
-    if nouveau_statut in ("actif", "inactif"):
+    elif nouveau_statut in ("actif", "inactif"):
         user.statut = nouveau_statut
 
     db.commit()
+    
     return {
-        "message": "Statut mis à jour et email envoyé",
+        "message": "Statut mis à jour avec succès",
         "statut_verification": medecin.statut_verification,
         "statut_compte": user.statut,
     }

@@ -4,6 +4,8 @@ from email.mime.multipart import MIMEMultipart
 from config import settings
 
 
+
+
 def envoyer_email(destinataire: str, sujet: str, corps_html: str):
     """Envoie un email HTML. Ne bloque pas l'application si echec."""
     try:
@@ -14,7 +16,7 @@ def envoyer_email(destinataire: str, sujet: str, corps_html: str):
 
         msg.attach(MIMEText(corps_html, "html"))
 
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
             server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.send_message(msg)

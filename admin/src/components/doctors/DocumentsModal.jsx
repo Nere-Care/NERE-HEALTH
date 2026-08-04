@@ -1,11 +1,12 @@
-import { X, Download, Eye, FileText, AlertCircle, CheckCircle2 } from "lucide-react";
+import { X, Download, Eye, FileText, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 export default function DocumentsModal({ 
   darkMode, 
   doctor, 
   documents, 
   onClose, 
-  onValidate,        // ✅ Nouvelle prop pour l'action de validation
+  onValidate, 
+  onReject,       // ✅ Nouvelle prop pour l'action de validation
   isSubmitting = false // ✅ Nouvelle prop pour l'état de chargement
 }) {
   const handlePreview = (doc) => {
@@ -83,32 +84,46 @@ export default function DocumentsModal({
         </div>
 
         {/* ✅ FOOTER : Boutons d'action */}
-        <div className={`p-5 border-t flex-shrink-0 ${darkMode ? "border-slate-700 bg-slate-900/50" : "border-gray-100 bg-gray-50"}`}>
-          <div className="flex gap-3">
+       <div className={`p-5 border-t flex-shrink-0 ${darkMode ? "border-slate-800 bg-slate-900/80" : "border-gray-100 bg-gray-50/80"}`}>
+          <div className="flex items-center gap-3">
+            {/* Bouton Annuler (Neutre) */}
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className={`flex-1 py-3 rounded-xl border font-medium transition flex items-center justify-center gap-2
-                ${darkMode ? "border-slate-600 hover:bg-slate-800 text-gray-300" : "border-gray-300 hover:bg-gray-100 text-gray-700"}
-                ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition flex items-center justify-center
+                ${darkMode 
+                  ? "border-slate-700 hover:bg-slate-800 text-slate-300" 
+                  : "border-gray-300 hover:bg-gray-100 text-gray-700"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               Annuler
             </button>
-            
+
+            {/* Bouton Refuser (Avertissement Rouge) */}
+            <button
+              onClick={onReject}
+              disabled={isSubmitting}
+              className="flex-1 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 text-sm font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <XCircle size={18} />
+              Refuser
+            </button>
+
+            {/* Bouton Valider (Action Principale Verte) */}
             <button
               onClick={onValidate}
               disabled={isSubmitting}
-              className="flex-1 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20"
+              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-600/20"
             >
               {isSubmitting ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  Validation...
+                  Traitement...
                 </>
               ) : (
                 <>
                   <CheckCircle2 size={18} />
-                  Valider le profil
+                  Valider
                 </>
               )}
             </button>
