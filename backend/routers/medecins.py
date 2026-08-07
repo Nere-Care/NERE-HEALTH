@@ -834,3 +834,44 @@ async def supprimer_photo_profil(
     medecin.photo_url = None
     db.commit()
     return {"message": "Photo supprimee"}
+
+
+
+@router.get("/mes-rendez-vous/prochain")
+async def prochain_rendez_vous(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    maintenant = datetime.now(timezone.utc)
+
+    stmt = select(RendezVous).where(
+        RendezVous.statut == "confirme",
+        RendezVous.date_heure_debut > maintenant,
+    )
+    if current_user.role == "patient":
+        stmt = stmt.where(RendezVous.patient_id == current_user.id)
+    elif current_user.role == "medecin":
+        stmt = stmt.where(RendezVous.medecin_id == current_user.id)
+    else:
+        raise HTTPException(403, "Reserve aux patients et medecins")
+
+    stmt = stmt.order_by(RendezVous.date_heure_debut.asc()).limit(1)
+    rdv = db.execute(stmt).scalar_one_or_none()
+
+    if not rdv:
+        return None
+
+    if current_user.role == "patient":
+        autre = db.get(User, rdv.medecin_id)
+        nom_autre = f"Dr. {autre.prenom} {autre.nom}" if autre else "Medecin"
+    else:
+        autre = db.get(User, rdv.patient_id)
+        nom_autre = f"{autre.prenom} {autre.nom}" if autre else "Patient"
+
+    return {
+        "id": str(rdv.id),
+        "interlocuteur": nom_autre,
+        "date_heure_debut": rdv.date_heure_debut.isoformat(),
+        "type": rdv.type,
+        "motif": rdv.motif_consultation or "",
+    }

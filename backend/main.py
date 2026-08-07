@@ -1,5 +1,9 @@
+from pathlib import Path
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -33,6 +37,15 @@ from routers.audit import router as audit_router
 from routers.tables import router as tables_router
 from routers import symptomes
 from routers import ws
+from scheduler import demarrer_scheduler
+
+
+# 1. Définition du cycle de vie (lifespan)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Code exécuté au démarrage du serveur
+    demarrer_scheduler()
+    yield
 
 
 class HostValidationMiddleware(BaseHTTPMiddleware):
@@ -54,13 +67,15 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app = FastAPI(title='Nere_app API', version='1.0.0')
+# 2. Création de l'application (app est déclarée ici)
+app = FastAPI(title='Nere_app API', version='1.0.0', lifespan=lifespan)
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(HostValidationMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
 app.add_middleware(SlowAPIMiddleware)
 
-# Configure CORS
+# Configuration CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if settings.CORS_ORIGINS != ['*'] else ["*"],
@@ -69,6 +84,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Inclusion des routeurs
 app.include_router(root_router)
 app.include_router(auth_router)
 app.include_router(admin_router, prefix=settings.API_PREFIX)
@@ -94,18 +110,9 @@ app.include_router(structures_router, prefix=settings.API_PREFIX)
 app.include_router(audit_router, prefix=settings.API_PREFIX)
 app.include_router(tables_router, prefix=settings.API_PREFIX)
 app.include_router(symptomes.router, prefix=settings.API_PREFIX)
-app.include_router(ws.router)  # PAS de prefix /api pour le websocket
+app.include_router(ws.router)
 
-
-
-
-
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-
-# Créer le dossier uploads s'il n'existe pas
+# Fichiers statiques
 UPLOAD_DIR = Path("/app/uploads/documents")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-# Monter le dossier en static files
 app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")

@@ -45,3 +45,8 @@ async function apiFetch(url, options = {}) {
 export async function fetchMedecinDashboard() {
   return apiFetch(`${BASE_URL}/medecin/dashboard`);
 }
+
+
+export async function fetchProchainRendezVous() {
+  return apiFetch(`${BASE_URL}/mes-rendez-vous/prochain`);
+}

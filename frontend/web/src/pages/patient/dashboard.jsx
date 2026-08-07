@@ -7,7 +7,7 @@ import {
   Smile
 } from 'lucide-react';
 import { fetchDashboardPatient } from '../../services/dashboardService';
-
+import ProchainRendezVousBanner from "../../components/common/ProchainRendezVousBanner";
 // Mapping icônes Lucide pour spécialités
 const SPECIALITE_ICONS = {
   cardiologie: Heart,
@@ -157,6 +157,7 @@ export default function Dashboard({ darkMode }) {
             Voici un aperçu de votre santé.
           </p>
         </div>
+        <ProchainRendezVousBanner darkMode={darkMode} />
 
         <div className={`lg:w-80 w-full p-4 rounded-2xl text-white shadow-lg transition-all duration-500 ${actualites[newsIndex].color}`}>
           <div className="flex items-start gap-3">

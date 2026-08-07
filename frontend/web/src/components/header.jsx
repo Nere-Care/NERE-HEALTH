@@ -17,15 +17,30 @@ export default function Header({ titre, darkMode, setDarkMode, collapsed }) {
 
 
 
-// Dans Header(), ajoute a cote du polling existant :
+
+useEffect(() => {
+  if (Notification?.permission === "default") {
+    Notification.requestPermission();
+  }
+}, []);
+
 useEffect(() => {
   const unsubscribe = onWebSocketMessage((data) => {
     if (data.event === "nouvelle_notification" || data.event === "nouveau_message") {
+      jouerSonNotification();
       setNonLues((prev) => prev + 1);
+
+      if (Notification?.permission === "granted" && document.hidden) {
+        new Notification(data.titre || "NERE Health", {
+          body: data.contenu || "",
+          icon: "/favicon.ico",
+        });
+      }
     }
   });
   return unsubscribe;
 }, []);
+
 
 
 
