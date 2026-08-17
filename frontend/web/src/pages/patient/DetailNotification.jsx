@@ -101,7 +101,6 @@ export default function DetailNotification({ darkMode }) {
           </p>
         </div>
 
-        // Dans DetailNotification.jsx, dans la section extras, ajoute ce bloc après le contenu principal :
 
 {/* Détails d'un RDV reçu (côté médecin) */}
 {extras.type === "nouvelle_demande_rdv" && (

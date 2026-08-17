@@ -178,8 +178,13 @@ async def creer_demande_avis(
     from models import Medecin as MedecinModel
     medecin_profil = db.get(MedecinModel, payload.medecin_id)
     specialite = ""
-    if medecin_profil and medecin_profil.specialite:
-        specialite = medecin_profil.specialite
+    if medecin_profil:
+        if hasattr(medecin_profil, "specialite_rel") and medecin_profil.specialite_rel:
+            specialite = getattr(medecin_profil.specialite_rel, "nom", str(medecin_profil.specialite_rel))
+        elif hasattr(medecin_profil, "specialite") and medecin_profil.specialite:
+            specialite = getattr(medecin_profil.specialite, "nom", str(medecin_profil.specialite))
+        elif hasattr(medecin_profil, "specialite_id") and medecin_profil.specialite_id:
+            specialite = str(medecin_profil.specialite_id)
 
     notif = Notification(
         utilisateur_id=payload.medecin_id,

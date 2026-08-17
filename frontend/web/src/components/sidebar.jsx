@@ -25,55 +25,54 @@ import {
 
 const menuByRole = {
   patient: [
-    { icon: LayoutDashboard, label: "Tableau de Bord", path: "/Patient-dashboard" },
-    { icon: Users, label: "Annuaire Médecins", path: "/annuaire" },
-    { icon: Building2, label: "Structures de Santé", path: "/structures" },
-    { icon: FolderOpen, label: "Dossiers Patient", path: "/dossiers" },
-    { icon: Stethoscope, label: "Mes consultations", path: "/mes-consultations" },  // ← ajouter
-    { icon: FileText, label: "Prescriptions", path: "/prescriptions" },
-    { icon: Receipt, label: "Factures", path: "/factures" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
-    // ✅ Ce chemin sera intercepté pour ouvrir le modal au lieu de naviguer
-    { icon: Sparkles, label: "Trouver rapidement un médecin", path: "#symptom-checker", isAi: true },
+    { icon: LayoutDashboard, label: "Tableau de Bord", path: "/Patient-dashboard", tourId: "menu-tableau-de-bord" },
+    { icon: Users, label: "Annuaire Médecins", path: "/annuaire", tourId: "menu-annuaire-medecins" },
+    { icon: Building2, label: "Structures de Santé", path: "/structures", tourId: "menu-structures" },
+    { icon: FolderOpen, label: "Dossiers Patient", path: "/dossiers", tourId: "menu-dossiers-patient" },
+    { icon: Stethoscope, label: "Mes consultations", path: "/mes-consultations", tourId: "menu-mes-consultations" },
+    { icon: FileText, label: "Prescriptions", path: "/prescriptions", tourId: "menu-prescriptions" },
+    { icon: Receipt, label: "Factures", path: "/factures", tourId: "menu-factures" },
+    { icon: MessageSquare, label: "Messages", path: "/messages", tourId: "menu-messages" },
+    { icon: Sparkles, label: "Trouver rapidement un médecin", path: "#symptom-checker", isAi: true, tourId: "btn-symptom-checker" },
   ],
 
   medecin: [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
-    { icon: Users, label: "Avis", path: "/doctors" },
-    { icon: Building2, label: "Structures de Santé", path: "/structures" },
-    { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
-    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
-    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
-    { icon: CreditCard, label: "Paiements", path: "/payments" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard", tourId: "menu-dashboard" },
+    { icon: Users, label: "Avis", path: "/doctors", tourId: "menu-avis" },
+    { icon: Building2, label: "Structures de Santé", path: "/structures", tourId: "menu-structures" },
+    { icon: Calendar, label: "Rendez-vous", path: "/appointments", tourId: "menu-rendez-vous" },
+    { icon: MessageSquare, label: "Messages", path: "/messages", tourId: "menu-messages" },
+    { icon: Video, label: "Teleconsultation", path: "/teleconsultation", tourId: "menu-teleconsultation" },
+    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients", tourId: "menu-dossiers-médicaux" },
+    { icon: CreditCard, label: "Paiements", path: "/payments", tourId: "menu-paiements" },
   ],
 
   nurse: [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard" },
-    { icon: Users, label: "Avis", path: "/doctors" },
-    { icon: Calendar, label: "Rendez-vous", path: "/appointments" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
-    { icon: Video, label: "Teleconsultation", path: "/teleconsultation" },
-    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients" },
-    { icon: CreditCard, label: "Paiements", path: "/payments" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/doctor-dashboard", tourId: "menu-dashboard" },
+    { icon: Users, label: "Avis", path: "/doctors", tourId: "menu-avis" },
+    { icon: Calendar, label: "Rendez-vous", path: "/appointments", tourId: "menu-rendez-vous" },
+    { icon: MessageSquare, label: "Messages", path: "/messages", tourId: "menu-messages" },
+    { icon: Video, label: "Teleconsultation", path: "/teleconsultation", tourId: "menu-teleconsultation" },
+    { icon: FolderOpen, label: "Dossiers médicaux", path: "/patients", tourId: "menu-dossiers-médicaux" },
+    { icon: CreditCard, label: "Paiements", path: "/payments", tourId: "menu-paiements" },
   ],
 
   structure: [
-    { icon: LayoutDashboard, label: "Structure", path: "/structure-dashboard" },
-    { icon: Users, label: "Personnel", path: "/structure/personnel" },
-    { icon: FolderOpen, label: "Dossiers", path: "/structure/demandes" },
-    { icon: MessageSquare, label: "Messages", path: "/messages" },
-    { icon: Bell, label: "Notifications", path: "/notifications" },
-    { icon: Calendar, label: "Rendez-vous", path: "/structure/rendezvous" },
-    { icon: Settings, label: "Paramètres", path: "/structure/parametres" },
-    { icon: HelpCircle, label: "Aide", path: "/structure/aide" },
+    { icon: LayoutDashboard, label: "Structure", path: "/structure-dashboard", tourId: "menu-structure" },
+    { icon: Users, label: "Personnel", path: "/structure/personnel", tourId: "menu-personnel" },
+    { icon: FolderOpen, label: "Dossiers", path: "/structure/demandes", tourId: "menu-demandes" },
+    { icon: MessageSquare, label: "Messages", path: "/messages", tourId: "menu-messages" },
+    { icon: Bell, label: "Notifications", path: "/notifications", tourId: "menu-notifications" },
+    { icon: Calendar, label: "Rendez-vous", path: "/structure/rendezvous", tourId: "menu-rendezvous" },
+    { icon: Settings, label: "Paramètres", path: "/structure/parametres", tourId: "menu-parametres" },
+    { icon: HelpCircle, label: "Aide", path: "/structure/aide", tourId: "menu-aide" },
   ],
 
   observer: [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard" },
-    { icon: Users, label: "Patient", path: "/observer/patient" },
-    { icon: Users, label: "Professional", path: "/observer/doctor" },
-    { icon: Building2, label: "Structures de Santé", path: "/observer/structure" },
+    { icon: LayoutDashboard, label: "Dashboard", path: "/observer-dashboard", tourId: "menu-dashboard" },
+    { icon: Users, label: "Patient", path: "/observer/patient", tourId: "menu-patient" },
+    { icon: Users, label: "Professional", path: "/observer/doctor", tourId: "menu-doctor" },
+    { icon: Building2, label: "Structures de Santé", path: "/observer/structure", tourId: "menu-structure" },
   ],
 };
 
@@ -97,13 +96,11 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
 
   const items = menuByRole[role] || [];
 
-  // ✅ CORRECTION : Intercepter le clic sur le bouton IA
   const handleNavigate = (path, isAi = false) => {
     if (isAi || path === "#symptom-checker") {
-      // Déclenche l'événement personnalisé que App.jsx écoute
       window.dispatchEvent(new CustomEvent("open-symptom-checker"));
       setOpen(false);
-      return; // On ne fait PAS de navigate()
+      return;
     }
     
     navigate(path);
@@ -155,6 +152,7 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
               return (
                 <button
                   key={item.label}
+                  data-tour={item.tourId} /* ← Attribut ciblé par react-joyride */
                   onClick={() => handleNavigate(item.path, isAiButton)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all
                     ${isAiButton 
@@ -184,6 +182,7 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
         {/* Nere IA (Bas de sidebar) */}
         {role === "patient" && (
           <button
+            data-tour="nere-ia-bottom" /* ← Attribut optionnel pour cibler le bouton du bas */
             onClick={() => window.dispatchEvent(new CustomEvent("open-symptom-checker"))}
             className={`flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl transition-all hover:scale-[1.02]
               ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-500 hover:bg-blue-50"}

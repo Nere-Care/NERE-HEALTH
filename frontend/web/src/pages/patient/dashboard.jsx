@@ -4,11 +4,13 @@ import {
   Calendar, Pill, Video, Clock, ChevronRight, ShieldAlert, Megaphone,
   Heart, Activity, Droplet, Weight, Stethoscope, Eye, Baby, Ear,
   ScanLine, FlaskConical, Brain, Bone, Wind, User, Scale, Wind as WindIcon,
-  Smile
+  Smile, HelpCircle
 } from 'lucide-react';
+import OnboardingTour from "../../components/common/OnboardingTour";
+import { TOUR_PATIENT } from "../../constants/tourSteps";
 import { fetchDashboardPatient } from '../../services/dashboardService';
-import ProchainRendezVousBanner from "../../components/common/ProchainRendezVousBanner";
-// Mapping icônes Lucide pour spécialités
+import ProchainRendezVousBanner from "../../components/common/ProchainRendewVousBanner";
+
 const SPECIALITE_ICONS = {
   cardiologie: Heart,
   dentisterie: Smile,
@@ -24,7 +26,6 @@ const SPECIALITE_ICONS = {
   pharmacie: Pill,
 };
 
-// Icône par défaut
 const DefaultSpecIcon = ({ nom }) => {
   const letter = nom?.[0]?.toUpperCase() || 'S';
   return (
@@ -89,6 +90,7 @@ export default function Dashboard({ darkMode }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState(null);
+  const [runTour, setRunTour] = useState(false); // État pour forcer la relance du tour
 
   useEffect(() => {
     const charger = async () => {
@@ -112,6 +114,14 @@ export default function Dashboard({ darkMode }) {
     return () => clearInterval(timer);
   }, []);
 
+  const handleRestartTour = () => {
+    // Supprime l'indicateur de fin du tour pour cet utilisateur si ton OnboardingTour utilise le localStorage
+    localStorage.removeItem("tour_patient-dashboard_completed");
+    
+    // Si tu gères un état dans OnboardingTour ou recharges la page :
+    window.location.reload();
+  };
+
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -131,7 +141,6 @@ export default function Dashboard({ darkMode }) {
   const specialitesAffichees = voirToutesSpec ? data.specialites : data.specialites.slice(0, 6);
   const NOTIFS_NON_LUES = data.nb_notifications_non_lues || 0;
 
-  // Résumé santé avec fallback
   const resume = data.resume_sante || {};
   const santeParams = [
     { label: "Poids", value: resume.poids_kg || "--", unit: "kg", icon: Weight, iconColor: "text-purple-400 bg-purple-50" },
@@ -149,7 +158,15 @@ export default function Dashboard({ darkMode }) {
   return (
     <div className={`min-h-screen p-3 md:p-6 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
-      {/* Bienvenue + Carousel */}
+      {/* Tour guidé */}
+      <OnboardingTour
+        steps={TOUR_PATIENT}
+        tourId="patient-dashboard"
+        darkMode={darkMode}
+        run={runTour}
+      />
+
+      {/* En-tête / Bienvenue */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-blue-500">Bienvenue, {data.patient_nom} 👋</h1>
@@ -179,7 +196,7 @@ export default function Dashboard({ darkMode }) {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Cartes Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
@@ -204,7 +221,7 @@ export default function Dashboard({ darkMode }) {
         })}
       </div>
 
-      {/* Notification importante */}
+      {/* Notification Banner */}
       {notifVisible && NOTIFS_NON_LUES > 0 && (
         <div
           onClick={() => { setNotifVisible(false); navigate('/notifications'); }}
@@ -238,13 +255,11 @@ export default function Dashboard({ darkMode }) {
         </div>
       )}
 
-      {/* Contenu principal */}
+      {/* Colonnes Principales */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Colonne gauche */}
         <div className="lg:col-span-2 flex flex-col gap-6">
-
-          {/* Prochain rendez-vous */}
+          
+          {/* Prochain Rendez-vous */}
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex items-center gap-2 mb-4">
               <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full font-semibold">
@@ -378,9 +393,10 @@ export default function Dashboard({ darkMode }) {
               </div>
             )}
           </div>
+
         </div>
 
-        {/* Colonne droite */}
+        {/* Colonne Droite */}
         <div className="flex flex-col gap-6">
 
           {/* Résumé santé */}
@@ -412,7 +428,7 @@ export default function Dashboard({ darkMode }) {
             </div>
           </div>
 
-          {/* Médicaments du jour */}
+          {/* Médicaments */}
           <div className={`rounded-2xl shadow p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
             <h2 className={`font-bold mb-4 flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
               <Pill size={18} className="text-green-500" />
@@ -467,6 +483,15 @@ export default function Dashboard({ darkMode }) {
 
         </div>
       </div>
+
+      {/* Bouton d'aide pour revoir le tour */}
+      <button
+        onClick={handleRestartTour}
+        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-700 transition z-40"
+        title="Revoir le guide"
+      >
+        <HelpCircle size={22} />
+      </button>
     </div>
   );
 }

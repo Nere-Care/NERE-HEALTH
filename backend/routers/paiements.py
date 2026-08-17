@@ -16,7 +16,7 @@ from datetime import datetime, timezone, timedelta
 from uuid import uuid4
 
 import uuid as uuid_module
-from models import Paiement, User, RendezVous, Medecin
+from models import Paiement, User, RendezVous, Medecin, Notification
 from schemas import PaiementCreate, PaiementRead
 
 router = APIRouter(tags=["paiements"])
@@ -447,12 +447,35 @@ async def demander_retrait(
 ):
     if current_user.role != "medecin":
         raise HTTPException(403, "Reserve aux medecins")
-
+ 
     montant = float(payload.get("montant", 0))
     if montant <= 0:
         raise HTTPException(400, "Montant invalide")
+ 
+    # 1. Valider la méthode de paiement
+    raw_methode = payload.get("methode_type", "mtn_momo")
+    methodes_valides = ["mtn_momo", "orange_money", "carte_visa", "carte_mastercard", "virement_bancaire", "portefeuille_nere"]
+    methode_valide = raw_methode if raw_methode in methodes_valides else "mtn_momo"
 
-    # Vérifier le solde disponible
+    # 2. Récupérer un rendez-vous et un patient_id valide associés au médecin
+    rdv_ref = db.execute(
+        select(RendezVous.id, RendezVous.patient_id)
+        .where(RendezVous.medecin_id == current_user.id)
+        .limit(1)
+    ).first()
+
+    if not rdv_ref:
+        # Repli sur le premier rendez-vous disponible en base si aucun n'est lié à ce médecin
+        rdv_ref = db.execute(
+            select(RendezVous.id, RendezVous.patient_id).limit(1)
+        ).first()
+
+    if not rdv_ref:
+        raise HTTPException(400, "Impossible d'effectuer un retrait : aucun rendez-vous/patient de référence trouvé.")
+
+    rdv_id, patient_id = rdv_ref
+
+    # 3. Vérifier le solde disponible
     total_confirme = db.execute(
         select(func.sum(
             Paiement.montant_total - func.coalesce(Paiement.frais_plateforme, 0)
@@ -461,7 +484,7 @@ async def demander_retrait(
             Paiement.statut == "confirme",
         )
     ).scalar() or 0
-
+ 
     total_retire = db.execute(
         select(func.sum(
             Paiement.montant_total - func.coalesce(Paiement.frais_plateforme, 0)
@@ -470,28 +493,29 @@ async def demander_retrait(
             Paiement.statut == "rembourse",
         )
     ).scalar() or 0
-
+ 
     disponible = float(total_confirme) - float(total_retire)
-
+ 
     if montant > disponible:
         raise HTTPException(400, f"Solde insuffisant. Disponible: {disponible:,.0f} XAF")
-
+ 
     reference = f"RET-{datetime.utcnow().year}-{str(uuid4())[:8].upper()}"
-
-    # Créer un paiement de type retrait
+ 
+    # 4. Enregistrer le retrait avec rdv_id et patient_id valides
     retrait = Paiement(
         reference=reference,
-        patient_id=current_user.id,
+        rdv_id=rdv_id,
+        patient_id=patient_id,
         medecin_id=current_user.id,
         montant_total=montant,
         devise="XAF",
         frais_plateforme=0,
-        methode=payload.get("methode_type", "mtn_momo"),
+        methode=methode_valide,
         fournisseur="cinetpay",
         statut="rembourse",
     )
     db.add(retrait)
-
+ 
     notif = Notification(
         utilisateur_id=current_user.id,
         type="confirmation_paiement",
@@ -507,7 +531,7 @@ async def demander_retrait(
     )
     db.add(notif)
     db.commit()
-
+ 
     return {
         "message": "Retrait effectue avec succes",
         "reference": reference,

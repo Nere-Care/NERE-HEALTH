@@ -9,7 +9,7 @@ import NotificationsPanel from "../../components/doctors/dashboard/Notifications
 import NewsPanel from "../../components/doctors/dashboard/NewsPanel";
 import ProfilMedecinModal from "../../components/doctors/profil/ProfilMedecinModal";
 import { fetchMedecinDashboard } from "../../services/dashboardService";
-import ProchainRendezVousBanner from "../../components/common/ProchainRendezVousBanner";
+import ProchainRendezVousBanner from "../../components/common/ProchainRendewVousBanner";
 
 export default function Dashboard({ darkMode }) {
   const [data, setData] = useState(null);
