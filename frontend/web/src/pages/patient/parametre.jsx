@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   User, Lock, Eye, EyeOff, Shield, 
   LogOut, Heart, AlertCircle, Activity, 
-  ChevronRight, CheckCircle2, Save, Loader
+  ChevronRight, CheckCircle2, Save, Loader,
+  QrCode, KeyRound, Check
 } from 'lucide-react';
 import { fetchProfilComplet, changePassword } from '../../services/userService';
 
@@ -29,6 +30,14 @@ export default function Parametres({ darkMode }) {
   const [passwordMessage, setPasswordMessage] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  // ── États pour l'activation du 2FA ──────────────────────────────────────
+  const [qrCode, setQrCode] = useState(null);
+  const [secretManuel, setSecretManuel] = useState(null);
+  const [codeVerif, setCodeVerif] = useState("");
+  const [succes2FA, setSucces2FA] = useState(false);
+  const [loading2FA, setLoading2FA] = useState(false);
+  const [erreur2FA, setErreur2FA] = useState(null);
+
   useEffect(() => {
     const charger = async () => {
       try {
@@ -44,6 +53,11 @@ export default function Parametres({ darkMode }) {
           date_naissance: data.date_naissance || "",
           groupe_sanguin: data.groupe_sanguin || "",
         });
+
+        // Si le 2FA est déjà actif sur le compte de l'utilisateur
+        if (data.totp_actif) {
+          setSucces2FA(true);
+        }
       } catch (err) {
         setErreur(err.message);
       } finally {
@@ -81,6 +95,38 @@ export default function Parametres({ darkMode }) {
       setPasswordMessage({ type: "error", text: err.message });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Handlers 2FA ──────────────────────────────────────────────────────────
+  const lancerActivation2FA = async () => {
+    try {
+      setLoading2FA(true);
+      setErreur2FA(null);
+      const token = localStorage.getItem("token");
+      const { setup2FA } = await import("../../services/authService");
+      const data = await setup2FA(token);
+      setQrCode(data.qr_code);
+      setSecretManuel(data.secret_manuel);
+    } catch (err) {
+      setErreur2FA(err.message || "Impossible de générer la clé 2FA.");
+    } finally {
+      setLoading2FA(false);
+    }
+  };
+
+  const confirmerActivation = async () => {
+    try {
+      setLoading2FA(true);
+      setErreur2FA(null);
+      const token = localStorage.getItem("token");
+      const { activer2FA } = await import("../../services/authService");
+      await activer2FA(token, codeVerif);
+      setSucces2FA(true);
+    } catch (err) {
+      setErreur2FA(err.message || "Code invalide. Veuillez reessayer.");
+    } finally {
+      setLoading2FA(false);
     }
   };
 
@@ -323,72 +369,152 @@ export default function Parametres({ darkMode }) {
             </div>
           )}
 
-          {/* SECURITE */}
+          {/* SÉCURITÉ */}
           {section === "Sécurité" && (
-            <div className={`rounded-2xl shadow p-6 flex flex-col gap-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-              <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>Sécurité</h2>
-              
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Mot de passe actuel</label>
-                  <div className="relative">
+            <div className="flex flex-col gap-6">
+              {/* VÉRIFICATION MOT DE PASSE */}
+              <div className={`rounded-2xl shadow p-6 flex flex-col gap-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+                <h2 className={`text-sm font-bold border-b pb-3 flex items-center gap-2 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
+                  <Lock size={16} /> Modification du mot de passe
+                </h2>
+                
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Mot de passe actuel</label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        value={passwordData.oldPassword}
+                        onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
+                        className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
+                      />
+                      <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Nouveau mot de passe</label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                        className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Confirmer le nouveau mot de passe</label>
                     <input 
                       type={showPassword ? "text" : "password"} 
-                      value={passwordData.oldPassword}
-                      onChange={(e) => setPasswordData({...passwordData, oldPassword: e.target.value})}
-                      className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
-                    />
-                    <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400">
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Nouveau mot de passe</label>
-                  <div className="relative">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
                       className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
                     />
                   </div>
+                  
+                  {passwordMessage && (
+                    <div className={`p-3 rounded-xl text-sm ${
+                      passwordMessage.type === "success" 
+                        ? "bg-green-100 text-green-700" 
+                        : "bg-red-100 text-red-700"
+                    }`}>
+                      {passwordMessage.text}
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={saving}
+                    className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                  >
+                    {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
+                    {saving ? "Modification..." : "Modifier le mot de passe"}
+                  </button>
+                </div>
+              </div>
+
+              {/* SECTION DOUBLE AUTHENTIFICATION (2FA) */}
+              <div className={`rounded-2xl shadow p-6 border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <KeyRound className="text-blue-500" size={18} />
+                  <h3 className={`font-semibold text-sm ${darkMode ? "text-gray-100" : "text-gray-800"}`}>
+                    Double authentification (2FA)
+                  </h3>
                 </div>
                 
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Confirmer le nouveau mot de passe</label>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                    className={`w-full border rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-400 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`} 
-                  />
-                </div>
-                
-                {passwordMessage && (
-                  <div className={`p-3 rounded-xl text-sm ${
-                    passwordMessage.type === "success" 
-                      ? "bg-green-100 text-green-700" 
-                      : "bg-red-100 text-red-700"
-                  }`}>
-                    {passwordMessage.text}
+                <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                  Ajoutez une couche de sécurité supplémentaire à votre compte NÉRÉ Health en configurant une application d'authentification (Google Authenticator, Authy, etc.).
+                </p>
+
+                {erreur2FA && (
+                  <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs flex items-center gap-2">
+                    <AlertCircle size={14} className="flex-shrink-0" />
+                    {erreur2FA}
                   </div>
                 )}
-                
-                <button
-                  onClick={handleChangePassword}
-                  disabled={saving}
-                  className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
-                >
-                  {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
-                  {saving ? "Modification..." : "Modifier le mot de passe"}
-                </button>
+
+                {!qrCode && !succes2FA && (
+                  <button 
+                    onClick={lancerActivation2FA} 
+                    disabled={loading2FA}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm disabled:opacity-50"
+                  >
+                    {loading2FA ? <Loader className="animate-spin" size={16} /> : <QrCode size={16} />}
+                    {loading2FA ? "Génération..." : "Activer la double authentification"}
+                  </button>
+                )}
+
+                {qrCode && !succes2FA && (
+                  <div className="space-y-4 max-w-md mx-auto pt-2">
+                    <div className="p-4 bg-white rounded-2xl shadow-inner border border-gray-200 flex justify-center">
+                      <img src={qrCode} alt="QR Code 2FA" className="w-44 h-44 object-contain" />
+                    </div>
+
+                    <p className="text-xs text-center text-gray-400">
+                      Scannez le QR Code ou entrez ce code manuellement : <br />
+                      <span className="font-mono text-sm font-semibold text-blue-500 tracking-wider block mt-1">{secretManuel}</span>
+                    </p>
+
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={codeVerif}
+                      onChange={(e) => {
+                        setErreur2FA(null);
+                        setCodeVerif(e.target.value.replace(/\D/g, ""));
+                      }}
+                      placeholder="Code à 6 chiffres"
+                      className={`w-full text-center text-xl font-mono tracking-widest py-2.5 rounded-xl border outline-none transition-all ${
+                        darkMode ? "bg-gray-700 border-gray-600 text-white focus:border-blue-500" : "border-gray-200 focus:border-blue-500"
+                      }`}
+                    />
+
+                    <button 
+                      onClick={confirmerActivation} 
+                      disabled={codeVerif.length !== 6 || loading2FA}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {loading2FA ? <Loader className="animate-spin" size={16} /> : <Check size={16} />}
+                      {loading2FA ? "Vérification..." : "Confirmer l'activation"}
+                    </button>
+                  </div>
+                )}
+
+                {succes2FA && (
+                  <div className="flex items-center gap-2 text-green-600 text-sm font-medium bg-green-50 dark:bg-green-950/30 p-3.5 rounded-xl border border-green-200 dark:border-green-900/40">
+                    <CheckCircle2 size={18} className="flex-shrink-0" />
+                    <span>Double authentification activée avec succès sur ce compte !</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* CONFIDENTIALITE */}
+          {/* CONFIDENTIALITÉ */}
           {section === "Confidentialité" && (
             <div className="flex flex-col gap-6">
               <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>

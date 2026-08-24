@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Phone, Mail, MapPin, Droplet, Weight, Ruler,
   Plus, Search, Download, Eye, Upload, X, Save,
-  AlertCircle, CheckCircle, Edit3
+  AlertCircle, CheckCircle, Edit3, Lock
 } from 'lucide-react';
 import {
   fetchPatientProfil,
@@ -11,7 +11,7 @@ import {
   updateDossierPatient,
   uploaderDocument,
 } from '../../services/patientService';
-
+import PasswordConfirmModal from '../../components/common/PasswordConfirmModal';
 const ONGLETS = [
   "Informations personnelles",
   "Documents Médicaux",
@@ -798,6 +798,10 @@ export default function Dossiers({ darkMode }) {
   const [erreur, setErreur] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // ÉTATS POUR LE VERROUILLAGE
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(true);
+
   const charger = useCallback(async () => {
     try {
       setLoading(true);
@@ -815,10 +819,52 @@ export default function Dossiers({ darkMode }) {
     }
   }, []);
 
-  useEffect(() => { charger(); }, [charger]);
+  // Déclencher le chargement uniquement une fois le dossier déverrouillé
+  useEffect(() => { 
+    if (isUnlocked) {
+      charger(); 
+    }
+  }, [isUnlocked, charger]);
 
   const afficherToast = (message, type = "error") => setToast({ message, type });
 
+  // 1. ÉCRAN DE VERROUILLAGE SI NON DÉVERROUILLÉ
+  if (!isUnlocked) {
+    return (
+      <div className={`p-6 min-h-screen flex flex-col items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className={`p-8 rounded-3xl shadow-xl border text-center max-w-sm w-full ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+          <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-2xl flex items-center justify-center">
+            <Lock size={32} />
+          </div>
+          <h2 className={`text-xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
+            Dossier Protégé
+          </h2>
+          <p className="text-xs text-gray-400 mb-6">
+            Pour des raisons de sécurité, veuillez confirmer votre mot de passe pour accéder à vos données médicales.
+          </p>
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition"
+          >
+            Déverrouiller mon dossier
+          </button>
+        </div>
+
+        {/* Modal de vérification */}
+        <PasswordConfirmModal
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={() => {
+            setIsUnlocked(true);
+            setShowPasswordModal(false);
+          }}
+          title="Accès au dossier médical"
+        />
+      </div>
+    );
+  }
+
+  // 2. ÉTAT DE CHARGEMENT APRÈS DÉVERROUILLAGE
   if (loading) return (
     <div className={`p-6 min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -844,16 +890,29 @@ export default function Dossiers({ darkMode }) {
     <Vaccins {...props} />,
   ];
 
+  // 3. VUE PRINCIPALE DU DOSSIER
   return (
     <div className={`p-6 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-blue-500">Ma Santé</h1>
-        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-          Votre dossier médical complet
-        </p>
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-blue-500">Ma Santé</h1>
+          <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            Votre dossier médical complet
+          </p>
+        </div>
+        <button
+          onClick={() => setIsUnlocked(false)}
+          className={`px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+            darkMode 
+              ? "border-gray-700 text-gray-300 hover:bg-gray-800" 
+              : "border-gray-200 text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          <Lock size={12} /> Verrouiller
+        </button>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-6">

@@ -1,18 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
-import { Stethoscope, AlertCircle, Download } from "lucide-react";
+import { Stethoscope, AlertCircle, Download, Lock } from "lucide-react";
 import PatientConsultationCard from "../../components/doctors/patient/PatientConsultationCard";
 import PatientConsultationDetails from "../../components/doctors/patient/PatientConsultationDetails";
 import SearchBar from "../../components/common/SearchBar";
+import PasswordConfirmModal from "../../components/common/PasswordConfirmModal"; // Composant modal importé
 import { fetchMesConsultationsPatient, telechargerMonDossier } from "../../services/patientService";
 
 export default function MesConsultations({ darkMode }) {
   const [consultations, setConsultations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [telechargement, setTelechargement] = useState(false);
 
+  // 1. Initialiser showPasswordModal à true pour qu'elle s'ouvre direct
+const [isUnlocked, setIsUnlocked] = useState(false);
+const [showPasswordModal, setShowPasswordModal] = useState(true);
+
+// 2. Charger les données uniquement une fois déverrouillé
+
+
+  // Charger les données seulement après déverrouillage
   const charger = useCallback(async () => {
     try {
       setLoading(true);
@@ -26,7 +35,17 @@ export default function MesConsultations({ darkMode }) {
     }
   }, []);
 
-  useEffect(() => { charger(); }, [charger]);
+ useEffect(() => {
+  if (isUnlocked) {
+    charger();
+  }
+}, [isUnlocked]);
+
+  // Callback appelé par PasswordConfirmModal après validation réussie du mot de passe
+  const handlePasswordSuccess = () => {
+    setShowPasswordModal(false);
+    setIsUnlocked(true);
+  };
 
   const handleTelecharger = async () => {
     try {
@@ -48,6 +67,43 @@ export default function MesConsultations({ darkMode }) {
     );
   });
 
+  // 1. Si la page est verrouillée, afficher le Modal de confirmation de mot de passe
+// Si le composant n'est pas déverrouillé, afficher l'écran d'attente
+if (!isUnlocked) {
+  return (
+    <div className={`p-6 min-h-screen flex flex-col items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      <div className={`p-8 rounded-3xl shadow-xl border text-center max-w-sm w-full ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+          <Lock size={32} />
+        </div>
+        <h2 className={`text-xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
+          Consultations Protégées
+        </h2>
+        <p className="text-xs text-gray-400 mb-6">
+          Veuillez confirmer votre mot de passe pour accéder à l'historique de vos consultations.
+        </p>
+        <button
+          onClick={() => setShowPasswordModal(true)}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition"
+        >
+          Déverrouiller
+        </button>
+      </div>
+
+      <PasswordConfirmModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          setIsUnlocked(true);
+          setShowPasswordModal(false);
+        }}
+        title="Accès aux consultations"
+      />
+    </div>
+  );
+}
+
+  // 2. Une fois déverrouillé, afficher la page normale
   return (
     <div className={`min-h-screen p-4 sm:p-6 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 

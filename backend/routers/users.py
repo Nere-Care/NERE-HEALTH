@@ -1,28 +1,25 @@
+# routers/users.py
 from typing import List
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
-from auth import require_role, get_current_active_user
-from db import get_db
-from models import User, Patient, Medecin, DossierMedical, Structure
 from datetime import date
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
+from auth import require_role, get_current_active_user, get_current_user, verify_password
+from db import get_db
+from models import User, Patient, Medecin, DossierMedical, Structure
 from schemas import UserRead
 
-router = APIRouter(tags=["users"])
+# Définition du préfixe /users ICI uniquement
+router = APIRouter(prefix="/users", tags=["users"])
 
 
-
-
-@router.get("/users/me/profil-complet")
+@router.get("/me/profil-complet")
 async def get_profil_complet(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    """Retourne le profil complet de l'utilisateur connecté selon son rôle."""
-    
-    # Infos de base (communes à tous)
     profil = {
         "id": str(current_user.id),
         "email": current_user.email,
@@ -33,7 +30,6 @@ async def get_profil_complet(
         "statut": current_user.statut,
     }
     
-    # Infos spécifiques selon le rôle
     if current_user.role == "patient":
         patient = db.get(Patient, current_user.id)
         if patient:
@@ -49,7 +45,6 @@ async def get_profil_complet(
             profil["contact_urgence_lien"] = patient.contact_urgence_lien
             profil["numero_patient"] = patient.numero_patient
             
-            # Calcul âge
             if patient.date_naissance:
                 today = date.today()
                 age = today.year - patient.date_naissance.year - (
@@ -57,7 +52,7 @@ async def get_profil_complet(
                 )
                 profil["age"] = age
         
-        profil["medecins_autorises"] = []  # À implémenter plus tard
+        profil["medecins_autorises"] = []
         
     elif current_user.role == "medecin":
         medecin = db.get(Medecin, current_user.id)
@@ -70,14 +65,12 @@ async def get_profil_complet(
             profil["note_moyenne"] = float(medecin.note_moyenne) if medecin.note_moyenne else None
             profil["nombre_avis"] = medecin.nombre_avis
             
-            # Récupérer la structure
             if medecin.structure_id:
                 structure = db.get(Structure, medecin.structure_id)
                 if structure:
                     profil["structure_nom"] = structure.nom_etablissement
                     profil["structure_ville"] = structure.ville
             
-            # Récupérer les spécialités
             from models import MedecinSpecialite, Specialite
             specialites = db.query(Specialite).join(
                 MedecinSpecialite, MedecinSpecialite.specialite_id == Specialite.id
@@ -89,14 +82,13 @@ async def get_profil_complet(
     return profil
 
 
-@router.put("/users/me/password")
+@router.put("/me/password")
 async def change_password(
     old_password: str,
     new_password: str,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_active_user),
 ):
-    """Change le mot de passe de l'utilisateur connecté."""
     from auth import verify_password, get_password_hash
     
     if not verify_password(old_password, current_user.mot_de_passe_hash):
@@ -114,7 +106,7 @@ async def change_password(
     return {"message": "Mot de passe modifié avec succès"}
 
 
-@router.get("/users", response_model=List[UserRead])
+@router.get("", response_model=List[UserRead])
 async def read_users(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin")),
@@ -123,4 +115,21 @@ async def read_users(
     return users
 
 
+class ConfirmPasswordRequest(BaseModel):
+    password: str
 
+# Route finale: /users/confirm-password
+@router.post("/confirm-password")
+def confirm_password(
+    req: ConfirmPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    from auth import verify_password
+    
+    if not verify_password(req.password, current_user.mot_de_passe_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Mot de passe incorrect"
+        )
+    return {"message": "Mot de passe vérifié avec succès"}

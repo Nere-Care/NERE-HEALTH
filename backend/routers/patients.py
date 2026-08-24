@@ -14,13 +14,13 @@ import io
 
 
 from models import Patient, DossierMedical, User, User as UserModel, Ordonnance, OrdonnanceLigne, Consultation
-from datetime import date, datetime, timedelta, date as date_type
+from datetime import date, datetime, timezone, timedelta, date as date_type
 
 from auth import get_current_active_user, require_role
 from db import get_db
 from schemas import PatientCreate, PatientRead, ProfilUpdate
 from pydantic import BaseModel as PydanticBase
-from sqlalchemy import func, or_
+from sqlalchemy import func, select, or_
 
 router = APIRouter(tags=["patients"])
 

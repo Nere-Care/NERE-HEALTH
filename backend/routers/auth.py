@@ -3,6 +3,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+import pyotp
+import qrcode
+import io
+import base64
+from pydantic import BaseModel
+
 from auth import authenticate_user, create_access_token, get_password_hash, validate_password, get_current_active_user
 from db import get_db
 from limiter import limiter
@@ -21,6 +27,9 @@ GOOGLE_CLIENT_ID = "370116629692-j2f64k7n783qus34pv23la583g7vag22.apps.googleuse
 router = APIRouter(tags=["auth"])
 
 
+
+
+
 @router.post("/auth/token", response_model=Token)
 @limiter.limit("10/minute")
 async def login_for_access_token(
@@ -28,6 +37,7 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    # 1. Authentification de l'utilisateur
     user = authenticate_user(
         db,
         form_data.username,
@@ -41,9 +51,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # ────────────────────────────────────────────────
-    # Vérification du compte médecin
-    # ────────────────────────────────────────────────
+    # 2. Vérification du compte médecin
     if user.role == "medecin":
         medecin = db.get(Medecin, user.id)
 
@@ -52,9 +60,8 @@ async def login_for_access_token(
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=(
-                        "Votre compte est en cours de vérification "
-                        "par notre équipe. Vous recevrez un email dès "
-                        "que votre dossier sera validé."
+                        "Votre compte est en cours de vérification par notre équipe. "
+                        "Vous recevrez un email dès que votre dossier sera validé."
                     ),
                 )
 
@@ -63,29 +70,43 @@ async def login_for_access_token(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=(
                         "Votre dossier n'a pas été validé. "
-                        "Veuillez consulter l'email envoyé "
-                        "pour connaître la procédure à suivre."
+                        "Veuillez consulter l'email envoyé pour connaître la procédure."
                     ),
                 )
 
-    # ────────────────────────────────────────────────
-    # Vérification du statut utilisateur
-    # ────────────────────────────────────────────────
+    # 3. Vérification du statut utilisateur (Actif / Inactif)
     if hasattr(user, "statut") and user.statut == "inactif":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Votre compte a été désactivé. "
-                "Contactez le support."
-            ),
+            detail="Votre compte a été désactivé. Contactez le support.",
         )
 
-    # ────────────────────────────────────────────────
-    # Génération du JWT
-    # ────────────────────────────────────────────────
-    access_token = create_access_token(
-        subject=user.email
-    )
+    # 4. Traitement 2FA (Si activé)
+    if getattr(user, "totp_actif", False):
+        payload_temp = {
+            "sub": user.email,
+            "scope": "2fa_pending",
+            "exp": int((datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp()),
+        }
+        
+        temp_token = jose_jwt.encode(
+            payload_temp, 
+            settings.SECRET_KEY, 
+            algorithm="HS256"
+        )
+        
+        if isinstance(temp_token, bytes):
+            temp_token = temp_token.decode("utf-8")
+
+        # Retour d'une réponse JSON d'attente (200 OK) sans lever d'exception HTTP
+        return {
+            "requires_2fa": True,
+            "temp_token": temp_token,
+            "token_type": "bearer"
+        }
+
+    # 5. Génération du JWT standard (Si pas de 2FA)
+    access_token = create_access_token(subject=user.email)
 
     return {
         "access_token": access_token,
@@ -321,3 +342,102 @@ async def read_current_user(current_user=Depends(get_current_active_user)):
 
 
 
+
+@router.post("/auth/2fa/setup")
+async def setup_2fa(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Genere un secret TOTP et un QR code pour activer la 2FA."""
+    if current_user.totp_actif:
+        raise HTTPException(400, "La double authentification est deja activee")
+
+    secret = pyotp.random_base32()
+    current_user.totp_secret = secret
+    db.commit()
+
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=current_user.email, issuer_name="NERE Health")
+
+    qr = qrcode.make(uri)
+    buffer = io.BytesIO()
+    qr.save(buffer, format="PNG")
+    qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+    return {
+        "qr_code": f"data:image/png;base64,{qr_base64}",
+        "secret_manuel": secret,
+    }
+
+
+class Code2FA(BaseModel):
+    code: str
+
+@router.post("/auth/2fa/activer")
+async def activer_2fa(
+    payload: Code2FA,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Confirme l'activation de la 2FA en verifiant un premier code."""
+    if not current_user.totp_secret:
+        raise HTTPException(400, "Veuillez d'abord generer un QR code (/auth/2fa/setup)")
+
+    totp = pyotp.TOTP(current_user.totp_secret)
+    if not totp.verify(payload.code, valid_window=1):
+        raise HTTPException(400, "Code invalide. Verifiez votre application d'authentification.")
+
+    current_user.totp_actif = True
+    db.commit()
+
+    return {"message": "Double authentification activee avec succes"}
+
+
+class DesactiverTOTP(BaseModel):
+    password: str
+
+@router.post("/auth/2fa/desactiver")
+async def desactiver_2fa(
+    payload: DesactiverTOTP,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Desactive la 2FA — necessite le mot de passe pour confirmer."""
+    if not verify_password(payload.password, current_user.mot_de_passe_hash):
+        raise HTTPException(401, "Mot de passe incorrect")
+
+    current_user.totp_actif = False
+    current_user.totp_secret = None
+    db.commit()
+
+    return {"message": "Double authentification desactivee"}
+
+
+class Verifier2FA(BaseModel):
+    temp_token: str
+    code: str
+
+@router.post("/auth/2fa/verifier", response_model=Token)
+async def verifier_2fa_login(
+    payload: Verifier2FA,
+    db: Session = Depends(get_db),
+):
+    """Deuxieme etape de connexion : verifie le code TOTP et delivre le vrai token."""
+    try:
+        claims = decode_access_token(payload.temp_token)
+    except Exception:
+        raise HTTPException(401, "Session de connexion expiree, veuillez vous reconnecter")
+
+    if claims.get("scope") != "2fa_pending":
+        raise HTTPException(401, "Token invalide pour cette operation")
+
+    user = db.query(User).filter(User.email == claims.get("sub")).first()
+    if not user or not user.totp_secret:
+        raise HTTPException(401, "Utilisateur introuvable")
+
+    totp = pyotp.TOTP(user.totp_secret)
+    if not totp.verify(payload.code, valid_window=1):
+        raise HTTPException(400, "Code de verification incorrect")
+
+    access_token = create_access_token(subject=user.email)
+    return {"access_token": access_token, "token_type": "bearer"}

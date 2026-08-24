@@ -6,9 +6,13 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr
 
 
+
+
 class Token(BaseModel):
-    access_token: str
+    access_token: Optional[str] = None
     token_type: str
+    requires_2fa: bool = False
+    temp_token: Optional[str] = None
 
 
 class TokenData(BaseModel):

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Mail, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Loader2, AlertCircle, ArrowLeft, ShieldCheck } from "lucide-react";
 import Input from "../../../components/form/Input";
 import { login, getCurrentUser, loginWithGoogle } from "../../../services/authService";
 import PasswordInput from "../../../components/form/PasswordInput";
@@ -39,6 +39,11 @@ export default function LoginStep({
   const [googleError, setGoogleError] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
+
+  // ── ÉTATS POUR LE FLUX 2FA ────────────────────────────────────────────────
+  const [etape2FA, setEtape2FA] = useState(false);
+  const [tempToken, setTempToken] = useState(null);
+  const [code2FA, setCode2FA] = useState("");
 
   const isLoading = externalLoading || localLoading;
 
@@ -166,6 +171,14 @@ export default function LoginStep({
       }
 
       const tokenData = await login(email.trim(), password);
+
+      // Interception si le backend requiert le 2FA
+      if (tokenData.requires_2fa) {
+        setTempToken(tokenData.temp_token);
+        setEtape2FA(true);
+        return;
+      }
+
       localStorage.setItem("token", tokenData.access_token);
 
       const user = await getCurrentUser(tokenData.access_token);
@@ -186,126 +199,219 @@ export default function LoginStep({
     }
   };
 
+  // ============================================
+  // VERIFICATION DU CODE 2FA
+  // ============================================
+  const handleVerifier2FA = async () => {
+    try {
+      setLocalLoading(true);
+      setLocalError(null);
+      const { verifier2FALogin } = await import("../../../services/authService");
+      const tokenData = await verifier2FALogin(tempToken, code2FA);
+
+      localStorage.setItem("token", tokenData.access_token);
+      const user = await getCurrentUser(tokenData.access_token);
+      saveUser(user);
+      localStorage.setItem("role", user.role);
+
+      navigate(redirectByRole(user.role));
+
+    } catch (err) {
+      setLocalError(err.message || "Code OTP invalide.");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="border border-gray-100 rounded-2xl bg-gray-50 p-6">
-        <div className="space-y-5">
-          <Input
-            icon={<Mail className="w-5 h-5 text-gray-500" />}
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setLocalError(null);
-              if (errors?.email) setErrors?.({ ...errors, email: null });
-            }}
-          />
+        {etape2FA ? (
+          /* ─────────────────────────────────────────────────────────────
+             ÉCRAN DE VÉRIFICATION 2FA
+             ───────────────────────────────────────────────────────────── */
+          <div className="space-y-5">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center p-3 rounded-full bg-blue-50 text-[#2F80ED] mb-2">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <p className="font-semibold text-gray-800 text-lg">Vérification en deux étapes</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Entrez le code à 6 chiffres affiché dans votre application d'authentification.
+              </p>
+            </div>
 
-          {errors?.email && (
-            <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-          )}
+            <input
+              type="text"
+              maxLength={6}
+              value={code2FA}
+              onChange={(e) => {
+                setLocalError(null);
+                setCode2FA(e.target.value.replace(/\D/g, ""));
+              }}
+              placeholder="000000"
+              className="w-full text-center text-3xl font-mono tracking-[0.4em] py-3.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[#2F80ED] focus:ring-2 focus:ring-blue-100 transition-all"
+            />
 
-          <PasswordInput
-            placeholder="Mot de passe"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (localError) setLocalError(null);
-              if (errors?.password) setErrors?.({ ...errors, password: null });
-            }}
-          />
+            {localError && (
+              <div className="px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center justify-center gap-2">
+                <AlertCircle size={14} className="flex-shrink-0" />
+                {localError}
+              </div>
+            )}
 
-          {errors?.password && (
-            <p className="text-red-500 text-sm mt-1">{errors.password}</p>
-          )}
-        </div>
+            <button
+              onClick={handleVerifier2FA}
+              disabled={code2FA.length !== 6 || localLoading}
+              className="w-full bg-[#2F80ED] text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {localLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Vérification...
+                </>
+              ) : (
+                "Vérifier le code"
+              )}
+            </button>
 
-        {googleError && (
-          <div className="mt-4 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
-            <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-            <span>{googleError}</span>
+            <button
+              onClick={() => {
+                setEtape2FA(false);
+                setCode2FA("");
+                setLocalError(null);
+              }}
+              className="w-full text-xs text-gray-500 hover:text-gray-800 transition flex items-center justify-center gap-1 mt-2"
+            >
+              <ArrowLeft size={14} /> Annuler et revenir
+            </button>
           </div>
-        )}
+        ) : (
+          /* ─────────────────────────────────────────────────────────────
+             FORMULAIRE DE CONNEXION CLASSIQUE
+             ───────────────────────────────────────────────────────────── */
+          <>
+            <div className="space-y-5">
+              <Input
+                icon={<Mail className="w-5 h-5 text-gray-500" />}
+                placeholder="Email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setLocalError(null);
+                  if (errors?.email) setErrors?.({ ...errors, email: null });
+                }}
+              />
 
-        {localError && (
-          <div className="mt-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2">
-            <AlertCircle size={14} className="flex-shrink-0" />
-            {localError}
-          </div>
-        )}
+              {errors?.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
 
-        {/* BOUTON CONNEXION */}
-        <button
-          className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          onClick={handleLoginClick}
-          disabled={isLoading || googleLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Connexion...
-            </>
-          ) : (
-            "Se connecter"
-          )}
-        </button>
+              <PasswordInput
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (localError) setLocalError(null);
+                  if (errors?.password) setErrors?.({ ...errors, password: null });
+                }}
+              />
 
-        <div className="flex items-center my-8">
-          <div className="flex-grow border-t border-gray-300"></div>
-          <span className="mx-4 text-gray-500 text-sm">ou</span>
-          <div className="flex-grow border-t border-gray-300"></div>
-        </div>
+              {errors?.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
+            </div>
 
-        {/* BOUTON GOOGLE CACHÉ */}
-        <div
-          ref={hiddenGoogleBtnRef}
-          style={{
-            position: "absolute",
-            opacity: 0,
-            pointerEvents: "none",
-            height: 0,
-            overflow: "hidden",
-            top: 0,
-            left: 0,
-          }}
-        ></div>
+            {googleError && (
+              <div className="mt-4 flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                <span>{googleError}</span>
+              </div>
+            )}
 
-        {/* BOUTON GOOGLE VISIBLE */}
-        <button
-          onClick={handleGoogleClick}
-          disabled={googleLoading || isLoading}
-          className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 p-3 rounded-xl hover:bg-gray-50 transition border border-gray-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {googleLoading ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Connexion Google...
-            </>
-          ) : (
-            <>
-              <FcGoogle className="w-5 h-5" />
-              Continuer avec Google
-            </>
-          )}
-        </button>
+            {localError && (
+              <div className="mt-3 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-center gap-2">
+                <AlertCircle size={14} className="flex-shrink-0" />
+                {localError}
+              </div>
+            )}
 
-        {!googleReady && !googleError && (
-          <p className="text-xs text-center text-gray-400 mt-2">
-            Chargement de Google Sign-In...
-          </p>
+            {/* BOUTON CONNEXION */}
+            <button
+              className="w-full bg-[#2F80ED] mt-6 text-white p-3 rounded-xl hover:bg-[#044EC8] transition font-medium shadow-lg shadow-blue-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              onClick={handleLoginClick}
+              disabled={isLoading || googleLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Connexion...
+                </>
+              ) : (
+                "Se connecter"
+              )}
+            </button>
+
+            <div className="flex items-center my-8">
+              <div className="flex-grow border-t border-gray-300"></div>
+              <span className="mx-4 text-gray-500 text-sm">ou</span>
+              <div className="flex-grow border-t border-gray-300"></div>
+            </div>
+
+            {/* BOUTON GOOGLE CACHÉ */}
+            <div
+              ref={hiddenGoogleBtnRef}
+              style={{
+                position: "absolute",
+                opacity: 0,
+                pointerEvents: "none",
+                height: 0,
+                overflow: "hidden",
+                top: 0,
+                left: 0,
+              }}
+            ></div>
+
+            {/* BOUTON GOOGLE VISIBLE */}
+            <button
+              onClick={handleGoogleClick}
+              disabled={googleLoading || isLoading}
+              className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 p-3 rounded-xl hover:bg-gray-50 transition border border-gray-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {googleLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Connexion Google...
+                </>
+              ) : (
+                <>
+                  <FcGoogle className="w-5 h-5" />
+                  Continuer avec Google
+                </>
+              )}
+            </button>
+
+            {!googleReady && !googleError && (
+              <p className="text-xs text-center text-gray-400 mt-2">
+                Chargement de Google Sign-In...
+              </p>
+            )}
+          </>
         )}
       </div>
 
-      <p className="text-sm mt-8 text-center text-gray-600">
-        Vous n'avez pas encore de compte ?{" "}
-        <span
-          onClick={() => setIsLogin(false)}
-          className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
-        >
-          Créer un compte
-        </span>
-      </p>
+      {!etape2FA && (
+        <p className="text-sm mt-8 text-center text-gray-600">
+          Vous n'avez pas encore de compte ?{" "}
+          <span
+            onClick={() => setIsLogin(false)}
+            className="text-[#2F80ED] cursor-pointer font-medium hover:underline"
+          >
+            Créer un compte
+          </span>
+        </p>
+      )}
     </>
   );
 }

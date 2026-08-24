@@ -2,16 +2,21 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Send, ArrowLeft, Video, Paperclip,
-  MoreVertical, Flag, Trash2, AlertTriangle, X, CheckCircle, XCircle,
+  MoreVertical, Flag, Trash2, AlertTriangle, X, CheckCircle, XCircle, Lock
 } from 'lucide-react';
 import { connectWebSocket, onWebSocketMessage } from '../../services/websocketService';
 import { fetchConversations, fetchMessages, envoyerMessage, envoyerFichier } from '../../services/messageService';
-import { FileText, Download, Image as ImageIcon } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
+import PasswordConfirmModal from '../../components/common/PasswordConfirmModal';
 
 export default function Messages({ darkMode }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const messagesEndRef = useRef(null);
+
+  // État de déverrouillage sécurisé
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(true);
 
   const [conversations, setConversations] = useState([]);
   const [convActive, setConvActive] = useState(null);
@@ -26,73 +31,69 @@ export default function Messages({ darkMode }) {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  const [uploadEnCours, setUploadEnCours] = useState(false);
 
-
-
-
-
-
-// Remplace gererPieceJointe :
-const [uploadEnCours, setUploadEnCours] = useState(false);
-
-const gererPieceJointe = () => {
-  if (!convActive) return;
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*,.pdf,.doc,.docx';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) {
-      afficherToast("Fichier trop volumineux (max 10 Mo)", "error");
-      return;
-    }
-
-    try {
-      setUploadEnCours(true);
-      const msg = await envoyerFichier(convActive.id, file);
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
-      setConversations(prev =>
-        prev.map(c => c.id === convActive.id
-          ? { ...c, dernier_message: msg.texte }
-          : c
-        )
-      );
-    } catch (err) {
-      afficherToast(err.message, "error");
-    } finally {
-      setUploadEnCours(false);
-    }
+  // Callback appelé quand le mot de passe est validé avec succès
+  const handlePasswordSuccess = () => {
+    setShowPasswordModal(false);
+    setIsUnlocked(true);
   };
-  input.click();
-};
-
-
-
-  // Ref pour garder la trace de la conversation active dans l'abonnement WebSocket
-  const convActiveRef = useRef(convActive);
-  useEffect(() => {
-    convActiveRef.current = convActive;
-  }, [convActive]);
 
   const afficherToast = (message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 1. Charger la liste des conversations
+  const gererPieceJointe = () => {
+    if (!convActive) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,.pdf,.doc,.docx';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        afficherToast("Fichier trop volumineux (max 10 Mo)", "error");
+        return;
+      }
+
+      try {
+        setUploadEnCours(true);
+        const msg = await envoyerFichier(convActive.id, file);
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+        setConversations(prev =>
+          prev.map(c => c.id === convActive.id
+            ? { ...c, dernier_message: msg.texte }
+            : c
+          )
+        );
+      } catch (err) {
+        afficherToast(err.message, "error");
+      } finally {
+        setUploadEnCours(false);
+      }
+    };
+    input.click();
+  };
+
+  const convActiveRef = useRef(convActive);
+  useEffect(() => {
+    convActiveRef.current = convActive;
+  }, [convActive]);
+
+  // 1. Charger la liste des conversations (uniquement si déverrouillé)
   const chargerConvs = useCallback(async () => {
+    if (!isUnlocked) return;
     try {
       setLoadingConvs(true);
       const data = await fetchConversations();
       const convs = data ?? [];
       setConversations(convs);
 
-      // Ouvrir la conversation depuis l'URL si présente
       const convIdFromUrl = searchParams.get("conv");
       if (convIdFromUrl) {
         const convToOpen = convs.find(c => c.id === convIdFromUrl);
@@ -108,28 +109,28 @@ const gererPieceJointe = () => {
     } finally {
       setLoadingConvs(false);
     }
-  }, [searchParams]);
+  }, [searchParams, isUnlocked]);
 
   useEffect(() => {
-    chargerConvs();
-  }, [chargerConvs]);
+    if (isUnlocked) {
+      chargerConvs();
+    }
+  }, [isUnlocked, chargerConvs]);
 
-  // 2. Gestion du WebSocket
+  // 2. Gestion du WebSocket (uniquement si déverrouillé)
   useEffect(() => {
+    if (!isUnlocked) return;
+
     connectWebSocket();
 
     const unsubscribe = onWebSocketMessage((data) => {
-      console.log("📩 Événement WebSocket reçu :", data);
-
       if (data.event === "nouveau_message") {
-        // Ajouter au fil si la conversation ouverte correspond
         if (convActiveRef.current && data.conversation_id === convActiveRef.current.id) {
           setMessages((prev) => {
             if (prev.some(m => m.id === data.message.id)) return prev;
             return [...prev, { ...data.message, est_moi: false }];
           });
         }
-        // Mettre à jour la liste des conversations
         chargerConvs();
       }
     });
@@ -137,11 +138,11 @@ const gererPieceJointe = () => {
     return () => {
       unsubscribe();
     };
-  }, [chargerConvs]);
+  }, [isUnlocked, chargerConvs]);
 
   // 3. Charger messages au changement de conversation
   useEffect(() => {
-    if (!convActive) return;
+    if (!convActive || !isUnlocked) return;
     const charger = async () => {
       try {
         setLoadingMsgs(true);
@@ -154,7 +155,7 @@ const gererPieceJointe = () => {
       }
     };
     charger();
-  }, [convActive]);
+  }, [convActive, isUnlocked]);
 
   // Scroll auto
   useEffect(() => {
@@ -194,8 +195,6 @@ const gererPieceJointe = () => {
     }
   };
 
-
-
   const lancerTeleconsultation = () => {
     if (convActive) {
       afficherToast(`Lancement avec ${convActive.nom}`);
@@ -230,6 +229,48 @@ const gererPieceJointe = () => {
     "Harcèlement", "Usurpation d'identité", "Autre",
   ];
 
+  // -------------------------------------------------------------
+  // 1. ÉCRAN SÉCURISÉ (Affiché avant validation du mot de passe)
+  // -------------------------------------------------------------
+// -------------------------------------------------------------
+// 1. ÉCRAN SÉCURISÉ (Affiché avant validation du mot de passe)
+// -------------------------------------------------------------
+if (!isUnlocked) {
+  return (
+    <div className={`min-h-[100dvh] flex flex-col items-center justify-center p-6 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      <div className={`p-8 rounded-3xl shadow-xl border text-center max-w-sm w-full mb-6 ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-100 text-gray-800"}`}>
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+          <Lock size={32} />
+        </div>
+        <h2 className="text-xl font-bold mb-2">
+          Accès aux Messages Protégé
+        </h2>
+        <p className={`text-xs mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+          Veuillez confirmer votre mot de passe pour accéder à vos discussions confidentielles.
+        </p>
+        <button
+          onClick={() => setShowPasswordModal(true)}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-blue-500/20"
+        >
+          Saisir le mot de passe
+        </button>
+      </div>
+
+      <PasswordConfirmModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={handlePasswordSuccess}
+        title="Accès sécurisé à la messagerie"
+        description="Veuillez saisir votre mot de passe pour accéder à vos discussions."
+        darkMode={darkMode}
+      />
+    </div>
+  );
+}
+
+  // -------------------------------------------------------------
+  // 2. PAGE MESSAGES NORMALE (Une fois le mot de passe validé)
+  // -------------------------------------------------------------
   return (
     <div className={`min-h-[100dvh] flex overflow-hidden relative ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
 
@@ -378,81 +419,76 @@ const gererPieceJointe = () => {
           </div>
 
           {/* MESSAGES */}
-          {/* MESSAGES */}
-<div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-  {loadingMsgs ? (
-    <div className="flex justify-center py-10">
-      <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  ) : messages.length === 0 ? (
-    <div className="flex-1 flex items-center justify-center">
-      <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-        Aucun message. Commencez la conversation !
-      </p>
-    </div>
-  ) : (
-    messages.map((msg) => (
-      <div key={msg.id} className={`flex ${msg.est_moi ? "justify-end" : "justify-start"}`}>
-        <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm
-          ${msg.est_moi
-            ? "bg-blue-600 text-white shadow-sm"
-            : darkMode ? "bg-gray-700 text-white" : "bg-white text-gray-800 shadow-sm"}`}>
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            {loadingMsgs ? (
+              <div className="flex justify-center py-10">
+                <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center">
+                <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  Aucun message. Commencez la conversation !
+                </p>
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.est_moi ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm
+                    ${msg.est_moi
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : darkMode ? "bg-gray-700 text-white" : "bg-white text-gray-800 shadow-sm"}`}>
 
-          {/* 1. Affichage Image */}
-          {msg.type === "image" && msg.fichier_url && (
-            <img
-              src={msg.fichier_url}
-              alt={msg.fichier_nom || "Image"}
-              className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer mb-1 hover:opacity-95 transition"
-              onClick={() => window.open(msg.fichier_url, "_blank")}
-            />
-          )}
+                    {msg.type === "image" && msg.fichier_url && (
+                      <img
+                        src={msg.fichier_url}
+                        alt={msg.fichier_nom || "Image"}
+                        className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer mb-1 hover:opacity-95 transition"
+                        onClick={() => window.open(msg.fichier_url, "_blank")}
+                      />
+                    )}
 
-          {/* 2. Affichage Fichier (PDF, DOCX, etc.) */}
-          {msg.type === "fichier" && msg.fichier_url && (
-            <a
-              href={msg.fichier_url}
-              download={msg.fichier_nom || "Fichier"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl transition mb-1
-                ${msg.est_moi 
-                  ? "bg-blue-700 text-white hover:bg-blue-800" 
-                  : darkMode ? "bg-gray-600 text-white hover:bg-gray-500" : "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
-            >
-              <FileText size={18} className="flex-shrink-0" />
-              <span className="text-xs truncate max-w-[180px] font-medium">{msg.fichier_nom || "Document"}</span>
-              <Download size={14} className="flex-shrink-0 opacity-80" />
-            </a>
-          )}
+                    {msg.type === "fichier" && msg.fichier_url && (
+                      <a
+                        href={msg.fichier_url}
+                        download={msg.fichier_nom || "Fichier"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl transition mb-1
+                          ${msg.est_moi 
+                            ? "bg-blue-700 text-white hover:bg-blue-800" 
+                            : darkMode ? "bg-gray-600 text-white hover:bg-gray-500" : "bg-gray-100 text-gray-800 hover:bg-gray-200"}`}
+                      >
+                        <FileText size={18} className="flex-shrink-0" />
+                        <span className="text-xs truncate max-w-[180px] font-medium">{msg.fichier_nom || "Document"}</span>
+                        <Download size={14} className="flex-shrink-0 opacity-80" />
+                      </a>
+                    )}
 
-          {/* 3. Texte du message (s'il existe) */}
-          {msg.texte && <p className="break-words">{msg.texte}</p>}
+                    {msg.texte && <p className="break-words">{msg.texte}</p>}
 
-          {/* Horodatage */}
-          <p className={`text-[10px] mt-1 text-right select-none ${msg.est_moi ? "text-blue-200" : "text-gray-400"}`}>
-            {msg.heure}
-          </p>
-        </div>
-      </div>
-    ))
-  )}
-  <div ref={messagesEndRef} />
-</div>
+                    <p className={`text-[10px] mt-1 text-right select-none ${msg.est_moi ? "text-blue-200" : "text-gray-400"}`}>
+                      {msg.heure}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
 
           {/* INPUT */}
           <div className={`p-3 border-t flex items-center gap-3
             ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
             <button
-  onClick={gererPieceJointe}
-  disabled={uploadEnCours}
-  className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"} disabled:opacity-50`}
->
-  {uploadEnCours
-    ? <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-    : <Paperclip size={20} className="text-gray-400" />
-  }
-</button>
+              onClick={gererPieceJointe}
+              disabled={uploadEnCours}
+              className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"} disabled:opacity-50`}
+            >
+              {uploadEnCours
+                ? <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                : <Paperclip size={20} className="text-gray-400" />
+              }
+            </button>
             <input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Stethoscope, History, Download, Info, AlertCircle } from "lucide-react";
+import { Users, Stethoscope, History, Download, Info, AlertCircle, Lock } from "lucide-react";
 import SearchBar from "../../components/common/SearchBar";
 import FilterButton from "../../components/common/FilterButton";
 import PatientListCard from "../../components/doctors/patient/PatientListCard";
@@ -13,6 +13,8 @@ import {
   fetchPatientConsultations,
   telechargerDossierPatient,
 } from "../../services/patientService";
+
+import PasswordConfirmModal from "../../components/common/PasswordConfirmModal";
 
 export default function Patients({ darkMode }) {
   const [activeTab, setActiveTab] = useState("All");
@@ -31,6 +33,10 @@ export default function Patients({ darkMode }) {
 
   const [telechargement, setTelechargement] = useState(false);
 
+  // --- États pour le verrouillage par mot de passe ---
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(true);
+
 
   const chargerPatients = useCallback(async () => {
     try {
@@ -46,9 +52,17 @@ export default function Patients({ darkMode }) {
   }, [search]);
 
   useEffect(() => {
+    if (!isUnlocked) return;
     const delay = setTimeout(chargerPatients, 300);
     return () => clearTimeout(delay);
-  }, [chargerPatients]);
+  }, [chargerPatients, isUnlocked]);
+
+
+// Handler de succès du mot de passe
+  const handlePasswordSuccess = () => {
+    setShowPasswordModal(false);
+    setIsUnlocked(true);
+  };
 
   const ouvrirPatient = async (patient) => {
     setSelectedPatient(patient);
@@ -110,6 +124,46 @@ export default function Patients({ darkMode }) {
         ? "bg-gray-800 text-gray-300 hover:bg-gray-700"
         : "bg-gray-100 text-gray-600 hover:bg-gray-200"
     }`;
+
+
+
+    // -------------------------------------------------------------
+  // ÉCRAN DE VERROUILLAGE (Si non déverrouillé)
+  // -------------------------------------------------------------
+  if (!isUnlocked) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className={`p-8 rounded-3xl shadow-xl border text-center max-w-sm w-full mb-6 ${darkMode ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-100 text-gray-800"}`}>
+          <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center">
+            <Lock size={32} />
+          </div>
+          <h2 className="text-xl font-bold mb-2">
+            Accès aux Patients Protégé
+          </h2>
+          <p className={`text-xs mb-6 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+            Veuillez confirmer votre mot de passe pour accéder au dossier des patients.
+          </p>
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-blue-500/20"
+          >
+            Saisir le mot de passe
+          </button>
+        </div>
+
+        <PasswordConfirmModal
+          isOpen={showPasswordModal}
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={handlePasswordSuccess}
+          title="Accès sécurisé aux patients"
+          description="Veuillez saisir votre mot de passe pour afficher les données des patients."
+          darkMode={darkMode}
+        />
+      </div>
+    );
+  }
+
+ 
 
   return (
     <div className={`min-h-screen mt-6 sm:mt-4 p-3 sm:p-4 md:p-6 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
