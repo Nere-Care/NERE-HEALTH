@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Video,
   Calendar,
@@ -11,7 +11,9 @@ import {
   TrendingUp,
   Activity,
   FileText,
+  User,
 } from "lucide-react";
+import { getRelativeBeneficiary } from "../../../utils/proche";
 
 export default function IdleScreen({
   darkMode,
@@ -23,6 +25,22 @@ export default function IdleScreen({
 }) {
   const [recherche, setRecherche] = useState("");
   const [tabActif, setTabActif] = useState("file"); // file | historique
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const canStart = (rdv) =>
+    rdv.statut === "en_attente" &&
+    new Date(rdv.dateDebut).getTime() - 2 * 60 * 1000 <= now;
+
+  const minutesAvantDebut = (rdv) => {
+    const diff = new Date(rdv.dateDebut).getTime() - now;
+    if (diff <= 0) return 0;
+    return Math.max(1, Math.ceil(diff / 60000));
+  };
 
   const rdvFiltres = rdvDuJour.filter((r) =>
     r.patientName.toLowerCase().includes(recherche.toLowerCase()) ||
@@ -209,6 +227,14 @@ export default function IdleScreen({
                               {rdv.age} ans
                             </span>
                           )}
+                          {(() => {
+                            const pb = getRelativeBeneficiary(rdv);
+                            return pb ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2 py-0.5 rounded-md">
+                                <User size={10} /> Pour : {pb}
+                              </span>
+                            ) : null;
+                          })()}
                         </div>
                         <p className={`text-xs sm:text-sm truncate ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
                           {rdv.motif}
@@ -226,7 +252,7 @@ export default function IdleScreen({
                       </div>
 
                       {/* Action */}
-                      {rdv.statut === "en_attente" && rdv._canStart && (
+                      {rdv.statut === "en_attente" && canStart(rdv) && (
                         <button
                           onClick={() => startConsultation(rdv)}
                           className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-xl text-xs sm:text-sm hover:bg-blue-700 transition flex-shrink-0"
@@ -236,10 +262,10 @@ export default function IdleScreen({
                         </button>
                       )}
 
-                      {rdv.statut === "en_attente" && !rdv._canStart && (
+                      {rdv.statut === "en_attente" && !canStart(rdv) && (
                         <span className="flex items-center gap-1.5 bg-gray-300 text-gray-500 px-3 py-2 rounded-xl text-xs sm:text-sm cursor-not-allowed flex-shrink-0">
                           <Clock size={14} />
-                          <span className="hidden sm:inline">Disponible dans 2 min</span>
+                          <span className="hidden sm:inline">Disponible dans {minutesAvantDebut(rdv)} min</span>
                         </span>
                       )}
 

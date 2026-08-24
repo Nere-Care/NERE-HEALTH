@@ -8,6 +8,7 @@ export default function ChatSidebar({
   selectedChat,
   setSelectedChat,
   darkMode,
+  currentUserId,
 }) {
   const [activeFilter, setActiveFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -15,6 +16,8 @@ export default function ChatSidebar({
   const filtered = conversations
     .filter((chat) => {
       if (activeFilter === "Unread") return chat.unread > 0;
+      if (activeFilter === "Sent") return chat.demande_avis_id && chat.demande_medecin_demandeur_id === currentUserId;
+      if (activeFilter === "Received") return chat.demande_avis_id && chat.demande_medecin_demandeur_id !== currentUserId;
       if (activeFilter === "Doctors") return chat.demande_avis_id;
       if (activeFilter === "Patients") return !chat.demande_avis_id;
       return true;
@@ -87,6 +90,7 @@ export default function ChatSidebar({
             isSelected={selectedChat === chat.id}
             onClick={() => setSelectedChat(chat.id)}
             darkMode={darkMode}
+            currentUserId={currentUserId}
           />
         ))}
       </div>

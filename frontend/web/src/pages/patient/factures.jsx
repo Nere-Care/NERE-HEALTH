@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, Eye, CreditCard, CheckCircle, Clock, XCircle, X, Loader, Smartphone, CalendarDays, User } from 'lucide-react';
+import { Download, Eye, CreditCard, CheckCircle, Clock, XCircle, X, Loader, Smartphone, CalendarDays, User, ChevronDown } from 'lucide-react';
 import { get, post } from '../../services/apiClient';
 import { getUserTimezone } from '../../utils/timezone';
 import { toXAF, formatXAF } from '../../utils/currency';
@@ -60,67 +60,187 @@ const dessinerFacture = (doc, autoTable, reference, date, methode, montantXAF, s
   });
   return doc.lastAutoTable.finalY + 20;
 };
+import { generatePatientReceiptPDF, isPaidStatus } from '../../utils/receiptGenerator';
 
-const telechargerFacture = async (entry, patientNom) => {
-  const { default: jsPDF } = await import('jspdf');
-  const { default: autoTable } = await import('jspdf-autotable');
-  const doc = new jsPDF();
-  doc.setFontSize(22);
-  doc.setTextColor(59, 130, 246);
-  doc.text("Néré Health", 20, 20);
-  doc.setFontSize(10);
-  doc.setTextColor(120, 120, 120);
-  doc.text("Plateforme de santé numérique", 20, 28);
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.8);
-  doc.line(20, 33, 190, 33);
-  const dateStr = entry.created_at ? new Date(entry.created_at).toLocaleDateString('fr-FR', { timeZone: getUserTimezone() }) : '-';
-  dessinerFacture(doc, autoTable, entry.reference, dateStr, entry.methode, toXAF(entry.montant, entry.devise), entry.statut, patientNom, 40);
-  doc.setFontSize(9);
-  doc.setTextColor(150);
-  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })} — Néré Health`, 20, 285);
-  doc.save(`facture-${entry.reference || entry.id}.pdf`);
+const telechargerFacture = (entry, patientNom) => {
+  generatePatientReceiptPDF(entry, patientNom);
 };
 
-const telechargerToutes = async (entries, patientNom) => {
+
+
+
+
+const METHOD_LABELS = {
+  mtn_momo: "MTN MoMo",
+  orange_money: "Orange Money",
+  carte_visa: "Visa",
+  carte_mastercard: "Mastercard",
+  virement_bancaire: "Virement bancaire",
+  notchpay: "Notchpay",
+  stripe: "Stripe",
+  portefeuille_nere: "Portefeuille Nere",
+};
+
+const formatNumber = (n) => {
+  const s = Math.round(Number(n)).toString();
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+};
+
+const telechargerToutes = async (entries, patientNom, medecinsMap) => {
+  if (!entries.length) return;
   const { default: jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
-  const doc = new jsPDF();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setFontSize(26);
-  doc.setTextColor(59, 130, 246);
-  doc.text("Néré Health", 20, 30);
-  doc.setFontSize(13);
-  doc.setTextColor(80, 80, 80);
-  doc.text("Récapitulatif complet de vos factures", 20, 42);
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.8);
-  doc.line(20, 48, 190, 48);
-  doc.setFontSize(11);
-  doc.setTextColor(50, 50, 50);
-  doc.text(`Patient : ${patientNom || '-'}`, 20, 60);
-  doc.text(`Nombre de factures : ${entries.length}`, 20, 72);
-  const total = entries.reduce((acc, e) => acc + toXAF(e.montant, e.devise), 0);
-  doc.text(`Total : ${formatXAF(total)}`, 20, 84);
-  doc.text(`Date d'export : ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })}`, 20, 96);
-  entries.forEach((e) => {
-    doc.addPage();
-    doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text("Néré Health", 20, 18);
-    doc.setFontSize(9);
-    doc.setTextColor(150);
-    doc.text("Plateforme de santé numérique", 20, 25);
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.line(20, 29, 190, 29);
-    const dateStr = e.created_at ? new Date(e.created_at).toLocaleDateString('fr-FR', { timeZone: getUserTimezone() }) : '-';
-    dessinerFacture(doc, autoTable, e.reference, dateStr, e.methode, toXAF(e.montant, e.devise), e.statut, patientNom, 36);
-    doc.setFontSize(8);
-    doc.setTextColor(180);
-    doc.text(`Néré Health — ${new Date().toLocaleDateString('fr-FR', { timeZone: getUserTimezone() })}`, 20, pageHeight - 10);
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  const fmt = (n) => `${formatNumber(n)} XAF`;
+
+  const rows = entries.map(e => {
+    const dateStr = e.created_at
+      ? new Date(e.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() })
+      : "-";
+    const montantXAF = toXAF(e.montant, e.devise);
+    const statut = formatStatut(e.statut);
+    const methodeLabel = METHOD_LABELS[e.methode] || e.methode || "—";
+    const medecinNom = medecinsMap[e.medecin_id] || "—";
+    return [dateStr, e.reference || "—", medecinNom, methodeLabel, fmt(montantXAF), statut, montantXAF];
   });
-  doc.save("toutes-mes-factures.pdf");
+
+  const totalAll = rows.reduce((s, r) => s + r[6], 0);
+  const totalPaye = rows.filter(r => /payé|paye|valide/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+  const totalEnCours = rows.filter(r => /attente|en cours/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+  const totalEchoue = rows.filter(r => /échoué|echoué|annulé|rejeté/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+
+  let y = 16;
+  doc.setFontSize(18);
+  doc.setTextColor(26, 86, 219);
+  doc.text("Mes Factures", 14, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${patientNom || "Patient"}  —  ${rows.length} transaction(s)  —  Exporté le ${new Date().toLocaleDateString("fr-FR", { timeZone: getUserTimezone() })}`, 14, y);
+  y += 4;
+  doc.setDrawColor(26, 86, 219);
+  doc.setLineWidth(0.6);
+  doc.line(14, y, pageW - 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Date", "Reference", "Medecin", "Methode", "Montant", "Statut"]],
+    body: rows.map(r => r.slice(0, 6)),
+    theme: "grid",
+    headStyles: { fillColor: [26, 86, 219], textColor: 255, fontStyle: "bold", fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 3, overflow: "linebreak" },
+    columnStyles: {
+      0: { cellWidth: 25 },
+      4: { halign: "right", fontStyle: "bold", cellWidth: 35 },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawPage: (data) => {
+      doc.setFontSize(7);
+      doc.setTextColor(170);
+      doc.text(`Nere Health — Page ${doc.internal.getNumberOfPages()}`, 14, pageH - 6);
+    },
+  });
+
+  let totalsY = doc.lastAutoTable.finalY + 12;
+  if (totalsY + 45 > pageH) { doc.addPage(); totalsY = 20; }
+
+  const boxW = 55;
+  const boxH = 18;
+  const boxGap = 6;
+  const boxX = 14;
+  const drawBox = (label, value, bgColor, textColor, x) => {
+    doc.setFillColor(...bgColor);
+    doc.roundedRect(x, totalsY, boxW, boxH, 3, 3, "F");
+    doc.setFontSize(8);
+    doc.setTextColor(...textColor);
+    doc.text(label, x + 4, totalsY + 7);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(value, x + 4, totalsY + 13);
+    doc.setFont(undefined, "normal");
+  };
+
+  drawBox("Total général", fmt(totalAll), [219, 234, 254], [30, 64, 175], boxX);
+  drawBox("Payé", fmt(totalPaye), [209, 250, 229], [6, 95, 70], boxX + boxW + boxGap);
+  drawBox("En cours", fmt(totalEnCours), [255, 237, 213], [154, 52, 18], boxX + (boxW + boxGap) * 2);
+  drawBox("Échoué", fmt(totalEchoue), [254, 226, 226], [153, 27, 27], boxX + (boxW + boxGap) * 3);
+
+  doc.save(`Nere-Health-factures_${new Date().toISOString().split("T")[0]}.pdf`);
+};
+
+const exporterExcel = (entries, patientNom, medecinsMap) => {
+  if (!entries.length) return;
+
+  const rows = entries.map(e => {
+    const dateStr = e.created_at
+      ? new Date(e.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() })
+      : "-";
+    const montantXAF = toXAF(e.montant, e.devise);
+    const statut = formatStatut(e.statut);
+    const methodeLabel = METHOD_LABELS[e.methode] || e.methode || "—";
+    const medecinNom = medecinsMap[e.medecin_id] || "—";
+    return [dateStr, e.reference || "—", medecinNom, methodeLabel, formatNumber(montantXAF) + " XAF", statut, montantXAF];
+  });
+
+  const totalAll = rows.reduce((s, r) => s + r[6], 0);
+  const totalPaye = rows.filter(r => /payé|paye|valide/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+  const totalEnCours = rows.filter(r => /attente|en cours/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+  const totalEchoue = rows.filter(r => /échoué|echoué|annulé|rejeté/i.test(r[5])).reduce((s, r) => s + r[6], 0);
+
+  const fmt = (n) => `${formatNumber(n)} XAF`;
+  const dateExport = new Date().toLocaleDateString("fr-FR", { timeZone: getUserTimezone() });
+
+  const html = `
+<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head>
+<meta charset="UTF-8">
+<style>
+  th { background: #1a56db; color: white; font-weight: bold; padding: 8px 12px; }
+  td { padding: 6px 12px; border: 1px solid #ddd; }
+  tr:nth-child(even) td { background: #f3f4f6; }
+  .title { font-size: 18px; font-weight: bold; color: #1a56db; padding: 10px 0; }
+  .subtitle { font-size: 10px; color: #666; padding: 4px 0 8px; }
+  .bold { font-weight: bold; }
+  .tg { background: #dbeafe; color: #1e40af; }
+  .tp { background: #d1fae5; color: #065f46; }
+  .te { background: #ffedd5; color: #9a3412; }
+  .tf { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+  <p class="title">Mes Factures</p>
+  <p class="subtitle">${patientNom || "Patient"} \u2014 ${rows.length} transaction(s) \u2014 Export\u00e9 le ${dateExport}</p>
+  <table>
+    <thead><tr>
+      <th>Date</th><th>R\u00e9f\u00e9rence</th><th>M\u00e9decin</th><th>M\u00e9thode</th><th>Montant</th><th>Statut</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="bold">${r[4]}</td><td>${r[5]}</td></tr>`).join("")}
+      <tr><td colspan="4" class="bold">Total g\u00e9n\u00e9ral</td><td class="bold" style="background:#dbeafe;color:#1e40af">${fmt(totalAll)}</td><td></td></tr>
+      <tr><td colspan="4" class="bold">Pay\u00e9</td><td class="bold" style="background:#d1fae5;color:#065f46">${fmt(totalPaye)}</td><td></td></tr>
+      <tr><td colspan="4" class="bold">En cours</td><td class="bold" style="background:#ffedd5;color:#9a3412">${fmt(totalEnCours)}</td><td></td></tr>
+      <tr><td colspan="4" class="bold">\u00c9chou\u00e9</td><td class="bold" style="background:#fee2e2;color:#991b1b">${fmt(totalEchoue)}</td><td></td></tr>
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+  const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `Nere-Health-factures_${new Date().toISOString().split("T")[0]}.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
 
 export default function Factures({ darkMode }) {
@@ -131,6 +251,7 @@ export default function Factures({ darkMode }) {
   const [loading, setLoading] = useState(true);
   const [filtre, setFiltre] = useState("Tous");
   const [detailEntry, setDetailEntry] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [showPaiementModal, setShowPaiementModal] = useState(false);
   const [rdvPayer, setRdvPayer] = useState(null);
@@ -227,7 +348,9 @@ export default function Factures({ darkMode }) {
   }));
 
   const allEntries = [
-    ...paiements.map(p => {
+    ...paiements
+      .filter(p => !["sequestre_avis", "remboursement_sequestre", "honoraires_avis"].includes(p.type_paiement))
+      .map(p => {
       const rdvData = p.rdv_id ? (rdvsMap[p.rdv_id] || {}) : {};
       return {
         ...p,
@@ -332,6 +455,7 @@ export default function Factures({ darkMode }) {
   const renderActions = (e) => {
     const isFailed = (e.statut || '').toLowerCase() === 'echoue';
     const isRdv = e._type === 'rdv';
+    const canDownload = !isRdv && !isFailed && isPaidStatus(e.statut);
 
     return (
       <div className="flex gap-2">
@@ -352,8 +476,9 @@ export default function Factures({ darkMode }) {
             Payer
           </button>
         )}
-        {!isRdv && !isFailed && (
+        {canDownload && (
           <button onClick={() => telechargerFacture(e, patientNom)}
+            title="Télécharger le reçu"
             className={`p-1.5 rounded-lg transition-all ${darkMode ? "bg-blue-900 hover:bg-blue-800 text-blue-400" : "bg-blue-50 hover:bg-blue-100 text-blue-500"}`}>
             <Download size={14} />
           </button>
@@ -365,6 +490,7 @@ export default function Factures({ darkMode }) {
   const renderMobileActions = (e) => {
     const isFailed = (e.statut || '').toLowerCase() === 'echoue';
     const isRdv = e._type === 'rdv';
+    const canDownload = !isRdv && !isFailed && isPaidStatus(e.statut);
 
     return (
       <div className="flex gap-2">
@@ -385,8 +511,9 @@ export default function Factures({ darkMode }) {
             Payer
           </button>
         )}
-        {!isRdv && !isFailed && (
+        {canDownload && (
           <button onClick={() => telechargerFacture(e, patientNom)}
+            title="Télécharger le reçu"
             className={`p-2 rounded-xl ${darkMode ? "bg-blue-900 text-blue-400" : "bg-blue-50 text-blue-500"}`}>
             <Download size={15} />
           </button>
@@ -403,12 +530,38 @@ export default function Factures({ darkMode }) {
           <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Historique de vos paiements</p>
         </div>
         {allEntries.length > 0 && (
-          <button onClick={() => telechargerToutes(allEntries, patientNom)}
-            className="flex items-center gap-2 px-3 md:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow">
-            <Download size={16} />
-            <span className="hidden sm:inline">Tout télécharger</span>
-            <span className="sm:hidden">Exporter</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center gap-2 px-3 md:px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all shadow"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Tout télécharger</span>
+              <span className="sm:hidden">Exporter</span>
+              <ChevronDown size={14} />
+            </button>
+            {showExportMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                <div className={`absolute right-0 mt-2 w-48 rounded-xl shadow-lg border z-50 overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}>
+                  <button
+                    onClick={() => { setShowExportMenu(false); telechargerToutes(allEntries, patientNom, medecinsMap); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition ${darkMode ? "hover:bg-gray-700 text-gray-200" : "hover:bg-gray-50 text-gray-700"}`}
+                  >
+                    <Download size={15} className="text-red-500" />
+                    Exporter en PDF
+                  </button>
+                  <button
+                    onClick={() => { setShowExportMenu(false); exporterExcel(allEntries, patientNom, medecinsMap); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition border-t ${darkMode ? "hover:bg-gray-700 text-gray-200 border-gray-700" : "hover:bg-gray-50 text-gray-700 border-gray-100"}`}
+                  >
+                    <Download size={15} className="text-green-600" />
+                    Exporter en Excel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -580,10 +733,15 @@ export default function Factures({ darkMode }) {
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-semibold">
                   <CreditCard size={15} /> Réessayer le paiement
                 </button>
-              ) : (
+              ) : isPaidStatus(detailEntry.statut) ? (
                 <button onClick={() => { telechargerFacture(detailEntry, patientNom); setDetailEntry(null); }}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-sm font-semibold">
-                  <Download size={15} /> Télécharger
+                  <Download size={15} /> Télécharger le reçu
+                </button>
+              ) : (
+                <button disabled
+                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-200 text-gray-400 rounded-2xl text-sm font-semibold cursor-not-allowed">
+                  <Download size={15} /> Reçu non disponible
                 </button>
               )}
             </div>

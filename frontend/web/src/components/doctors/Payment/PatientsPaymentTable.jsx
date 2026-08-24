@@ -3,129 +3,92 @@ import {
   Eye,
   FileText,
 } from "lucide-react";
+import { generateDoctorConsultationReceiptPDF, generateSequestreReceiptPDF } from "../../../utils/receiptGenerator";
 
-/* ================= EXPORT CSV ================= */
+/* ================= EXPORT EXCEL ================= */
 
-const exportToCSV = (
+const exportToExcel = (
   data,
-  filename = "patient_payments"
+  filename = "paiements"
 ) => {
-
   if (!data?.length) {
     alert("No data to export");
     return;
   }
 
   const headers = [
-    "Matricule",
     "Patient",
+    "N° Patient",
+    "Matricule",
     "Service",
     "Date",
-    "Amount",
-    "Method",
-    "Status",
+    "Montant",
+    "Methode",
+    "Statut",
   ];
 
   const rows = data.map((p) => [
-    p.matricule ||
-      `PAT-${String(p.id).padStart(4, "0")}`,
-    p.patient,
-    p.service,
-    p.date,
-    p.amount,
-    p.method,
-    p.status,
+    p.patient || "",
+    p.patientCode || "",
+    p.matricule || "",
+    p.service || "",
+    p.date || "",
+    p.amount || "",
+    p.method || "",
+    p.status || "",
   ]);
 
-  const csv = [
-    headers.join(","),
+  const htmlTable = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta charset="UTF-8">
+      <!--[if gte mso 9]>
+      <xml>
+        <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+              <x:Name>Paiements</x:Name>
+              <x:WorksheetOptions>
+                <x:DisplayGridlines/>
+              </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+      </xml>
+      <![endif]-->
+      <style>
+        th { background: #1a56db; color: white; font-weight: bold; padding: 8px 12px; }
+        td { padding: 6px 12px; border: 1px solid #ddd; }
+        tr:nth-child(even) { background: #f3f4f6; }
+      </style>
+    </head>
+    <body>
+      <table>
+        <thead>
+          <tr>${headers.map(h => `<th>${h}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `<tr>${row.map(cell => `<td>${String(cell).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
 
-    ...rows.map((row) =>
-      row
-        .map((cell) =>
-          `"${String(cell).replace(
-            /"/g,
-            '""'
-          )}"`
-        )
-        .join(",")
-    ),
-  ].join("\n");
+  const blob = new Blob(["\uFEFF" + htmlTable], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
 
-  const blob = new Blob(
-    [csv],
-    {
-      type: "text/csv;charset=utf-8;",
-    }
-  );
-
-  const url =
-    URL.createObjectURL(blob);
-
-  const link =
-    document.createElement("a");
-
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
   link.href = url;
-
-  link.download =
-    `${filename}_${
-      new Date()
-        .toISOString()
-        .split("T")[0]
-    }.csv`;
-
+  link.download = `${filename}_${new Date().toISOString().split("T")[0]}.xls`;
   document.body.appendChild(link);
-
   link.click();
-
   document.body.removeChild(link);
-
   URL.revokeObjectURL(url);
-};
-
-/* ================= DOWNLOAD PDF ================= */
-
-const downloadPDF = async (
-  url,
-  filename = "receipt.pdf"
-) => {
-
-  try {
-
-    const res = await fetch(url);
-
-    if (!res.ok)
-      throw new Error("Failed");
-
-    const blob =
-      await res.blob();
-
-    const blobUrl =
-      URL.createObjectURL(blob);
-
-    const link =
-      document.createElement("a");
-
-    link.href = blobUrl;
-
-    link.download = filename;
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(blobUrl);
-
-    return true;
-
-  } catch {
-
-    window.open(url, "_blank");
-
-    return false;
-  }
 };
 
 /* ================= COMPONENT ================= */
@@ -134,8 +97,8 @@ export default function PatientsPaymentsTable({
   payments,
   darkMode,
   onViewDetails,
-  onDownloadReceipt,
   onExport,
+  doctorName,
 }) {
 
   /* ================= STATUS BADGES ================= */
@@ -157,6 +120,9 @@ export default function PatientsPaymentsTable({
 
       Refunded:
         "bg-blue-500 text-white",
+
+      Retenu:
+        "bg-amber-500 text-white",
     };
 
     return (
@@ -181,9 +147,9 @@ export default function PatientsPaymentsTable({
       onExport();
     }
 
-    exportToCSV(
+    exportToExcel(
       payments,
-      "patient_payments"
+      "paiements"
     );
   };
 
@@ -197,37 +163,14 @@ export default function PatientsPaymentsTable({
     onViewDetails?.(payment);
   };
 
-  const handleReceipt =
-    async (url, e) => {
-
-      e?.stopPropagation();
-
-      if (!url) {
-        alert("No receipt");
-        return;
-      }
-
-      if (onDownloadReceipt) {
-        onDownloadReceipt(url);
-        return;
-      }
-
-      const name =
-        url.split("/").pop() ||
-        `receipt_${Date.now()}.pdf`;
-
-      const ok =
-        await downloadPDF(
-          url,
-          name
-        );
-
-      if (!ok) {
-        alert(
-          "Receipt opened in new tab"
-        );
-      }
-    };
+  const handleReceipt = (payment, e) => {
+    e?.stopPropagation();
+    if (payment.type_paiement === "sequestre_avis") {
+      generateSequestreReceiptPDF(payment, doctorName);
+    } else {
+      generateDoctorConsultationReceiptPDF(payment, doctorName);
+    }
+  };
 
   return (
 
@@ -310,7 +253,7 @@ export default function PatientsPaymentsTable({
 
           <Download className="w-4 h-4" />
 
-          Export CSV
+          Export Excel
 
         </button>
 
@@ -411,38 +354,27 @@ export default function PatientsPaymentsTable({
 
               <div className="mt-4 space-y-2 text-sm">
 
-                <div className="flex justify-between gap-4">
+                {p.patientCode && (
+                  <div className="flex justify-between gap-4">
+                    <span className={darkMode ? "text-gray-400" : "text-gray-500"}>
+                      N° Patient
+                    </span>
+                    <code className={`text-[10px] px-2 py-1 rounded font-mono ${darkMode ? "bg-gray-700 text-purple-300" : "bg-gray-100 text-purple-700"}`}>
+                      {p.patientCode}
+                    </code>
+                  </div>
+                )}
 
-                  <span
-                    className={
-                      darkMode
-                        ? "text-gray-400"
-                        : "text-gray-500"
-                    }
-                  >
-                    Matricule
-                  </span>
-
-                  <code
-                    className={`
-                      text-[10px]
-                      px-2 py-1
-                      rounded
-                      font-mono
-                      ${
-                        darkMode
-                          ? "bg-gray-700 text-purple-300"
-                          : "bg-gray-100 text-purple-700"
-                      }
-                    `}
-                  >
-                    {p.matricule ||
-                      formatMatricule(
-                        p.id
-                      )}
-                  </code>
-
-                </div>
+                {p.matricule && (
+                  <div className="flex justify-between gap-4">
+                    <span className={darkMode ? "text-gray-400" : "text-gray-500"}>
+                      Matricule
+                    </span>
+                    <code className={`text-[10px] px-2 py-1 rounded font-mono ${darkMode ? "bg-gray-700 text-blue-300" : "bg-gray-100 text-blue-700"}`}>
+                      {p.matricule}
+                    </code>
+                  </div>
+                )}
 
                 <div className="flex justify-between gap-4">
 
@@ -533,7 +465,7 @@ export default function PatientsPaymentsTable({
                 <button
                   onClick={(e) =>
                     handleReceipt(
-                      p.receipt,
+                      p,
                       e
                     )
                   }
@@ -633,11 +565,15 @@ export default function PatientsPaymentsTable({
             >
 
               <th className="text-left py-4 px-5 font-medium">
-                Matricule
+                Patient
               </th>
 
               <th className="text-left py-4 px-5 font-medium">
-                Patient
+                N° Patient
+              </th>
+
+              <th className="text-left py-4 px-5 font-medium">
+                Matricule
               </th>
 
               <th className="text-left py-4 px-5 font-medium">
@@ -695,31 +631,6 @@ export default function PatientsPaymentsTable({
                   `}
                 >
 
-                  {/* MATRICULE */}
-
-                  <td className="py-4 px-5">
-
-                    <code
-                      className={`
-                        text-[11px]
-                        px-2 py-1
-                        rounded
-                        font-mono
-                        ${
-                          darkMode
-                            ? "bg-gray-700 text-purple-300"
-                            : "bg-gray-100 text-purple-700"
-                        }
-                      `}
-                    >
-                      {p.matricule ||
-                        formatMatricule(
-                          p.id
-                        )}
-                    </code>
-
-                  </td>
-
                   {/* PATIENT */}
 
                   <td className="py-4 px-5">
@@ -750,23 +661,65 @@ export default function PatientsPaymentsTable({
                           {p.patient}
                         </p>
 
-                        <p
-                          className={`
-                            text-[11px]
-                            ${
-                              darkMode
-                                ? "text-gray-400"
-                                : "text-gray-500"
-                            }
-                          `}
-                        >
-                          #{p.id}
-                        </p>
+                        {p.patientName && p.patientName !== p.patient && (
+                          <p
+                            className={`
+                              text-[11px]
+                              ${
+                                darkMode
+                                  ? "text-gray-400"
+                                  : "text-gray-500"
+                              }
+                            `}
+                          >
+                            {p.patientName}
+                          </p>
+                        )}
 
                       </div>
 
                     </div>
 
+                  </td>
+
+                  {/* N° PATIENT */}
+
+                  <td className="py-4 px-5">
+                    <code
+                      className={`
+                        text-[11px]
+                        px-2 py-1
+                        rounded
+                        font-mono
+                        ${
+                          darkMode
+                            ? "bg-gray-700 text-purple-300"
+                            : "bg-gray-100 text-purple-700"
+                        }
+                      `}
+                    >
+                      {p.patientCode || "-"}
+                    </code>
+                  </td>
+
+                  {/* MATRICULE */}
+
+                  <td className="py-4 px-5">
+                    <code
+                      className={`
+                        text-[11px]
+                        px-2 py-1
+                        rounded
+                        font-mono
+                        ${
+                          darkMode
+                            ? "bg-gray-700 text-blue-300"
+                            : "bg-gray-100 text-blue-700"
+                        }
+                      `}
+                    >
+                      {p.matricule || "-"}
+                    </code>
                   </td>
 
                   {/* SERVICE */}
@@ -846,7 +799,7 @@ export default function PatientsPaymentsTable({
                       <button
                         onClick={(e) =>
                           handleReceipt(
-                            p.receipt,
+                            p,
                             e
                           )
                         }
@@ -880,7 +833,7 @@ export default function PatientsPaymentsTable({
               <tr>
 
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className={`
                     text-center py-16
                     ${

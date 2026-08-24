@@ -1,16 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, FileText, Clock, Loader } from 'lucide-react';
+import {
+  Bell, BellOff, CheckCheck, Clock, Info,
+  AlertTriangle, CheckCircle, MessageCircle, CreditCard,
+  FileText, Pill, UserCheck, RotateCcw, Loader,
+} from 'lucide-react';
 import { get, put } from '../../services/apiClient';
 import { getUserTimezone } from '../../utils/timezone';
 
-const ICON_MAP = {
-  rdv: 'bg-blue-100 text-blue-500',
-  examen: 'bg-green-100 text-green-500',
-  paiement: 'bg-purple-100 text-purple-500',
-  message: 'bg-orange-100 text-orange-500',
-  ordonnance: 'bg-red-100 text-red-500',
+const TYPE_CONFIG = {
+  rappel_rdv: { icon: Clock, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Rappel RDV' },
+  confirmation_rdv: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Confirmation RDV' },
+  annulation_rdv: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Annulation RDV' },
+  confirmation_paiement: { icon: CreditCard, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Paiement confirmé' },
+  echec_paiement: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Échec paiement' },
+  remboursement: { icon: CreditCard, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Remboursement' },
+  nouveau_message: { icon: MessageCircle, color: 'text-purple-500', bg: 'bg-purple-500/10', label: 'Nouveau message' },
+  resultat_labo_disponible: { icon: FileText, color: 'text-cyan-500', bg: 'bg-cyan-500/10', label: 'Résultat labo' },
+  ordonnance_prete: { icon: Pill, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Ordonnance prête' },
+  alerte_systeme: { icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-500/10', label: 'Alerte système' },
+  compte_valide: { icon: UserCheck, color: 'text-green-500', bg: 'bg-green-500/10', label: 'Compte validé' },
+  compte_rejete: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Compte rejeté' },
+  nouveaux_avis: { icon: CheckCircle, color: 'text-yellow-500', bg: 'bg-yellow-500/10', label: 'Nouvel avis' },
+  document_ajoute: { icon: FileText, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Document ajouté' },
+  rappel_prise_medicament: { icon: Pill, color: 'text-pink-500', bg: 'bg-pink-500/10', label: 'Rappel médicament' },
+  reponse_ticket: { icon: MessageCircle, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Réponse ticket' },
+  demande_reprogrammation: { icon: RotateCcw, color: 'text-orange-500', bg: 'bg-orange-500/10', label: 'Reprogrammation demandée' },
 };
+
+function timeAgo(date) {
+  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+  if (seconds < 60) return "À l'instant";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `Il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `Il y a ${days}j`;
+}
 
 export default function Notifications({ darkMode }) {
   const navigate = useNavigate();
@@ -24,99 +51,102 @@ export default function Notifications({ darkMode }) {
       .then(data => setNotifications(data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+    put('/api/notifications/lu-toutes').catch(() => {});
   }, [location.pathname]);
 
-  const marquerToutLu = async () => {
+  const marquerToutLu = useCallback(async () => {
     try {
       await put('/api/notifications/lu-toutes');
       setNotifications(prev => prev.map(n => ({ ...n, statut: 'lu' })));
-      afficherToast("Toutes marquées comme lues");
     } catch {}
-  };
+  }, []);
 
   const nonLues = notifications.filter(n => n.statut !== 'lu').length;
-  const aujourdHui = notifications.filter(n => {
-    if (!n.created_at) return false;
-    return new Date(n.created_at).toDateString() === new Date().toDateString();
-  }).length;
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+      <div className="flex items-center justify-center py-20">
         <Loader className="animate-spin text-blue-500" size={32} />
       </div>
     );
   }
 
   return (
-    <div className={`p-6 min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-blue-500">Notifications</h1>
-        <p className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Historique de vos notifications</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}>
-          <div className="bg-blue-100 p-3 rounded-xl"><Bell size={20} className="text-blue-500" /></div>
-          <div>
-            <p className="text-2xl font-bold text-blue-600">{nonLues}</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Non lues</p>
-          </div>
+    <div className={`space-y-6 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Notifications</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            {nonLues > 0 ? `${nonLues} non lue${nonLues > 1 ? "s" : ""}` : "Tout est lu"}
+          </p>
         </div>
-        <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-green-900" : "bg-green-50"}`}>
-          <div className="bg-green-100 p-3 rounded-xl"><FileText size={20} className="text-green-500" /></div>
-          <div>
-            <p className="text-2xl font-bold text-green-600">{notifications.length}</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Total</p>
-          </div>
-        </div>
-        <div className={`rounded-2xl p-4 flex items-center gap-3 ${darkMode ? "bg-purple-900" : "bg-purple-50"}`}>
-          <div className="bg-purple-100 p-3 rounded-xl"><Clock size={20} className="text-purple-500" /></div>
-          <div>
-            <p className="text-2xl font-bold text-purple-600">{aujourdHui}</p>
-            <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Aujourd'hui</p>
-          </div>
-        </div>
-      </div>
-
-      <div className={`rounded-2xl shadow overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-        <div className={`flex items-center justify-between px-6 py-4 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
-          <h2 className={`text-sm font-bold ${darkMode ? "text-gray-200" : "text-gray-700"}`}>Toutes les notifications</h2>
-          <button onClick={marquerToutLu} className="text-xs text-blue-500 hover:underline">Tout marquer comme lu</button>
-        </div>
-
-        {notifications.length === 0 ? (
-          <div className={`text-center py-10 text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Aucune notification</div>
-        ) : (
-          notifications.map((notif, index) => {
-            const estNonLu = notif.statut !== 'lu';
-            const couleur = ICON_MAP[notif.type] || ICON_MAP.message;
-            return (
-              <div key={notif.id} onClick={() => navigate(`/notification/${notif.id}`)}
-                className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-all
-                  ${index !== notifications.length - 1 ? (darkMode ? "border-b border-gray-700" : "border-b border-gray-100") : ''}
-                  ${estNonLu ? (darkMode ? "bg-gray-700/40" : "bg-blue-50/40") : ''}
-                  ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${couleur}`}>
-                  <Bell size={18} />
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm ${estNonLu ? (darkMode ? "text-white font-semibold" : "text-gray-800 font-semibold") : (darkMode ? "text-gray-400" : "text-gray-600")}`}>
-                    {notif.titre || notif.message || notif.type || 'Notification'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">
-                    {(notif.contenu || '').replace(/\n/g, ' ')}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {notif.created_at ? new Date(notif.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: getUserTimezone() }) : ''}
-                  </p>
-                </div>
-                {estNonLu && <div className="w-2 h-2 rounded-full bg-red-500" />}
-              </div>
-            );
-          })
+        {nonLues > 0 && (
+          <button
+            onClick={marquerToutLu}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium hover:from-blue-700 hover:to-blue-800 transition-all shadow flex items-center gap-2"
+          >
+            <CheckCheck size={16} />
+            Tout marquer lu
+          </button>
         )}
       </div>
+
+      {notifications.length === 0 ? (
+        <div className={`rounded-3xl border p-10 text-center ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"}`}>
+          <BellOff size={48} className="mx-auto mb-4 text-gray-400" />
+          <p className="text-gray-400">Aucune notification</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {notifications.map((notif) => {
+            const config = TYPE_CONFIG[notif.type] || { icon: Bell, color: 'text-gray-500', bg: 'bg-gray-500/10', label: notif.type };
+            const Icon = config.icon;
+            const isUnread = notif.statut !== 'lu';
+
+            return (
+              <div
+                key={notif.id}
+                onClick={() => navigate(`/notification/${notif.id}`)}
+                className={`
+                  rounded-2xl border p-4 flex items-start gap-4 transition cursor-pointer
+                  ${isUnread
+                    ? darkMode
+                      ? "bg-slate-800/80 border-blue-500/30 hover:bg-slate-800"
+                      : "bg-blue-50/50 border-blue-200 hover:bg-blue-50"
+                    : darkMode
+                      ? "bg-slate-900 border-slate-800 hover:bg-slate-800/50"
+                      : "bg-white border-gray-200 hover:bg-gray-50"
+                  }
+                `}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${config.bg}`}>
+                  <Icon size={18} className={config.color} />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
+                      {config.label}
+                    </span>
+                    {isUnread && (
+                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                    )}
+                  </div>
+                  <h3 className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-800"}`}>
+                    {notif.titre || notif.message || notif.type || 'Notification'}
+                  </h3>
+                  <p className={`text-sm mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    {(notif.contenu || '').replace(/\n/g, ' ')}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {notif.created_at ? timeAgo(notif.created_at) : ''}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

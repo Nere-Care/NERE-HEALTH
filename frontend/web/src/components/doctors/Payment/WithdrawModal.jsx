@@ -11,22 +11,18 @@ export default function WithdrawModal({
   devise = "XAF",
 }) {
   const [amount, setAmount] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState(
-    configuredMethods.length > 0 ? configuredMethods[0].type : null
-  );
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [errors, setErrors] = useState({});
 
   if (!isOpen) return null;
 
-  // Reset quand on ouvre
   const handleClose = () => {
     setAmount("");
-    setSelectedMethod(configuredMethods.length > 0 ? configuredMethods[0].type : null);
+    setSelectedIdx(0);
     setErrors({});
     setOpen(false);
   };
 
-  // Validation
   const validate = () => {
     const newErrors = {};
     const numAmount = parseFloat(amount);
@@ -40,8 +36,8 @@ export default function WithdrawModal({
       newErrors.amount = `Solde insuffisant (max: ${availableBalance} ${devise})`;
     }
 
-    if (!selectedMethod) {
-      newErrors.method = "Sélectionnez une méthode";
+    if (configuredMethods.length === 0) {
+      newErrors.method = "Aucune méthode configurée";
     }
 
     setErrors(newErrors);
@@ -50,8 +46,7 @@ export default function WithdrawModal({
 
   const handleSubmit = () => {
     if (!validate()) return;
-    const method = configuredMethods.find(m => m.type === selectedMethod);
-    onConfirm(parseFloat(amount), method);
+    onConfirm(parseFloat(amount), configuredMethods[selectedIdx]);
   };
 
   const getMethodLabel = (type) => {
@@ -63,7 +58,6 @@ export default function WithdrawModal({
     }
   };
 
-  // Montants rapides selon la devise
   const QUICK_AMOUNTS = {
     XAF: [5000, 10000, 25000, 50000],
     EUR: [5, 10, 25, 50],
@@ -133,7 +127,6 @@ export default function WithdrawModal({
             </p>
           )}
 
-          {/* Montants rapides */}
           <div className="flex gap-2 mt-2 flex-wrap">
             {quickAmounts.map((qa) => (
               <button
@@ -172,15 +165,15 @@ export default function WithdrawModal({
             Méthode de réception
           </label>
           <div className="space-y-2">
-            {configuredMethods.map((m) => (
+            {configuredMethods.map((m, idx) => (
               <button
-                key={m.type}
+                key={idx}
                 onClick={() => {
-                  setSelectedMethod(m.type);
+                  setSelectedIdx(idx);
                   if (errors.method) setErrors({ ...errors, method: "" });
                 }}
                 className={`w-full p-3 rounded-xl border-2 transition flex items-center gap-3 text-left
-                  ${selectedMethod === m.type
+                  ${selectedIdx === idx
                     ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                     : darkMode
                     ? "border-gray-700 hover:border-gray-600"
@@ -200,7 +193,7 @@ export default function WithdrawModal({
                     {m.accountName} • {m.accountNumber}
                   </p>
                 </div>
-                {selectedMethod === m.type && (
+                {selectedIdx === idx && (
                   <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
                 )}
               </button>
@@ -215,13 +208,13 @@ export default function WithdrawModal({
         </div>
 
         {/* RÉCAP */}
-        {amount && selectedMethod && (
+        {amount && configuredMethods[selectedIdx] && (
           <div className={`p-3 rounded-xl text-sm
             ${darkMode ? "bg-blue-900/20 text-blue-300" : "bg-blue-50 text-blue-700"}`}>
             <p className="font-semibold">Récapitulatif</p>
             <p className="text-xs mt-1">
               Retrait de <strong>{parseFloat(amount).toLocaleString()} {devise}</strong> vers{" "}
-              <strong>{getMethodLabel(selectedMethod)}</strong>
+              <strong>{getMethodLabel(configuredMethods[selectedIdx].type)}</strong>
             </p>
             <p className="text-xs mt-1 opacity-80">
               Délai estimé : 24 à 48 heures

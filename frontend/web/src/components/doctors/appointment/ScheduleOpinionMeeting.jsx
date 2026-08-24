@@ -136,7 +136,7 @@ export default function ScheduleOpinionMeeting({
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+    return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: getUserTimezone() });
   };
 
   const handleSubmit = async () => {

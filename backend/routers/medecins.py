@@ -2,6 +2,7 @@ import os
 import secrets
 import shutil
 import string
+import logging
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -16,6 +17,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from auth import get_current_active_user, get_password_hash, require_role
 from db import get_db
+from email_service import send_account_activated_email
 from models import Avis, Consultation, Medecin, MedecinSpecialite, Notification, Paiement, Patient, RendezVous, Specialite, Structure, User
 from schemas import AdminMedecinCreate, AdminMedecinRead, DocumentStructureCreate, MedecinCreate, MedecinRead, MedecinUpdate
 from validators import validate_phone
@@ -25,6 +27,8 @@ from timezone import to_local, DEFAULT_TZ, resolve_tz
 UPLOAD_DIR = "uploads/documents"
 
 router = APIRouter(tags=["medecins"])
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -36,7 +40,7 @@ async def list_medecins(
 ):
     if current_user.role in ("medecin", "infirmier", "sage_femme", "patient"):
         stmt = (
-            select(Medecin, User.prenom, User.nom, User.email, User.telephone, User.photo_url)
+            select(Medecin, User.prenom, User.nom, User.email, User.telephone, User.photo_url, User.date_naissance)
             .join(User, Medecin.id == User.id)
             .where(User.statut != "banni")
             .where(Medecin.statut_verification == "verifie")
@@ -44,7 +48,7 @@ async def list_medecins(
         )
     elif current_user.role == "admin":
         stmt = (
-            select(Medecin, User.prenom, User.nom, User.email, User.telephone, User.photo_url)
+            select(Medecin, User.prenom, User.nom, User.email, User.telephone, User.photo_url, User.date_naissance)
             .join(User, Medecin.id == User.id)
             .limit(limit)
         )
@@ -61,6 +65,9 @@ async def list_medecins(
         medecin_data["email"] = row[3]
         medecin_data["telephone"] = row[4]
         medecin_data["photo_url"] = row[5]
+        user_dob = row[6]
+        medecin_data["date_naissance"] = user_dob.isoformat() if user_dob else None
+        medecin_data["age"] = _calculate_age(user_dob) if user_dob else None
         results.append(medecin_data)
     return results
 
@@ -89,6 +96,13 @@ async def create_medecin_admin(
     generated_password = "".join(secrets.choice(password_chars) for _ in range(12))
     hashed = get_password_hash(generated_password)
 
+    dob = None
+    if data.date_naissance:
+        try:
+            dob = datetime.strptime(data.date_naissance, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
     user = User(
         email=data.email,
         prenom=prenom,
@@ -97,6 +111,7 @@ async def create_medecin_admin(
         mot_de_passe_hash=hashed,
         role=data.role or "medecin",
         statut="actif",
+        date_naissance=dob,
     )
     db.add(user)
     db.flush()
@@ -111,6 +126,7 @@ async def create_medecin_admin(
 
     medecin = Medecin(
         id=user.id,
+        code_medecin=f"MED-{secrets.token_hex(4).upper()}",
         numero_ordre=numero_ordre,
         structure_id=structure_id,
         annees_experience=data.annees_experience or 0,
@@ -307,7 +323,7 @@ async def get_medecin_dashboard(
             RendezVous.medecin_id == medecin_id,
             RendezVous.date_heure_debut >= today_start,
             RendezVous.date_heure_debut < today_end,
-            RendezVous.statut.in_(["en_attente", "confirme", "en_cours"]),
+            RendezVous.statut.in_(["confirme", "en_cours"]),
         )
         .order_by(RendezVous.date_heure_debut)
         .all()
@@ -337,6 +353,8 @@ async def get_medecin_dashboard(
                 "type": type_label,
                 "clinic": "En ligne" if r.type != "presentiel" else "Cabinet",
                 "reason": r.motif_consultation or "Consultation générale",
+                "notes_patient": r.notes_patient or "",
+                "motif_consultation": r.motif_consultation or "",
             })
 
     # Nombre de RDV hier (pour calcul de croissance)
@@ -348,7 +366,7 @@ async def get_medecin_dashboard(
             RendezVous.medecin_id == medecin_id,
             RendezVous.date_heure_debut >= yesterday_start,
             RendezVous.date_heure_debut < yesterday_end,
-            RendezVous.statut.in_(["en_attente", "confirme", "en_cours", "termine"]),
+            RendezVous.statut.in_(["confirme", "en_cours", "termine"]),
         )
         .scalar()
     ) or 0
@@ -358,7 +376,7 @@ async def get_medecin_dashboard(
             RendezVous.medecin_id == medecin_id,
             RendezVous.date_heure_debut >= today_start,
             RendezVous.date_heure_debut < today_end,
-            RendezVous.statut.in_(["en_attente", "confirme", "en_cours", "termine"]),
+            RendezVous.statut.in_(["confirme", "en_cours", "termine"]),
         )
         .scalar()
     ) or 0
@@ -444,6 +462,7 @@ async def get_medecin_dashboard(
         .filter(
             Notification.utilisateur_id == medecin_id,
             Notification.statut != "lu",
+            Notification.canal == "in_app",
         )
         .order_by(Notification.created_at.desc())
         .limit(10)
@@ -533,14 +552,24 @@ async def update_medecin(
 
     update_data = medecin_update.dict(exclude_unset=True)
 
-    # Handle telephone/email/address on the User record
+    # Handle telephone/email/address/date_naissance/name on the User record
     user = db.get(User, medecin_id)
+    if "date_naissance" in update_data and user:
+        val = update_data.pop("date_naissance")
+        if val:
+            try:
+                user.date_naissance = datetime.strptime(val, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        else:
+            user.date_naissance = None
+
     if "telephone" in update_data and update_data["telephone"] and user:
         try:
             update_data["telephone"] = validate_phone(update_data["telephone"])
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-    for user_field in ("telephone", "email"):
+    for user_field in ("telephone", "email", "prenom", "nom"):
         if user_field in update_data and user:
             setattr(user, user_field, update_data.pop(user_field))
     if "address" in update_data and user:
@@ -780,6 +809,46 @@ async def upload_medecin_document(
     return medecin
 
 
+@router.post("/medecins/{medecin_id}/documents/public-upload", response_model=MedecinRead)
+async def public_upload_medecin_document(
+    medecin_id: UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Permet de joindre des documents (pièce d'identité, diplôme) lors de l'inscription."""
+    medecin = db.get(Medecin, medecin_id)
+    if not medecin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Médecin non trouvé")
+
+    dest_dir = os.path.join(UPLOAD_DIR, str(medecin_id))
+    os.makedirs(dest_dir, exist_ok=True)
+
+    safe_name = f"{secrets.token_hex(8)}_{file.filename}"
+    dest_path = os.path.join(dest_dir, safe_name)
+
+    with open(dest_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    file_size = os.path.getsize(dest_path)
+    file_type = file.content_type or "application/octet-stream"
+    url = f"/uploads/documents/{medecin_id}/{safe_name}"
+
+    docs = list(medecin.documents or [])
+    docs.append({
+        "nom": file.filename or safe_name,
+        "type": file_type,
+        "taille": f"{file_size / 1024:.1f} Ko",
+        "url": url,
+    })
+    medecin.documents = docs
+    flag_modified(medecin, "documents")
+
+    db.add(medecin)
+    db.commit()
+    db.refresh(medecin)
+    return medecin
+
+
 @router.put("/medecins/{medecin_id}/disponibilite")
 async def toggle_disponibilite(
     medecin_id: UUID,
@@ -814,10 +883,18 @@ async def update_medecin_status(
     if new_status not in ("actif", "suspendu", "banni", "inactif"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Statut invalide")
 
+    was_actif = user.statut == "actif"
     user.statut = new_status
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    if new_status == "actif" and not was_actif:
+        try:
+            send_account_activated_email(user.email, user.prenom)
+        except Exception as exc:
+            logger.warning("Échec de l'envoi de l'email d'activation à %s : %s", user.email, exc)
+
     return {"statut": user.statut}
 
 

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Loader, Link } from 'lucide-react';
 import { get } from '../../services/apiClient';
+import { getUserTimezone } from '../../utils/timezone';
 
 export default function MiseAJour({ darkMode }) {
   const { id } = useParams();
@@ -55,7 +56,7 @@ export default function MiseAJour({ darkMode }) {
           <div>
             <h1 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>{item.titre}</h1>
             <p className="text-xs text-gray-400 mt-1">
-              {new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {new Date(item.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: getUserTimezone() })}
             </p>
           </div>
         </div>

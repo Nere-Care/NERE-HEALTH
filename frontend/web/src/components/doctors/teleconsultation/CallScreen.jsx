@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Video,
   PhoneOff,
@@ -8,9 +8,7 @@ import {
   User,
   FileText,
   Stethoscope,
-  MessageSquare,
   Monitor,
-  Send,
   Save,
   Download,
   Clock,
@@ -20,41 +18,65 @@ import {
   Trash2,
   X,
   CheckCircle,
-  Paperclip,
   Wifi,
   FlaskConical,
+  MessageSquare,
+  Send,
+  ScanLine,
 } from "lucide-react";
 import { post } from "../../../services/apiClient";
 import { getStoredUser } from "../../../services/auth";
+import { useLivekit } from "../../../hooks/useLivekit";
 import PosologieBuilder from "../../PosologieBuilder";
 import MedicamentSearch from "../../MedicamentSearch";
 import LabSearch from "../../LabSearch";
 import { getUserTimezone } from "../../../utils/timezone";
-import { FORMES } from "../../../constants/medicalOptions";
+import { FORMES, TYPES_IMAGERIE, ZONES_ANATOMIQUES } from "../../../constants/medicalOptions";
 
 const EMPTY_LIGNE = { medicament_nom: "", dosage: "", forme: "comprimes", posologie: "", duree_jours: 7, quantite: 1, posologieConfig: null };
+const EMPTY_EXAMEN = { type: "", zone: "", indication: "", contraste: false };
 
 export default function CallScreen({ darkMode, endCall, patient }) {
   const currentUser = getStoredUser();
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
+  const remoteContainerRef = useRef(null);
+  const localContainerRef = useRef(null);
   const [duree, setDuree] = useState(0);
-  const [activePanel, setActivePanel] = useState("notes"); // notes | chat | dossier
+  const [activePanel, setActivePanel] = useState("notes"); // notes | dossier
   const [notes, setNotes] = useState("");
   const [diagnostic, setDiagnostic] = useState("");
   const [lignes, setLignes] = useState([{ ...EMPTY_LIGNE }]);
   const [labAnalyses, setLabAnalyses] = useState([]);
-  const [messages, setMessages] = useState([
-    { id: 1, senderId: "other", texte: "Bonjour Docteur", heure: "14:00" },
-  ]);
-  const [newMessage, setNewMessage] = useState("");
+  const [examens, setExamens] = useState([{ ...EMPTY_EXAMEN }]);
   const [showSavedToast, setShowSavedToast] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+
+  const displayName = `Dr. ${currentUser?.prenom || ""} ${currentUser?.nom || ""}`.trim() || "Médecin";
+  const livekit = useLivekit({
+    rdvId: patient.rdvId,
+    displayName,
+    remoteContainerRef,
+    localContainerRef,
+  });
 
   // Timer de consultation
   useEffect(() => {
     const timer = setInterval(() => setDuree((d) => d + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const envoyerMessage = () => {
+    if (!newMessage.trim()) return;
+    livekit.sendMessage(newMessage);
+    setNewMessage("");
+  };
+
+  const terminer = async () => {
+    livekit.disconnect();
+    if (patient.rdvId) {
+      await sauvegarderConsultation();
+    }
+    endCall(duree);
+  };
 
   const formatDuree = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -67,6 +89,11 @@ export default function CallScreen({ darkMode, endCall, patient }) {
   const removeLigne = (idx) => setLignes((l) => l.filter((_, i) => i !== idx));
   const updateLigne = (idx, field, val) =>
     setLignes((l) => l.map((item, i) => (i === idx ? { ...item, [field]: val } : item)));
+
+  const addExamen = () => setExamens((e) => [...e, { ...EMPTY_EXAMEN }]);
+  const removeExamen = (idx) => setExamens((e) => e.filter((_, i) => i !== idx));
+  const updateExamen = (idx, field, val) =>
+    setExamens((e) => e.map((item, i) => (i === idx ? { ...item, [field]: val } : item)));
 
   const buildPrescriptionText = () =>
     lignes
@@ -81,20 +108,6 @@ export default function CallScreen({ darkMode, endCall, patient }) {
       })
       .join("\n");
 
-  const envoyerMessage = () => {
-    if (!newMessage.trim()) return;
-    setMessages([
-      ...messages,
-      {
-        id: Date.now(),
-        senderId: currentUser?.id,
-        texte: newMessage,
-        heure: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: getUserTimezone() }),
-      },
-    ]);
-    setNewMessage("");
-  };
-
   const sauvegarderConsultation = async () => {
     if (!patient.rdvId) {
       console.log("Pas de RDV lié — consultation rapide non sauvegardée");
@@ -103,7 +116,7 @@ export default function CallScreen({ darkMode, endCall, patient }) {
       return;
     }
     try {
-      await post("/api/consultations", {
+      const saved = await post("/api/consultations", {
         rdv_id: patient.rdvId,
         patient_id: patient.patientId,
         motif: patient.motif || "Consultation generale",
@@ -115,6 +128,79 @@ export default function CallScreen({ darkMode, endCall, patient }) {
         duree_minutes: Math.floor(duree / 60),
         statut: "en_cours",
       });
+      const consultationId = saved?.id;
+      const medecinId = currentUser?.id || null;
+
+      const validLignes = lignes.filter((l) => l.medicament_nom || l.posologie);
+      if (validLignes.length > 0) {
+        await post("/api/ordonnances", {
+          numero: `ORD-${Date.now().toString(36).toUpperCase()}`,
+          consultation_id: consultationId,
+          medecin_id: medecinId,
+          patient_id: patient.patientId,
+          motif: patient.motif || "Prescription de medicaments",
+          type_consultation: "clinique",
+          type_ordonnance: "medicament",
+          qr_code_data: `ordonnance-${Date.now()}`,
+          lignes: validLignes.map((l, idx) => ({
+            medicament_nom: l.medicament_nom,
+            dosage: l.dosage || "",
+            forme: l.forme || "comprimes",
+            posologie: l.posologie || "",
+            duree_jours: Number(l.duree_jours) || 7,
+            quantite: Number(l.quantite) || 1,
+            ordre: idx + 1,
+          })),
+        });
+      }
+
+      const validExamens = examens.filter((e) => e.type);
+      if (validExamens.length > 0) {
+        const now = new Date();
+        await post("/api/ordonnances", {
+          numero: `IMG-${Date.now().toString(36).toUpperCase()}`,
+          consultation_id: consultationId,
+          medecin_id: medecinId,
+          patient_id: patient.patientId,
+          motif: patient.motif || "Demande d'imagerie medicale",
+          type_consultation: "imagerie",
+          type_ordonnance: "imagerie",
+          qr_code_data: `ordonnance-imagerie-${Date.now()}`,
+          notes_medecin: validExamens
+            .map((e, idx) => {
+              const typeLabel = TYPES_IMAGERIE.find((t) => t.value === e.type)?.label || e.type;
+              const parts = [`${idx + 1}. ${typeLabel}`];
+              if (e.zone) parts.push(`   Region : ${e.zone}`);
+              if (e.indication) parts.push(`   Indication : ${e.indication}`);
+              if (e.contraste) parts.push("   Avec injection de contraste");
+              return parts.join("\n");
+            })
+            .join("\n"),
+          date_expiration: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .slice(0, 10),
+          lignes: validExamens.map((e, idx) => {
+            const typeLabel = TYPES_IMAGERIE.find((t) => t.value === e.type)?.label || e.type;
+            const details = [
+              e.zone && `Region: ${e.zone}`,
+              e.indication && `Indication: ${e.indication}`,
+              e.contraste && "Avec contraste",
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            return {
+              medicament_nom: `${typeLabel}${details ? " — " + details : ""}`,
+              dosage: e.type,
+              forme: "imagerie",
+              posologie: e.indication || "Examen d'imagerie",
+              duree_jours: 1,
+              quantite: 1,
+              ordre: idx + 1,
+            };
+          }),
+        });
+      }
+
       setShowSavedToast(true);
       setTimeout(() => setShowSavedToast(false), 3000);
     } catch (err) {
@@ -193,7 +279,7 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
             </div>
 
             <button
-              onClick={() => endCall(duree)}
+              onClick={terminer}
               className="flex items-center gap-2 bg-red-600 text-white px-3 sm:px-4 py-2 rounded-xl text-sm hover:bg-red-700 transition"
             >
               <PhoneOff className="w-4 h-4" />
@@ -207,18 +293,38 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
 
           {/* VIDEO */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="bg-black rounded-2xl relative h-[45vh] sm:h-[55vh] lg:h-[65vh] min-h-[300px] overflow-hidden flex items-center justify-center">
-              {camOn ? (
-                <div className="text-center text-white space-y-2 px-3">
-                  <Video className="w-10 h-10 mx-auto opacity-70" />
-                  <p className="text-xs sm:text-sm text-gray-300">Flux vidéo actif</p>
-                </div>
-              ) : (
-                <div className="text-center text-white space-y-2 px-3">
-                  <VideoOff className="w-10 h-10 mx-auto opacity-70" />
-                  <p className="text-xs sm:text-sm text-gray-300">Caméra désactivée</p>
+            <div className="bg-black rounded-2xl relative h-[45vh] sm:h-[55vh] lg:h-[72vh] min-h-[300px] overflow-hidden">
+              <div ref={remoteContainerRef} className="absolute inset-0" />
+
+              {livekit.status === "error" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3 px-6">
+                  <VideoOff className="w-12 h-12 opacity-60" />
+                  <p className="text-sm sm:text-base">
+                    Impossible de se connecter à la visioconférence.
+                  </p>
+                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Le serveur LiveKit doit être démarré (VITE_LIVEKIT_URL / LIVEKIT_URL).
+                  </p>
                 </div>
               )}
+
+              {livekit.status === "connecting" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3">
+                  <div className="w-8 h-8 border-4 border-white/40 border-t-white rounded-full animate-spin" />
+                  <p className="text-xs sm:text-sm text-gray-300">Connexion à la visioconférence...</p>
+                </div>
+              )}
+
+              {livekit.status === "connected" && !livekit.remoteActive && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3 px-6">
+                  <Video className="w-12 h-12 opacity-60" />
+                  <p className="text-xs sm:text-sm text-gray-300">En attente du patient...</p>
+                </div>
+              )}
+
+              {/* Aperçu local */}
+              <div ref={localContainerRef}
+                className="absolute top-3 right-3 w-32 sm:w-40 aspect-video rounded-lg overflow-hidden border-2 border-white/40 bg-black/40 shadow-lg z-10" />
 
               {/* STATUS */}
               <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] sm:text-xs px-3 py-1 rounded-lg flex items-center gap-2">
@@ -227,33 +333,34 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
               </div>
 
               {/* CONTROLS */}
-              <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 bg-black/60 p-2 rounded-full backdrop-blur">
+              <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 bg-black/60 p-2 rounded-full backdrop-blur z-10">
                 <button
-                  onClick={() => setMicOn(!micOn)}
-                  className={`p-2 sm:p-3 rounded-full transition ${micOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                  title={micOn ? "Couper le micro" : "Activer le micro"}
+                  onClick={livekit.toggleMic}
+                  className={`p-2 sm:p-3 rounded-full transition ${livekit.micOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
+                  title={livekit.micOn ? "Couper le micro" : "Activer le micro"}
                 >
-                  {micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {livekit.micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
 
                 <button
-                  onClick={() => setCamOn(!camOn)}
-                  className={`p-2 sm:p-3 rounded-full transition ${camOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                  title={camOn ? "Couper la caméra" : "Activer la caméra"}
+                  onClick={livekit.toggleCam}
+                  className={`p-2 sm:p-3 rounded-full transition ${livekit.camOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
+                  title={livekit.camOn ? "Couper la caméra" : "Activer la caméra"}
                 >
-                  {camOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {livekit.camOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
                 </button>
 
                 <button
-                  className="p-2 sm:p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition"
-                  title="Partager l'écran"
+                  onClick={livekit.toggleScreenShare}
+                  className={`p-2 sm:p-3 rounded-full transition ${livekit.screenSharing ? "bg-blue-500 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
+                  title={livekit.screenSharing ? "Arrêter le partage d'écran" : "Partager l'écran"}
                 >
                   <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Panneau inférieur : Chat */}
+            {/* Chat temps réel */}
             <div className={`rounded-2xl overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
               <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
                 <h3 className={`font-semibold text-sm flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
@@ -261,23 +368,23 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
                   Chat avec le patient
                 </h3>
                 <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {messages.length} message{messages.length > 1 ? "s" : ""}
+                  {livekit.messages.length} message{livekit.messages.length > 1 ? "s" : ""}
                 </span>
               </div>
 
               <div className="h-48 overflow-y-auto p-3 space-y-2">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.senderId === currentUser?.id ? "justify-end" : "justify-start"}`}
-                  >
+                {livekit.messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.sender === displayName ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm
-                      ${msg.senderId === currentUser?.id
+                      ${msg.sender === displayName
                         ? "bg-blue-500 text-white"
                         : darkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-800"}`}>
+                      {msg.sender && msg.sender !== displayName && (
+                        <p className={`text-[10px] font-bold mb-0.5 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>{msg.sender}</p>
+                      )}
                       <p>{msg.texte}</p>
-                      <p className={`text-[10px] mt-1 text-right ${msg.senderId === currentUser?.id ? "text-blue-100" : "text-gray-400"}`}>
-                        {msg.heure}
+                      <p className={`text-[10px] mt-1 text-right ${msg.sender === displayName ? "text-blue-100" : "text-gray-400"}`}>
+                        {new Date(msg.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>
@@ -497,6 +604,70 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
                     )}
                   </div>
 
+                  {/* IMAGERIE */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className={`text-xs sm:text-sm font-medium flex items-center gap-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                        <ScanLine size={14} />
+                        Examen d'imagerie (demandes)
+                      </label>
+                      <button onClick={addExamen} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium">
+                        <Plus size={12} /> Ajouter
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {examens.map((examen, idx) => (
+                        <div key={idx} className={`p-3 rounded-lg border ${darkMode ? "bg-gray-700 border-gray-600" : "bg-gray-50 border-gray-200"}`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`text-xs font-semibold ${darkMode ? "text-gray-300" : "text-gray-500"}`}>Examen {idx + 1}</span>
+                            {examens.length > 1 && (
+                              <button onClick={() => removeExamen(idx)} className="text-red-400 hover:text-red-600">
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <select
+                              value={examen.type}
+                              onChange={(e) => updateExamen(idx, "type", e.target.value)}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                            >
+                              <option value="">Type d'imagerie...</option>
+                              {TYPES_IMAGERIE.map((t) => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                            </select>
+                            <select
+                              value={examen.zone}
+                              onChange={(e) => updateExamen(idx, "zone", e.target.value)}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                            >
+                              <option value="">Region anatomique...</option>
+                              {ZONES_ANATOMIQUES.map((z) => (
+                                <option key={z} value={z}>{z}</option>
+                              ))}
+                            </select>
+                            <input
+                              placeholder="Indication (ex: suspicion de fracture)"
+                              value={examen.indication}
+                              onChange={(e) => updateExamen(idx, "indication", e.target.value)}
+                              className={`px-2.5 py-1.5 rounded-lg border text-xs outline-none ${darkMode ? "bg-gray-500 border-gray-400 text-white placeholder-gray-400" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                            />
+                            <label className={`flex items-center gap-2 text-xs font-medium cursor-pointer select-none ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                              <input
+                                type="checkbox"
+                                checked={examen.contraste}
+                                onChange={(e) => updateExamen(idx, "contraste", e.target.checked)}
+                                className="accent-blue-500"
+                              />
+                              Avec injection de contraste
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* ACTIONS */}
                   <div className="space-y-2 pt-2 sticky bottom-0 pb-2">
                     <button
@@ -517,7 +688,7 @@ ${labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : "Aucune de
                     </button>
 
                     <button
-                      onClick={() => endCall(duree)}
+                      onClick={terminer}
                       className="w-full bg-red-600 text-white py-2.5 rounded-xl hover:bg-red-700 transition text-sm font-medium flex items-center justify-center gap-2"
                     >
                       <PhoneOff size={16} />

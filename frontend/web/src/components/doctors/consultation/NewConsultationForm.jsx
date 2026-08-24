@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, User } from "lucide-react";
 import { post, put } from "../../../services/apiClient";
 import PosologieBuilder from "../../PosologieBuilder";
 import MedicamentSearch from "../../MedicamentSearch";
 import LabSearch from "../../LabSearch";
 import { FORMES } from "../../../constants/medicalOptions";
+import { getRelativeBeneficiary } from "../../../utils/proche";
 
 const EMPTY_LIGNE = { medicament_nom: "", dosage: "", forme: "comprimes", posologie: "", duree_jours: 7, quantite: 1, posologieConfig: null };
 
@@ -58,7 +59,7 @@ export default function NewConsultationForm({
         plan_traitement: planTraitement || null,
         prescription_posologie: prescriptionText || null,
         demandes_labo: labAnalyses.length > 0 ? labAnalyses.map((a) => a.nom).join(", ") : null,
-        observations: notes || null,
+        observations: procheBeneficiaire ? `[Pour ${procheBeneficiaire}] ${notes || ''}`.trim() : (notes || null),
         statut: "en_cours",
       });
       try {
@@ -79,6 +80,8 @@ export default function NewConsultationForm({
 
   const inputClass = "border p-3 rounded-xl w-full";
 
+  const procheBeneficiaire = getRelativeBeneficiary(selectedPatient);
+
   return (
     <div className="mt-6 p-5 border rounded-2xl bg-white space-y-6">
 
@@ -95,6 +98,12 @@ export default function NewConsultationForm({
         <p className="text-gray-500">
           Age: {selectedPatient?.age} • Gender: {selectedPatient?.gender}
         </p>
+        {procheBeneficiaire && (
+          <div className="mt-2 p-2 bg-purple-100 text-purple-700 font-semibold rounded-lg flex items-center gap-1.5 text-xs">
+            <User size={13} />
+            <span>Bénéficiaire de la consultation : {procheBeneficiaire}</span>
+          </div>
+        )}
       </div>
 
       {/* CHIEF COMPLAINT */}

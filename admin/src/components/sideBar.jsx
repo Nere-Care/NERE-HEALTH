@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   Megaphone,
   Images,
+  Flag,
   LogOut,
 } from "lucide-react";
 
@@ -93,6 +94,12 @@ const items = [
     icon: Images,
     label: "Carrousels",
     path: "/actualites",
+  },
+
+  {
+    icon: Flag,
+    label: "Signalements",
+    path: "/signalements",
   },
 ];
 

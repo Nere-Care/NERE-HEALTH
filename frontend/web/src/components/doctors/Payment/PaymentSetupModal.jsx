@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, CreditCard, Smartphone, Building2, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { X, CreditCard, Smartphone, Building2, CheckCircle, Trash2 } from "lucide-react";
 
 export default function PaymentSetupModal({
   isOpen,
@@ -8,7 +8,13 @@ export default function PaymentSetupModal({
   onSave,
   currentMethods = [],
 }) {
-  // Liste des méthodes sélectionnées avec leurs configs
+  const doctorName = useMemo(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      return [user?.prenom, user?.nom].filter(Boolean).join(" ") || "";
+    } catch { return ""; }
+  }, []);
+
   const [methods, setMethods] = useState(
     currentMethods.length > 0
       ? currentMethods
@@ -25,7 +31,6 @@ export default function PaymentSetupModal({
     { id: "bank", label: "Virement bancaire", icon: Building2, color: "bg-blue-500", placeholder: "Numéro de compte" },
   ];
 
-  // Activer/désactiver une méthode
   const toggleMethod = (methodId) => {
     const exists = methods.find(m => m.type === methodId);
     if (exists) {
@@ -36,7 +41,7 @@ export default function PaymentSetupModal({
         ...methods,
         {
           type: methodId,
-          accountName: "",
+          accountName: doctorName,
           accountNumber: "",
           iban: methodId === "bank" ? "" : null,
           label: methodInfo.label,
@@ -46,7 +51,6 @@ export default function PaymentSetupModal({
     setErrors({});
   };
 
-  // Mettre à jour un champ d'une méthode
   const updateMethod = (type, field, value) => {
     setMethods(methods.map(m =>
       m.type === type ? { ...m, [field]: value } : m
@@ -56,7 +60,6 @@ export default function PaymentSetupModal({
     }
   };
 
-  // Validation
   const validate = () => {
     if (methods.length === 0) {
       setErrors({ global: "Sélectionnez au moins une méthode" });
@@ -96,7 +99,6 @@ export default function PaymentSetupModal({
     return !hasError;
   };
 
-  // Sauvegarder
   const handleSave = () => {
     if (!validate()) return;
     setSaving(true);
@@ -198,7 +200,6 @@ export default function PaymentSetupModal({
                   className={`rounded-xl border-2 p-4 space-y-3
                     ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50 border-gray-200"}`}
                 >
-                  {/* Header méthode */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-lg ${methodInfo.color} flex items-center justify-center`}>
@@ -215,14 +216,13 @@ export default function PaymentSetupModal({
                     </button>
                   </div>
 
-                  {/* Champs */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <input
                         placeholder="Nom du titulaire"
                         value={m.accountName}
-                        onChange={(e) => updateMethod(m.type, "accountName", e.target.value)}
-                        className={`${inputStyle} ${methodErrors.accountName ? "border-red-500" : ""}`}
+                        readOnly
+                        className={`${inputStyle} opacity-70 cursor-not-allowed ${methodErrors.accountName ? "border-red-500" : ""}`}
                       />
                       {methodErrors.accountName && (
                         <p className="text-[11px] text-red-500 mt-1">{methodErrors.accountName}</p>
@@ -265,7 +265,7 @@ export default function PaymentSetupModal({
           ${darkMode ? "bg-blue-900/20 text-blue-300" : "bg-blue-50 text-blue-700"}`}>
           <CheckCircle size={14} className="flex-shrink-0 mt-0.5" />
           <p>
-            Vos informations sont chiffrées. Vous pouvez modifier ou ajouter des méthodes à tout moment.
+            Le nom du titulaire est celui de votre profil médecin. Vos informations sont chiffrées.
           </p>
         </div>
 

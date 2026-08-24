@@ -31,12 +31,25 @@ import DeleteConfirmModal from "../components/appointments/DeleteConfirmModal";
 import AppointmentCard from "../components/appointments/AppointmentCard";
 
 const STATUS_MAP = {
-  planifie: "En attente",
+  en_attente: "En attente",
+  en_attente_paiement: "En attente de paiement",
+  paye_en_attente_validation: "Paiement en vérification",
   confirme: "Confirmé",
   en_cours: "En cours",
   termine: "Terminé",
-  annule: "Annulé",
+  annule_patient: "Annulé",
+  annule_medecin: "Annulé par médecin",
+  annule_systeme: "Annulé",
+  no_show_patient: "Absent",
+  no_show_medecin: "Médecin absent",
+  rembourse: "Remboursé",
 };
+
+const TABS = [
+  { key: "tous", label: "RDV pris", icon: Calendar, color: "blue" },
+  { key: "honores", label: "Consultations honorées", icon: CheckCircle2, color: "green" },
+  { key: "manques", label: "RDV manqués", icon: AlertTriangle, color: "red" },
+];
 
 /* ================= COMPONENT ================= */
 export default function AppointmentsPage({ darkMode }) {
@@ -45,6 +58,8 @@ export default function AppointmentsPage({ darkMode }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("tous");
+  const [consultedRdvIds, setConsultedRdvIds] = useState(new Set());
   
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -71,8 +86,18 @@ export default function AppointmentsPage({ darkMode }) {
     const fetchAppointments = async () => {
       try {
         setLoading(true);
-        const { data } = await API.get("/rendez_vous");
-        const items = Array.isArray(data) ? data : data?.data ?? [];
+        const [{ data: rdvData }, { data: consData }] = await Promise.all([
+          API.get("/rendez_vous?limit=200"),
+          API.get("/consultations?limit=200"),
+        ]);
+        const items = Array.isArray(rdvData) ? rdvData : rdvData?.data ?? [];
+
+        const consultedIds = new Set(
+          (Array.isArray(consData) ? consData : consData?.data ?? [])
+            .map((c) => c.rdv_id)
+            .filter(Boolean)
+        );
+        setConsultedRdvIds(consultedIds);
 
         const uniquePatientIds = [...new Set(items.map(i => i.patient_id).filter(Boolean))];
         const uniqueMedecinIds = [...new Set(items.map(i => i.medecin_id).filter(Boolean))];
@@ -121,6 +146,7 @@ export default function AppointmentsPage({ darkMode }) {
           location: "",
           date: item.date_heure_debut ? item.date_heure_debut.split("T")[0] : item.created_at ?? "",
           time: item.date_heure_debut ? item.date_heure_debut.split("T")[1].slice(0, 5) : "",
+          statut: item.statut ?? "",
           status: STATUS_MAP[item.statut] ?? item.statut ?? "En attente",
           createdAt: item.created_at ?? "",
         }));
@@ -136,8 +162,13 @@ export default function AppointmentsPage({ darkMode }) {
   }, []);
 
   /* ================= FILTERING ================= */
+  const isHonored = useCallback((a) => a.statut === "termine" || consultedRdvIds.has(a.id), [consultedRdvIds]);
+  const isMissed = useCallback((a) => a.statut === "no_show_patient", []);
+
   const filteredAppointments = useMemo(() => {
     return appointments.filter((a) => {
+      if (activeTab === "honores" && !isHonored(a)) return false;
+      if (activeTab === "manques" && !isMissed(a)) return false;
       const matchSearch = 
         a.patient.toLowerCase().includes(search.toLowerCase()) ||
         a.professional.toLowerCase().includes(search.toLowerCase()) ||
@@ -146,7 +177,7 @@ export default function AppointmentsPage({ darkMode }) {
       const matchMode = modeFilter === "all" || a.mode === modeFilter;
       return matchSearch && matchStatus && matchMode;
     });
-  }, [appointments, search, statusFilter, modeFilter]);
+  }, [appointments, search, statusFilter, modeFilter, activeTab, isHonored, isMissed]);
 
   const paginatedAppointments = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -161,7 +192,9 @@ export default function AppointmentsPage({ darkMode }) {
     pending: appointments.filter(a => a.status === "En attente").length,
     confirmed: appointments.filter(a => a.status === "Confirmé").length,
     today: appointments.filter(a => a.date === new Date().toISOString().split("T")[0]).length,
-  }), [appointments]);
+    honored: appointments.filter((a) => isHonored(a)).length,
+    missed: appointments.filter((a) => isMissed(a)).length,
+  }), [appointments, isHonored, isMissed]);
 
   /* ================= ACTIONS ================= */
   const validateForm = useCallback(() => {
@@ -297,8 +330,16 @@ export default function AppointmentsPage({ darkMode }) {
   const getStatusBadge = (status) => {
     const styles = {
       "Confirmé": "bg-green-500/10 text-green-500 border-green-500/20",
+      "Terminé": "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+      "En cours": "bg-blue-500/10 text-blue-500 border-blue-500/20",
       "En attente": "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-      "Annulé": "bg-red-500/10 text-red-500 border-red-500/20",
+      "En attente de paiement": "bg-orange-500/10 text-orange-500 border-orange-500/20",
+      "Paiement en vérification": "bg-purple-500/10 text-purple-500 border-purple-500/20",
+      "Absent": "bg-red-500/10 text-red-500 border-red-500/20",
+      "Médecin absent": "bg-red-500/10 text-red-500 border-red-500/20",
+      "Annulé": "bg-gray-500/10 text-gray-500 border-gray-500/20",
+      "Annulé par médecin": "bg-gray-500/10 text-gray-500 border-gray-500/20",
+      "Remboursé": "bg-cyan-500/10 text-cyan-500 border-cyan-500/20",
     };
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${styles[status] || styles["En attente"]}`}>
@@ -360,6 +401,40 @@ export default function AppointmentsPage({ darkMode }) {
             <span>Nouveau RDV</span>
           </button>
         </div>
+      </div>
+
+      {/* ================= TABS ================= */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          const count = tab.key === "tous" ? stats.total : tab.key === "honores" ? stats.honored : stats.missed;
+          const activeColor = {
+            blue: "bg-blue-600 text-white shadow-lg shadow-blue-500/25",
+            green: "bg-green-600 text-white shadow-lg shadow-green-500/25",
+            red: "bg-red-600 text-white shadow-lg shadow-red-500/25",
+          }[tab.color];
+          const idleColor = darkMode ? "border-slate-700 hover:bg-slate-800" : "border-gray-200 hover:bg-gray-100";
+          return (
+            <button
+              key={tab.key}
+              onClick={() => { setActiveTab(tab.key); setCurrentPage(1); }}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border font-medium transition ${
+                isActive ? activeColor : idleColor
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm">
+                <Icon size={16} />
+                <span className="truncate">{tab.label}</span>
+              </span>
+              <span className={`min-w-[28px] h-7 px-1.5 rounded-full text-xs font-bold flex items-center justify-center ${
+                isActive ? "bg-white/20 text-white" : darkMode ? "bg-slate-800 text-gray-400" : "bg-gray-100 text-gray-500"
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ================= STATS ================= */}
@@ -441,8 +516,15 @@ export default function AppointmentsPage({ darkMode }) {
           >
             <option value="all">Tous statuts</option>
             <option value="En attente">En attente</option>
+            <option value="En attente de paiement">En attente de paiement</option>
+            <option value="Paiement en vérification">Paiement en vérification</option>
             <option value="Confirmé">Confirmé</option>
+            <option value="En cours">En cours</option>
+            <option value="Terminé">Terminé</option>
+            <option value="Absent">Absent</option>
             <option value="Annulé">Annulé</option>
+            <option value="Annulé par médecin">Annulé par médecin</option>
+            <option value="Remboursé">Remboursé</option>
           </select>
 
           <select

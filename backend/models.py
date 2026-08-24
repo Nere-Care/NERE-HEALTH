@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -66,6 +67,8 @@ class User(Base):
     totp_secret = Column(String(100))
     totp_actif = Column(Boolean, nullable=False, server_default=text("false"))
     email_verifie = Column(Boolean, nullable=False, server_default=text("false"))
+    email_verification_token = Column(String(255))
+    email_verification_expires = Column(DateTime(timezone=True))
     email_otp = Column(String(6))
     email_otp_expires = Column(DateTime(timezone=True))
     telephone_verifie = Column(Boolean, nullable=False, server_default=text("false"))
@@ -84,7 +87,7 @@ class User(Base):
 
     @property
     def is_active(self):
-        return self.statut in ("actif", "suspendu")
+        return self.statut in ("actif", "en_attente", "suspendu")
 
     @property
     def full_name(self):
@@ -130,6 +133,7 @@ class Patient(Base):
     proche_nom = Column(String(100))
     proche_prenom = Column(String(100))
     proche_age = Column(Integer)
+    proches = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     consentement_donnees = Column(Boolean, nullable=False, server_default=text("false"))
     date_consentement = Column(DateTime(timezone=True))
     consentement_marketing = Column(Boolean, nullable=False, server_default=text("false"))
@@ -304,9 +308,11 @@ class Paiement(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     reference = Column(String(50), nullable=False)
-    rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"), nullable=False)
+    rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"), nullable=True)
+    demande_avis_id = Column(UUID(as_uuid=True), ForeignKey("demandes_avis_medical.id"), nullable=True)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False)
     medecin_id = Column(UUID(as_uuid=True), ForeignKey("medecins.id"), nullable=False)
+    type_paiement = Column(String(50), server_default="'consultation'")
     montant_total = Column(Numeric(10, 2), nullable=False)
     devise = Column(
         _enum_type(("XAF", "EUR", "USD", "GBP", "XOF"), "devise_enum"),
@@ -606,6 +612,7 @@ class Conversation(Base):
     rdv_id = Column(UUID(as_uuid=True), ForeignKey("rendez_vous.id"))
     demande_avis_id = Column(UUID(as_uuid=True), ForeignKey("demandes_avis_medical.id"))
     statut = Column(String(20), nullable=False, server_default=text("'active'"))
+    supprime_par = Column(UUID(as_uuid=True))
     nb_messages_non_lus_patient = Column(Integer, nullable=False, server_default=text("0"))
     nb_messages_non_lus_medecin = Column(Integer, nullable=False, server_default=text("0"))
     dernier_message_at = Column(DateTime(timezone=True))
@@ -752,6 +759,7 @@ class Medecin(Base):
     structure_id = Column(UUID(as_uuid=True), ForeignKey("structures.id"))
     ville = Column(String(100))
     district = Column(String(100))
+    solde_portefeuille = Column(Numeric(12, 2), nullable=False, server_default=text("0.00"))
     disponible_maintenant = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
@@ -944,7 +952,10 @@ class DemandeAvisMedical(Base):
     motif = Column(Text, nullable=False)
     message = Column(Text)
     statut = Column(
-        _enum_type(("en_attente", "acceptee", "refusee", "annulee"), "statut_demande_avis"),
+        _enum_type(
+            ("en_attente", "acceptee", "refusee", "annulee", "cloturee", "en_attente_paiement", "en_attente_paiement_patient"),
+            "statut_demande_avis",
+        ),
         nullable=False,
         server_default=text("'en_attente'::public.statut_demande_avis"),
     )
@@ -953,6 +964,14 @@ class DemandeAvisMedical(Base):
     reponse = Column(Text)
     date_reponse = Column(DateTime(timezone=True))
     confidentiel = Column(Boolean, nullable=False, server_default=text("true"))
+    medecins_refuses = Column(Text, server_default=text("'[]'"))
+    montant_facture = Column(Float, server_default="0.0")
+    caution_montant = Column(Float, server_default="5000.0")
+    montant_commission = Column(Float, server_default="0.0")
+    statut_sequestre = Column(String(30), server_default="'sequestre'")
+    payeur_type = Column(String(20), nullable=True)
+    facture_statut = Column(String(20), server_default="'gratuit'")
+    compte_rendu = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -1131,10 +1150,30 @@ class Retrait(Base):
         server_default=text("'en_attente'::public.statut_retrait"),
     )
     reference = Column(String(200))
+    compte = Column(String(100), nullable=True)
     motif_rejet = Column(Text)
     admin_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class Signalement(Base):
+    __tablename__ = "signalements"
+    __table_args__ = (
+        Index("ix_signalements_conversation_id", "conversation_id"),
+        Index("ix_signalements_signalant_id", "signalant_id"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False)
+    signalant_id = Column(UUID(as_uuid=True), nullable=False)
+    signalant_role = Column(String(20), nullable=False)
+    motif = Column(String(200), nullable=False)
+    details = Column(Text)
+    statut = Column(String(20), nullable=False, server_default=text("'en_attente'"))
+    traite_par = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    traite_le = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 def get_model(table_name: str):

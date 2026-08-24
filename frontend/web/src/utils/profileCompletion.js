@@ -7,49 +7,74 @@ function filled(val) {
   return true
 }
 
+const COMMON_FIELDS = [
+  "prenom",
+  "nom",
+  "telephone",
+  "date_naissance",
+  "adresse",
+  "photo_url",
+]
+
+const PATIENT_FIELDS = [
+  "sexe",
+  "profession",
+  "statut_matrimonial",
+  "couverture_assurance",
+  "numero_assurance",
+  "groupe_sanguin",
+  "taille_cm",
+  "poids_kg",
+  "contact_urgence_nom",
+  "contact_urgence_tel",
+  "contact_urgence_lien",
+  "contact_urgence2_nom",
+  "contact_urgence2_tel",
+  "contact_urgence2_lien",
+  "proche_nom",
+  "proche_prenom",
+  "proche_age",
+]
+
+const MEDECIN_FIELDS = [
+  "numero_ordre",
+  "presentation",
+  "tarif_consultation",
+  "devise",
+  "annees_experience",
+  "expertises",
+  "actes",
+  "diplomes",
+  "certifications",
+  "experience_history",
+  "langues_parlees",
+  "structure_id",
+  "documents",
+]
+
 export function getProfileCompletion(user, extra) {
-  const common = [
-    user?.prenom,
-    user?.nom,
-    user?.telephone,
-    user?.date_naissance,
-    user?.adresse,
-    user?.photo_url,
-  ]
-
-  let specific = []
-
-  if (user?.role === "patient" || user?.role === "nurse") {
-    specific = [
-      extra?.sexe,
-      extra?.ville,
-      extra?.groupe_sanguin,
-      extra?.profession,
-      extra?.contact_urgence_nom,
-    ]
-  } else if (user?.role === "doctor" || user?.role === "medecin") {
-    const tc = extra?.tarif_consultation
-    const tarifSet = tc !== undefined && tc !== null && (
-      (typeof tc === "number" && tc !== 5000) ||
-      (typeof tc === "string" && tc !== "5000.00" && tc !== "5000")
-    )
-    specific = [
-      extra?.numero_ordre,
-      extra?.annees_experience,
-      extra?.biographie,
-      extra?.langues_parlees,
-      tarifSet ? tc : null,
-      extra?.diplomes,
-      extra?.certifications,
-      extra?.experience_history,
-    ]
-  } else {
-    specific = []
+  const value = (key) => {
+    let e
+    if (key === "presentation") {
+      e = extra?.presentation ?? extra?.biographie
+    } else if (extra && extra[key] !== undefined && extra[key] !== null) {
+      e = extra[key]
+    } else {
+      e = undefined
+    }
+    return e !== undefined && e !== null ? e : user?.[key]
   }
 
-  const all = [...common, ...specific]
-  const completed = all.filter(filled).length
-  const total = all.length
+  let specific = []
+  if (user?.role === "patient" || user?.role === "nurse") {
+    specific = PATIENT_FIELDS
+  } else if (user?.role === "doctor" || user?.role === "medecin") {
+    specific = MEDECIN_FIELDS
+  }
+
+  const keys = [...COMMON_FIELDS, ...specific]
+  const completed = keys.filter((k) => filled(value(k))).length
+  const total = keys.length
 
   return {
     percent: total > 0 ? Math.round((completed / total) * 100) : 100,

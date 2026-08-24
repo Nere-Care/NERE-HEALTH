@@ -711,8 +711,21 @@ export default function DossierDetail({ darkMode }) {
 
       {!isRestricted && (
         <>
-          <Section icon={Activity} iconColor="text-blue-500" title="Mesures physiques" darkMode={darkMode}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <Section icon={Activity} iconColor="text-blue-500" title="Mesures physiques & groupe sanguin" darkMode={darkMode}>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+              <div className={`p-3 rounded-xl ${
+                dossier.groupe_sanguin && dossier.groupe_sanguin !== "Inconnu"
+                  ? darkMode ? "bg-red-900/30 border border-red-800" : "bg-red-50 border border-red-100"
+                  : darkMode ? "bg-gray-750" : "bg-gray-50"
+              }`}>
+                <Activity size={14} className="text-red-500 mb-1" />
+                <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Groupe Sanguin</p>
+                <p className={`text-sm font-semibold ${
+                  dossier.groupe_sanguin && dossier.groupe_sanguin !== "Inconnu"
+                    ? darkMode ? "text-red-400" : "text-red-700"
+                    : darkMode ? "text-gray-400" : "text-gray-500"
+                }`}>{dossier.groupe_sanguin || "Inconnu"}</p>
+              </div>
               {dossier.taille_cm && (
                 <div className={`p-3 rounded-xl ${darkMode ? "bg-gray-750" : "bg-gray-50"}`}>
                   <Ruler size={14} className="text-blue-500 mb-1" />

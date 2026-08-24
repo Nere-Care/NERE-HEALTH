@@ -21,14 +21,15 @@ import {
   BadgeCheck,
   Scissors,
   RefreshCw,
+  X,
 } from "lucide-react";
 
-
 function resolveDocUrl(url) {
-  if (!url) return '';
+  if (!url) return '#';
   if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
+
 
 
 const DOC_TYPE_LABELS = {
@@ -71,6 +72,8 @@ const DOC_TYPE_COLORS = {
 };
 
 export default function PatientInfo({ selectedPatient, darkMode, onOrdonnanceCreated }) {
+  const [previewDoc, setPreviewDoc] = useState(null);
+
   if (!selectedPatient) return null;
 
   const consultations = Array.isArray(selectedPatient?.consultations)
@@ -632,19 +635,17 @@ export default function PatientInfo({ selectedPatient, darkMode, onOrdonnanceCre
                         </div>
                         {d.url && (
                           <div className="flex items-center gap-1 ml-3">
-                            <a
-                              href={resolveDocUrl(d.url)}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              onClick={() => setPreviewDoc(d)}
                               title="Visualiser"
                               className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-600 text-green-400" : "hover:bg-green-50 text-green-600"
                                 }`}
                             >
                               <Eye size={16} />
-                            </a>
+                            </button>
                             <a
                               href={resolveDocUrl(d.url)}
-                              download
+                              download={d.nom || "document"}
                               title="Télécharger"
                               className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-600 text-blue-400" : "hover:bg-blue-50 text-blue-600"
                                 }`}
@@ -682,9 +683,46 @@ export default function PatientInfo({ selectedPatient, darkMode, onOrdonnanceCre
           </p>
         </div>
       </div>
+
+      {/* ========== MODAL APERÇU DOCUMENT ========== */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setPreviewDoc(null)}>
+          <div className={`relative max-w-4xl w-full max-h-[90vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700/50">
+              <div className="min-w-0 pr-4">
+                <p className="font-semibold text-sm truncate">{previewDoc.nom || "Document médical"}</p>
+                <p className="text-xs text-gray-400">{DOC_TYPE_LABELS[previewDoc.type] || previewDoc.type || "Autre"}</p>
+              </div>
+              <button onClick={() => setPreviewDoc(null)} className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition flex-shrink-0">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 flex-1 overflow-auto flex items-center justify-center bg-black/10 min-h-[350px]">
+              {previewDoc.url?.startsWith('data:image/') || previewDoc.nom?.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                <img src={resolveDocUrl(previewDoc.url)} alt={previewDoc.nom} className="max-w-full max-h-[72vh] rounded-lg object-contain" />
+              ) : previewDoc.url?.startsWith('data:application/pdf') || previewDoc.nom?.match(/\.pdf$/i) ? (
+                <iframe src={resolveDocUrl(previewDoc.url)} className="w-full h-[72vh] rounded-lg" title="Aperçu PDF" />
+              ) : (
+                <div className="text-center py-12 text-gray-400">
+                  <FileText size={48} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-medium">Aperçu direct non disponible</p>
+                  <a
+                    href={resolveDocUrl(previewDoc.url)}
+                    download={previewDoc.nom || "document"}
+                    className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
+                  >
+                    <Download size={14} /> Télécharger le document
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 // ========== SOUS-COMPOSANTS ==========
 

@@ -1,4 +1,4 @@
-const filters = ["All", "Unread", "Doctors", "Patients"];
+const filters = ["All", "Unread", "Sent", "Received", "Patients"];
 
 export default function ChatFilters({ active, setActive, darkMode }) {
   return (
@@ -16,7 +16,7 @@ export default function ChatFilters({ active, setActive, darkMode }) {
               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
           }`}
         >
-          {f}
+          {f === "Sent" ? "Envoyées" : f === "Received" ? "Reçues" : f}
         </button>
       ))}
     </div>

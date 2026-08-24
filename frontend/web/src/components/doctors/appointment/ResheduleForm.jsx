@@ -131,7 +131,7 @@ export default function RescheduleForm({
           Patient : {selectedAppointment?.patient}
         </p>
         <p className="mb-4 text-xs opacity-50">
-          Actuellement : {selectedAppointment?.dateHeureDebut ? new Date(selectedAppointment.dateHeureDebut).toLocaleDateString("fr-FR", { day: "numeric", month: "long" }) : ""} à {selectedAppointment?.dateHeureDebut ? new Date(selectedAppointment.dateHeureDebut).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}
+          Actuellement : {selectedAppointment?.dateHeureDebut ? new Date(selectedAppointment.dateHeureDebut).toLocaleDateString("fr-FR", { day: "numeric", month: "long", timeZone: getUserTimezone() }) : ""} à {selectedAppointment?.dateHeureDebut ? new Date(selectedAppointment.dateHeureDebut).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: getUserTimezone() }) : ""}
         </p>
 
         <div className={`p-3 rounded-xl text-xs mb-4 ${darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-50 text-amber-700"}`}>

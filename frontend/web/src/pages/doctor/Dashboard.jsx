@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import StatsSection from "../../components/doctors/dashboard/StatsSection";
 import RevenueChart from "../../components/doctors/dashboard/RevenueChart";
 import ConsultationChart from "../../components/doctors/dashboard/ConsultationChart";
@@ -8,12 +9,14 @@ import NewsPanel from "../../components/doctors/dashboard/NewsPanel";
 import AccountStatusBanner from "../../components/ui/AccountStatusBanner";
 import NotificationBanner from "../../components/ui/NotificationBanner";
 import ProfileCompletionBanner from "../../components/ui/ProfileCompletionBanner";
+import TwoFactorPromptBanner from "../../components/ui/TwoFactorPromptBanner";
 import { get } from "../../services/apiClient";
 import { getStoredUser } from "../../services/auth";
 import { getProfileCompletion } from "../../utils/profileCompletion";
 import { formatCurrency } from "../../utils/currency";
 
 export default function Dashboard({ darkMode }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [doctorProfile, setDoctorProfile] = useState(null);
@@ -76,6 +79,8 @@ export default function Dashboard({ darkMode }) {
 
       {doctorProfile && <ProfileCompletionBanner percent={getProfileCompletion(currentUser, doctorProfile).percent} />}
 
+      {currentUser && !currentUser.totp_actif && <TwoFactorPromptBanner />}
+
       <p
         className={`text-sm sm:text-base mt-1 ${
           darkMode ? "text-gray-400" : "text-gray-500"
@@ -88,7 +93,7 @@ export default function Dashboard({ darkMode }) {
         notifCount={data?.notifications?.length || 0} 
         notifVisible={notifVisible} 
         onClose={() => setNotifVisible(false)} 
-        onClick={() => {}} 
+        onClick={() => navigate("/notifications")} 
         darkMode={darkMode} 
       />
 

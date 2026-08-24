@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Star, MapPin, Clock, Heart, User, ArrowLeft, CheckCircle, Video, Stethoscope, Loader, Globe, Award, Briefcase, List, CalendarDays, GraduationCap, FileText, CreditCard, Smartphone, X, AlertTriangle } from 'lucide-react';
+import { Star, MapPin, Clock, Heart, User, ArrowLeft, CheckCircle, Video, Stethoscope, Loader, Globe, Award, Briefcase, List, CalendarDays, GraduationCap, FileText, CreditCard, Smartphone, X, AlertTriangle, UserPlus, Plus } from 'lucide-react';
 import { get, post, put } from '../../services/apiClient';
 import { getStoredUser } from '../../services/auth';
 import { validatePhone, phoneError } from '../../utils/validatePhone';
-import { getUserTimezone, slotToUTCISO } from '../../utils/timezone';
+import { getUserTimezone, slotToUTCISO, slotWallTimeInTZ } from '../../utils/timezone';
 import { toXAF, formatXAF } from '../../utils/currency';
 import DemandeAvisModal from '../../components/doctors/DemandeAvisModal';
 
@@ -60,6 +60,13 @@ export default function ProfilMedecin({ darkMode }) {
   const [showAvisForm, setShowAvisForm] = useState(false);
   const [showDemandeAvisModal, setShowDemandeAvisModal] = useState(false);
 
+  const [patientData, setPatientData] = useState(null);
+  const [selectedProche, setSelectedProche] = useState(null);
+  const [showAddProcheModal, setShowAddProcheModal] = useState(false);
+  const [newProche, setNewProche] = useState({ nom: "", prenom: "", age: "", lien: "Enfant" });
+  const [savingProche, setSavingProche] = useState(false);
+  const [procheError, setProcheError] = useState("");
+
   useEffect(() => {
     if (!id) return;
     setLoading(true);
@@ -86,6 +93,7 @@ export default function ProfilMedecin({ darkMode }) {
 
   useEffect(() => {
     if (!id || !currentUser || currentUser.role !== 'patient') return;
+    get(`/api/patients/${currentUser.id}`).then(setPatientData).catch(() => {});
     get('/api/rendez_vous', { patient_id: currentUser.id, limit: 50 }).then((rdvs) => {
       const completed = (rdvs || []).filter(r => r.medecin_id === id && r.statut === 'termine');
       if (completed.length > 0) {
@@ -102,6 +110,58 @@ export default function ProfilMedecin({ darkMode }) {
       }
     }).catch(() => { });
   }, [id, currentUser?.id]);
+
+  const getExistingProches = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data.proches) && data.proches.length > 0) return data.proches;
+    if (data.proche_nom || data.proche_prenom) {
+      return [{ nom: data.proche_nom || "", prenom: data.proche_prenom || "", age: data.proche_age || null }];
+    }
+    return [];
+  };
+
+  const handleSaveNewProche = async () => {
+    if (!newProche.nom.trim() || !newProche.prenom.trim()) {
+      setProcheError("Le nom et le prénom du proche sont requis");
+      return;
+    }
+    setSavingProche(true);
+    setProcheError("");
+    try {
+      const addedEntry = {
+        nom: newProche.nom.trim(),
+        prenom: newProche.prenom.trim(),
+        age: newProche.age ? Number(newProche.age) : null,
+        lien: newProche.lien || "Proche",
+      };
+      const existingList = getExistingProches(patientData);
+      const updatedProches = [...existingList, addedEntry];
+
+      const payload = {
+        proche_nom: addedEntry.nom,
+        proche_prenom: addedEntry.prenom,
+        proche_age: addedEntry.age,
+        proches: updatedProches,
+      };
+      const updatedPatient = await put(`/api/patients/${currentUser.id}`, payload);
+      setPatientData(updatedPatient || {
+        ...patientData,
+        proche_nom: addedEntry.nom,
+        proche_prenom: addedEntry.prenom,
+        proche_age: addedEntry.age,
+        proches: updatedProches,
+      });
+      setSelectedProche(addedEntry);
+      setPourQui("Pour un proche");
+      setShowAddProcheModal(false);
+      setNewProche({ nom: "", prenom: "", age: "", lien: "Enfant" });
+      setEtape("motif");
+    } catch (err) {
+      setProcheError(err?.message || "Erreur lors de l'enregistrement du proche");
+    } finally {
+      setSavingProche(false);
+    }
+  };
 
   const handleSubmitAvis = async () => {
     if (newNote < 1 || newNote > 5 || !avisRdvId) return;
@@ -197,17 +257,27 @@ export default function ProfilMedecin({ darkMode }) {
           navigate("/rendez-vous");
         }, 4000);
       } else {
+        const isProche = pourQui === "Pour un proche" && selectedProche;
+        const finalMotif = isProche
+          ? `[Pour ${selectedProche.prenom} ${selectedProche.nom}${selectedProche.age ? ` (${selectedProche.age} ans)` : ''}] ${motif}`
+          : motif;
+        const notesPatient = isProche
+          ? `Bénéficiaire du RDV : ${selectedProche.prenom} ${selectedProche.nom}${selectedProche.age ? ` (${selectedProche.age} ans)` : ''}`
+          : null;
+
         const rdv = await post("/api/rendez_vous", {
           medecin_id: id,
           patient_id: currentUser.id,
           date_heure_debut: debutISO,
           date_heure_fin: finISO,
           type: mode === "teleconsultation" ? "video" : "presentiel",
-          motif_consultation: motif || null,
+          motif_consultation: finalMotif || null,
+          notes_patient: notesPatient,
         });
         setRdvCreeId(rdv.id);
         setEtape(null);
         setPourQui(null);
+        setSelectedProche(null);
         setMotif("");
         setMode(null);
         setCreneau(null);
@@ -701,10 +771,76 @@ export default function ProfilMedecin({ darkMode }) {
                     <h2 className={`font-bold ${darkMode ? "text-white" : "text-gray-800"}`}>Pour qui ?</h2>
                     <span className="text-xs text-gray-400">Étape 1/4</span>
                   </div>
-                  {["Pour moi", "Pour un proche"].map((opt) => (
-                    <button key={opt} onClick={() => { setPourQui(opt); setEtape("motif"); }}
-                      className={`${btnSecondary} ${pourQui === opt ? btnSelected : btnNormal}`}>{opt}</button>
-                  ))}
+
+                  <div className="space-y-2.5 mb-4">
+                    {/* Option 1: Pour moi */}
+                    <button
+                      onClick={() => {
+                        setPourQui("Pour moi");
+                        setSelectedProche(null);
+                        setEtape("motif");
+                      }}
+                      className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+                        pourQui === "Pour moi" && !selectedProche ? btnSelected : btnNormal
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-semibold text-sm">
+                          {currentUser?.prenom?.[0]?.toUpperCase() || 'M'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">Pour moi</p>
+                          <p className="text-xs text-gray-400">{currentUser?.prenom} {currentUser?.nom}</p>
+                        </div>
+                      </div>
+                      {pourQui === "Pour moi" && !selectedProche && <CheckCircle size={18} className="text-blue-500" />}
+                    </button>
+
+                    {/* Option 2: Proche(s) enregistré(s) */}
+                    {getExistingProches(patientData).map((pr, idx) => {
+                      const isSelected = pourQui === "Pour un proche" && selectedProche?.prenom === pr.prenom && selectedProche?.nom === pr.nom;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setSelectedProche(pr);
+                            setPourQui("Pour un proche");
+                            setEtape("motif");
+                          }}
+                          className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-left transition-all ${
+                            isSelected ? btnSelected : btnNormal
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-semibold text-sm">
+                              {pr.prenom?.[0]?.toUpperCase() || pr.nom?.[0]?.toUpperCase() || 'P'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">{pr.prenom} {pr.nom}</p>
+                              <p className="text-xs text-gray-400">
+                                Proche enregistré {pr.age ? `(${pr.age} ans)` : ''} {pr.lien ? `• ${pr.lien}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle size={18} className="text-purple-500" />}
+                        </button>
+                      );
+                    })}
+
+                    {/* Option 3: Ajouter un proche */}
+                    <button
+                      onClick={() => setShowAddProcheModal(true)}
+                      className={`w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed transition-all ${
+                        darkMode
+                          ? "border-gray-600 text-blue-400 hover:border-blue-500 hover:bg-gray-700/50"
+                          : "border-blue-200 text-blue-600 hover:border-blue-400 hover:bg-blue-50/50"
+                      }`}
+                    >
+                      <Plus size={18} />
+                      <span className="text-sm font-medium">Ajouter un nouveau proche</span>
+                    </button>
+                  </div>
+
                   <button onClick={() => setEtape(null)} className="w-full text-center text-xs text-gray-400 mt-2 hover:underline">Annuler</button>
                 </div>
               )}
@@ -819,7 +955,7 @@ export default function ProfilMedecin({ darkMode }) {
                             </button>
                             <div className="flex flex-wrap gap-2">
                               {visibleSlots.map((slot) => {
-                                const heure = slot.start.slice(0, 5);
+                                const heure = slotWallTimeInTZ(group.date, slot.start, user?.timezone || "Africa/Douala", getUserTimezone());
                                 return (
                                   <button
                                     key={`${group.date}-${heure}`}
@@ -912,7 +1048,7 @@ export default function ProfilMedecin({ darkMode }) {
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 {selectedGroup.slots.map((slot) => {
-                                  const heure = slot.start.slice(0, 5);
+                                  const heure = slotWallTimeInTZ(selectedGroup.date, slot.start, user?.timezone || "Africa/Douala", getUserTimezone());
                                   return (
                                     <button
                                       key={`cal-${selectedGroup.date}-${heure}`}
@@ -964,6 +1100,100 @@ export default function ProfilMedecin({ darkMode }) {
 
       {showDemandeAvisModal && (
         <DemandeAvisModal darkMode={darkMode} onClose={() => setShowDemandeAvisModal(false)} />
+      )}
+
+      {showAddProcheModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className={`w-full max-w-md rounded-2xl p-6 shadow-xl ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <UserPlus className="text-blue-500" size={20} /> Ajouter un proche
+              </h3>
+              <button onClick={() => setShowAddProcheModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            {procheError && (
+              <div className="mb-4 p-3 bg-red-100 text-red-600 text-xs rounded-xl">
+                {procheError}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-400">Prénom *</label>
+                <input
+                  type="text"
+                  value={newProche.prenom}
+                  onChange={(e) => setNewProche({ ...newProche, prenom: e.target.value })}
+                  placeholder="Ex: Lucas"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1 text-gray-400">Nom *</label>
+                <input
+                  type="text"
+                  value={newProche.nom}
+                  onChange={(e) => setNewProche({ ...newProche, nom: e.target.value })}
+                  placeholder="Ex: Kala"
+                  className={`w-full border rounded-xl px-3 py-2.5 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-400">Âge</label>
+                  <input
+                    type="number"
+                    value={newProche.age}
+                    onChange={(e) => setNewProche({ ...newProche, age: e.target.value })}
+                    placeholder="Ex: 8"
+                    min="0"
+                    max="120"
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1 text-gray-400">Lien de parenté</label>
+                  <select
+                    value={newProche.lien}
+                    onChange={(e) => setNewProche({ ...newProche, lien: e.target.value })}
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm outline-none ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-200"}`}
+                  >
+                    <option value="Enfant">Enfant</option>
+                    <option value="Conjoint">Conjoint(e)</option>
+                    <option value="Parent">Parent</option>
+                    <option value="Frère/Sœur">Frère / Sœur</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowAddProcheModal(false)}
+                className={`flex-1 py-2.5 rounded-xl text-sm border font-medium ${darkMode ? "border-gray-600 text-gray-300" : "border-gray-200 text-gray-600"}`}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveNewProche}
+                disabled={savingProche || !newProche.nom.trim() || !newProche.prenom.trim()}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  savingProche || !newProche.nom.trim() || !newProche.prenom.trim()
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                }`}
+              >
+                {savingProche ? "Enregistrement..." : "Enregistrer & Sélectionner"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

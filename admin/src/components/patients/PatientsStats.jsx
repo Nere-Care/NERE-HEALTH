@@ -1,17 +1,36 @@
 import { Users, Activity, AlertTriangle, ClipboardList } from "lucide-react";
 
-export default function PatientsStats({ darkMode, patients = [] }) {
-  // Calcul dynamique basé sur les patients réels
-  const total = patients.length;
-  const consultations = Math.floor(total * 0.3);
-  const incomplets = Math.floor(total * 0.05);
-  const critiques = patients.filter(p => p.antecedents !== "Aucun").length;
+export default function PatientsStats({ darkMode, patients = [], stats = {} }) {
+  const total = stats.total ?? patients.length;
+  const consultations = stats.consultations_aujourdhui ?? 0;
+  const incomplets = stats.dossiers_incomplets ?? 0;
+  const critiques = stats.a_surveiller ?? patients.filter(p => p.antecedents !== "Aucun").length;
 
-  const stats = [
-    { title: "Patients Totaux", value: total.toLocaleString(), icon: Users, color: "blue" },
-    { title: "Consultations Aujourd'hui", value: consultations, icon: Activity, color: "green" },
-    { title: "Dossiers Incomplets", value: incomplets, icon: ClipboardList, color: "orange" },
-    { title: "Patients Critiques", value: critiques, icon: AlertTriangle, color: "red" },
+  const statsItems = [
+    {
+      title: "Patients Totaux",
+      value: total,
+      icon: Users,
+      color: "blue",
+    },
+    {
+      title: "Consultations Aujourd'hui",
+      value: consultations,
+      icon: Activity,
+      color: "green",
+    },
+    {
+      title: "Dossiers Incomplets",
+      value: incomplets,
+      icon: ClipboardList,
+      color: "orange",
+    },
+    {
+      title: "Patients Critiques",
+      value: critiques,
+      icon: AlertTriangle,
+      color: "red",
+    },
   ];
 
   const colorMap = {
@@ -23,7 +42,7 @@ export default function PatientsStats({ darkMode, patients = [] }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-      {stats.map((item, index) => {
+      {statsItems.map((item, index) => {
         const Icon = item.icon;
         return (
           <div key={index} className={`rounded-2xl p-5 border transition hover:shadow-lg ${

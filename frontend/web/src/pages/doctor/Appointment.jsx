@@ -72,7 +72,7 @@ export default function Appointment({ darkMode }) {
     try {
       const rdvsRaw = await get("/api/rendez_vous");
       const paidStatuses = new Set([
-        "confirme", "paye_en_attente_validation", "en_cours", "termine",
+        "confirme", "en_cours", "termine",
       ]);
       const rdvs = rdvsRaw.filter(r => paidStatuses.has(r.statut));
       const uniqueIds = [...new Set(rdvs.map((r) => r.patient_id))];
@@ -123,6 +123,8 @@ export default function Appointment({ darkMode }) {
           montant: Math.round(Number(r.montant) * 0.9) || 0,
           devise: r.devise || "XAF",
           patientCode: p.code_patient || "",
+          notes_patient: r.notes_patient || "",
+          motif_consultation: r.motif_consultation || "",
         };
       });
       setAppointments(mapped);
@@ -234,9 +236,9 @@ export default function Appointment({ darkMode }) {
             ...base,
             doctorName: d.cible_prenom && d.cible_nom
               ? `${d.cible_prenom} ${d.cible_nom}`
-              : d.medecin_accepteur_id
-                ? "Dr. accepté"
-                : "En attente",
+              : d.accepteur_prenom && d.accepteur_nom
+                ? `${d.accepteur_prenom} ${d.accepteur_nom}`
+                : "",
             doctorSpeciality: d.specialite_libelle || "",
             patientNom: d.patient_nom || "",
             patientPrenom: d.patient_prenom || "",

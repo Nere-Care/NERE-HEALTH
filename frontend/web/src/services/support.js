@@ -7,12 +7,11 @@ export async function getCategories() {
 }
 
 export async function uploadTicketFile(file) {
-  const token = localStorage.getItem('token')
   const formData = new FormData()
   formData.append('file', file)
   const res = await fetch(`${API_BASE_URL}/api/tickets/upload`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
     body: formData,
   })
   if (!res.ok) {

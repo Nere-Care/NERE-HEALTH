@@ -19,6 +19,8 @@ python-jose[cryptography]==3.5.0
 authlib==1.6.10
 gunicorn==25.3.0
 slowapi==0.1.9
+redis==5.2.1
+pyotp==2.9.0
 
 # HTTP & utils
 requests==2.33.1

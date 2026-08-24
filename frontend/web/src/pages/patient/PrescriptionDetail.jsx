@@ -142,6 +142,16 @@ export default function PrescriptionDetail({ darkMode }) {
             <div>
               <h1 className="text-3xl font-bold">Ordonnance</h1>
               <p className="text-gray-400 mt-1">{ordonnance.numero}</p>
+              {(() => {
+                const pb = ordonnance.instructions_speciales && ordonnance.instructions_speciales.startsWith("[Pour ")
+                  ? ordonnance.instructions_speciales.match(/^\[Pour\s+([^\]]+)\]/i)?.[1]?.trim()
+                  : null;
+                return pb ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2.5 py-1 rounded-lg mt-1">
+                    <User size={12} /> Pour le proche : {pb}
+                  </span>
+                ) : null;
+              })()}
             </div>
           </div>
           <button

@@ -15,30 +15,29 @@ export function mapRole(backendRole) {
   return ROLE_MAP[backendRole] || backendRole || 'patient'
 }
 
-export async function login(email, password) {
-  const formData = new URLSearchParams()
-  formData.append('username', email)
-  formData.append('password', password)
-
-  const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: formData,
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || 'Identifiants incorrects')
+async function parseError(response) {
+  const text = await response.text()
+  try {
+    const parsed = JSON.parse(text)
+    const detail = parsed.detail
+    if (typeof detail === 'string') return { message: detail, code: null }
+    if (detail && typeof detail.message === 'string') return { message: detail.message, code: detail.code || null }
+    return { message: text, code: null }
+  } catch {
+    return { message: text || 'Une erreur est survenue', code: null }
   }
+}
 
-  const data = await response.json()
+async function throwApiError(response) {
+  const { message, code } = await parseError(response)
+  const error = new Error(message || 'Une erreur est survenue')
+  error.code = code
+  throw error
+}
 
+async function fetchAndStoreUser() {
   const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-    headers: {
-      'Authorization': `Bearer ${data.access_token}`,
-    },
+    credentials: 'include',
   })
 
   if (!meResponse.ok) {
@@ -47,8 +46,15 @@ export async function login(email, password) {
 
   const me = await meResponse.json()
 
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const userTz = me.timezone || browserTz
+  const browserTz = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone
+    } catch {
+      return null
+    }
+  })()
+
+  const userTz = browserTz || me.timezone || "Africa/Douala"
 
   const user = {
     email: me.email,
@@ -62,24 +68,148 @@ export async function login(email, password) {
     timezone: userTz,
     adresse: me.adresse,
     date_naissance: me.date_naissance,
-    token: data.access_token,
+    email_verifie: me.email_verifie,
+    totp_actif: me.totp_actif,
   }
 
   localStorage.setItem('user', JSON.stringify(user))
-  localStorage.setItem('token', data.access_token)
-
-  if (userTz !== me.timezone) {
-    fetch(`${API_BASE_URL}/api/auth/me`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${data.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ timezone: userTz }),
-    }).catch(() => {})
-  }
 
   return user
+}
+
+export async function login(email, password) {
+  const formData = new URLSearchParams()
+  formData.append('username', email)
+  formData.append('password', password)
+
+  const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  const data = await response.json()
+
+  if (data.requires_2fa) {
+    return { requires_2fa: true, totp_token: data.totp_token }
+  }
+
+  return fetchAndStoreUser()
+}
+
+export async function verifyTwoFactor(code, totpToken) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/verify-2fa`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, totp_token: totpToken }),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return fetchAndStoreUser()
+}
+
+export async function verifyEmail(token) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
+}
+
+export async function verifyEmailCode(email, code) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/verify-email-code`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
+}
+
+export async function resendVerification(payload) {
+  const { email, token } = payload || {}
+  const body = email ? { email } : token ? { token } : {}
+  const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(email ? { 'X-Resend-Email': encodeURIComponent(email) } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
+}
+
+export async function twofaSetup() {
+  const response = await fetch(`${API_BASE_URL}/api/auth/2fa/setup`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
+}
+
+export async function twofaEnable(code) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/2fa/enable`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
+}
+
+export async function twofaDisable(code) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/2fa/disable`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+
+  if (!response.ok) {
+    await throwApiError(response)
+  }
+
+  return response.json()
 }
 
 export async function register(userData, role) {
@@ -89,32 +219,35 @@ export async function register(userData, role) {
 
   const response = await fetch(endpoint, {
     method: "POST",
+    credentials: 'include',
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(userData),
   })
 
   if (!response.ok) {
-    const text = await response.text()
-    let detail = "Erreur lors de l'inscription"
-    try {
-      const parsed = JSON.parse(text)
-      detail = parsed.detail || detail
-    } catch {}
-    throw new Error(detail)
+    await throwApiError(response)
   }
 
-  return await login(userData.email, userData.password)
+  return response.json()
 }
 
-export function logout() {
+export async function logout() {
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+  } catch {
+    // Ignore error if network fails during logout
+  }
   localStorage.removeItem('user')
-  localStorage.removeItem('token')
 }
 
 export async function googleLogin(credential, role) {
   const body = role ? { credential, role } : { credential }
   const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -124,54 +257,75 @@ export async function googleLogin(credential, role) {
   if (!response.ok) {
     let detail = "Erreur lors de la connexion Google"
     detail = data.detail || detail
-    throw new Error(detail)
+    throw new Error(typeof detail === "string" ? detail : detail?.message || detail)
   }
 
   if (data.needs_role) {
     return { needs_role: true, ...data }
   }
 
-  const meResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-    headers: { 'Authorization': `Bearer ${data.access_token}` },
+  if (data.requires_2fa) {
+    return { requires_2fa: true, totp_token: data.totp_token }
+  }
+
+  return fetchAndStoreUser()
+}
+
+export async function forgotPassword(email) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
   })
 
-  if (!meResponse.ok) {
-    throw new Error('Impossible de récupérer les informations utilisateur')
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Erreur lors de la demande de réinitialisation")
   }
 
-  const me = await meResponse.json()
-  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-  const userTz = me.timezone || browserTz
+  return data
+}
 
-  const user = {
-    email: me.email,
-    role: mapRole(me.role),
-    prenom: me.prenom,
-    nom: me.nom,
-    telephone: me.telephone,
-    photo_url: me.photo_url,
-    id: me.id,
-    statut: me.statut,
-    timezone: userTz,
-    adresse: me.adresse,
-    date_naissance: me.date_naissance,
-    token: data.access_token,
+export async function resetPassword(token, newPassword) {
+  const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Erreur lors de la réinitialisation")
   }
 
-  localStorage.setItem('user', JSON.stringify(user))
-  localStorage.setItem('token', data.access_token)
-
-  return user
+  return data
 }
 
 export function getToken() {
-  return localStorage.getItem('token')
+  return null
 }
 
 export function getStoredUser() {
   try {
-    const user = localStorage.getItem('user')
-    return user ? JSON.parse(user) : null
+    const raw = localStorage.getItem('user')
+    if (!raw) return null
+    const user = JSON.parse(raw)
+    const browserTz = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone
+      } catch {
+        return null
+      }
+    })()
+    if (browserTz && user && user.timezone !== browserTz) {
+      user.timezone = browserTz
+      localStorage.setItem('user', JSON.stringify(user))
+    }
+    return user
   } catch {
     return null
   }

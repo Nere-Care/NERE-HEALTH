@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Send, ArrowLeft, Video, Paperclip, MoreVertical,
-  Flag, Trash2, AlertTriangle, X, CheckCircle, Loader, Lock
+  Flag, Trash2, AlertTriangle, X, CheckCircle, Loader, Lock, Calendar, Clock
 } from 'lucide-react';
-import { get, post, del } from '../../services/apiClient';
+import { get, post, del, put } from '../../services/apiClient';
+import { getStoredUser } from '../../services/auth';
+import { getUserTimezone, slotToUTCISO, slotWallTimeInTZ } from '../../utils/timezone';
 
 function encodeMsg(text) { return btoa(unescape(encodeURIComponent(text))); }
 function decodeMsg(data) { try { return decodeURIComponent(escape(atob(data))); } catch { return data || ''; } }
@@ -24,12 +26,45 @@ export default function Messages({ darkMode }) {
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoSlots, setVideoSlots] = useState([]);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [videoError, setVideoError] = useState(null);
+  const [videoTz, setVideoTz] = useState(null);
+
+  const loadConversations = () =>
     get('/api/conversations', { limit: 50 })
       .then(data => setConversations(data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
+
+  useEffect(() => {
+    loadConversations();
+    const interval = setInterval(loadConversations, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      const event = e.detail;
+      if (!event || event.type !== 'nouveau_message') return;
+      loadConversations();
+      if (convActive && event.reference_externe === convActive.id) {
+        put(`/api/conversations/${convActive.id}/lu`)
+          .then(() => {
+            setConversations(prev => prev.map(c => c.id === convActive.id ? { ...c, nb_messages_non_lus_patient: 0 } : c));
+          })
+          .catch(() => {});
+        get('/api/messages', { conversation_id: convActive.id, limit: 100 })
+          .then(data => setMessagesData(data || []))
+          .catch(() => {});
+      }
+    };
+    window.addEventListener('nere:notification', handler);
+    return () => window.removeEventListener('nere:notification', handler);
+  }, [convActive]);
 
   useEffect(() => {
     if (convActive) {
@@ -49,6 +84,10 @@ export default function Messages({ darkMode }) {
   const ouvrirConversation = (conv) => {
     setConvActive(conv);
     setMenuOuvert(false);
+    if ((conv.nb_messages_non_lus_patient || 0) > 0) {
+      setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, nb_messages_non_lus_patient: 0 } : c));
+      put(`/api/conversations/${conv.id}/lu`).catch(console.error);
+    }
     get('/api/messages', { conversation_id: conv.id, limit: 100 })
       .then(data => setMessagesData(data || []))
       .catch(() => setMessagesData([]));
@@ -107,9 +146,84 @@ export default function Messages({ darkMode }) {
       setMessagesData([]);
       setConvActive(null);
       setShowSupprimerModal(false);
+      setMenuOuvert(false);
       afficherToast("Conversation supprimée");
     } catch (err) {
       afficherToast("Erreur: " + err.message, 'error');
+    }
+  };
+
+  const signalerConversation = async () => {
+    if (!convActive || !motifSignalement) return;
+    try {
+      await post('/api/signalements', {
+        conversation_id: convActive.id,
+        motif: motifSignalement,
+      });
+      setShowSignalerModal(false);
+      setMotifSignalement('');
+      setMenuOuvert(false);
+      afficherToast("Conversation signalée");
+    } catch (err) {
+      afficherToast("Erreur: " + (err.message || 'signalement'), 'error');
+    }
+  };
+
+  const ouvrirVideoModal = async () => {
+    if (!convActive || !convActive.medecin_id) return;
+    setShowVideoModal(true);
+    setVideoSlots([]);
+    setSelectedSlot(null);
+    setVideoError(null);
+    setVideoTz(null);
+    setVideoLoading(true);
+    get(`/api/medecins/${convActive.medecin_id}`)
+      .then(m => setVideoTz(m?.timezone || "Africa/Douala"))
+      .catch(() => setVideoTz("Africa/Douala"));
+    const tz = getUserTimezone();
+    const now = new Date();
+    const clientNow = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const dayFetches = [];
+    for (let i = 0; i < 14; i++) {
+      const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      const ds = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      dayFetches.push(
+        get(`/api/disponibilites/creneaux/${convActive.medecin_id}`, { date: ds, now: clientNow })
+          .then(slots => ({ date: ds, slots: Array.isArray(slots) ? slots : [] }))
+          .catch(() => ({ date: ds, slots: [] }))
+      );
+    }
+    const results = await Promise.all(dayFetches);
+    setVideoSlots(results.filter(r => r.slots.length > 0));
+    setVideoLoading(false);
+  };
+
+  const reserverTeleconsultation = async () => {
+    if (!selectedSlot || !convActive) return;
+    const currentUser = getStoredUser();
+    if (!currentUser) return;
+    setVideoSaving(true);
+    setVideoError(null);
+    try {
+      const tz = videoTz || "Africa/Douala";
+      const debutISO = slotToUTCISO(selectedSlot.date, selectedSlot.start, tz);
+      const finISO = slotToUTCISO(selectedSlot.date, selectedSlot.end, tz);
+      await post('/api/rendez_vous', {
+        medecin_id: convActive.medecin_id,
+        patient_id: currentUser.id,
+        date_heure_debut: debutISO,
+        date_heure_fin: finISO,
+        type: 'video',
+        motif_consultation: 'Téléconsultation',
+      });
+      setShowVideoModal(false);
+      setSelectedSlot(null);
+      afficherToast("RDV de téléconsultation réservé");
+      setTimeout(() => navigate('/rendez-vous'), 1500);
+    } catch (err) {
+      setVideoError(err?.message || "Erreur lors de la réservation");
+    } finally {
+      setVideoSaving(false);
     }
   };
 
@@ -131,7 +245,7 @@ export default function Messages({ darkMode }) {
   }
 
   return (
-    <div className={`min-h-[100dvh] flex overflow-hidden relative ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`flex flex-1 min-h-0 overflow-hidden relative pt-20 md:pt-24 ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       {toast && (
         <div className={`fixed top-4 right-4 z-[100] px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-slide-in
           ${toast.type === "error" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
@@ -165,15 +279,17 @@ export default function Messages({ darkMode }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className={`font-semibold truncate ${darkMode ? "text-white" : "text-gray-800"}`}>{conv.medecin_nom || conv.patient_nom || 'Conversation'}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className={`font-semibold truncate ${darkMode ? "text-white" : "text-gray-800"}`}>{conv.medecin_nom || conv.patient_nom || 'Conversation'}</p>
+                      {(conv.nb_messages_non_lus_patient || 0) > 0 && (
+                        <div className="min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs flex items-center justify-center flex-shrink-0">{conv.nb_messages_non_lus_patient}</div>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">{conv.dernier_message_at ? new Date(conv.dernier_message_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                   </div>
                   <p className="text-xs text-gray-400">{conv.statut}</p>
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-sm text-gray-400 truncate">{conv.dernier_message_preview ? decodeMsg(conv.dernier_message_preview) : ''}</p>
-                    {(conv.nb_messages_non_lus_patient || 0) > 0 && (
-                      <div className="min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs flex items-center justify-center ml-2">{conv.nb_messages_non_lus_patient}</div>
-                    )}
                   </div>
                 </div>
               </button>
@@ -197,9 +313,9 @@ export default function Messages({ darkMode }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => afficherToast("Téléconsultation")}
-                className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`} title="Lancer une téléconsultation">
-                <Video size={20} className="text-blue-500" />
+              <button onClick={ouvrirVideoModal}
+                className={`p-2 rounded-lg transition ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-100"}`} title="Prendre un RDV de téléconsultation">
+                <Video size={20} className="text-green-500" />
               </button>
               <div className="relative">
                 <button onClick={() => setMenuOuvert(!menuOuvert)}
@@ -238,7 +354,7 @@ export default function Messages({ darkMode }) {
                     <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${isMine ? "bg-blue-500 text-white" : darkMode ? "bg-gray-700 text-white" : "bg-white shadow"}`}>
                       <p>{decodeMsg(msg.contenu_chiffre)}</p>
                       <p className={`text-[10px] mt-1 text-right ${isMine ? "text-blue-100" : "text-gray-400"}`}>
-                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {msg.created_at ? new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: getUserTimezone() }) : ''}
                       </p>
                     </div>
                   </div>
@@ -285,6 +401,103 @@ export default function Messages({ darkMode }) {
         </div>
       )}
 
+      {showVideoModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className={`w-full max-w-md rounded-2xl shadow-2xl p-6 flex flex-col max-h-[90vh] ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}`}>
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Video className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Téléconsultation</h2>
+                  <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Avec {convActive?.medecin_nom || convActive?.patient_nom}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { setShowVideoModal(false); setSelectedSlot(null); }}>
+                <X size={20} className="text-gray-400" />
+              </button>
+            </div>
+
+            <p className={`text-xs mb-3 flex-shrink-0 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              Choisissez un créneau dans le planning de {convActive?.medecin_nom || "votre médecin"} :
+            </p>
+
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-3 mb-4">
+              {videoLoading && (
+                <div className="flex items-center justify-center py-10">
+                  <Loader className="animate-spin text-green-500" size={28} />
+                </div>
+              )}
+
+              {!videoLoading && videoSlots.length === 0 && (
+                <div className="text-center py-10">
+                  <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Aucun créneau de téléconsultation disponible sur les 14 prochains jours.
+                  </p>
+                </div>
+              )}
+
+              {!videoLoading && videoSlots.map(group => (
+                <div key={group.date}>
+                  <p className={`text-xs font-semibold uppercase mb-1.5 flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <Calendar size={12} />
+                    {new Date(group.date + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.slots.map((slot, idx) => {
+                      const selected = selectedSlot?.date === group.date && selectedSlot?.start === slot.start;
+                      return (
+                        <button key={idx}
+                          onClick={() => setSelectedSlot({ date: group.date, start: slot.start, end: slot.end })}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                            selected
+                              ? "bg-green-500 text-white border-green-500"
+                              : darkMode
+                                ? "bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600"
+                                : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          }`}>
+                          <Clock size={11} className="inline mr-1" />
+                          {slotWallTimeInTZ(group.date, slot.start, videoTz || "Africa/Douala", getUserTimezone())} - {slotWallTimeInTZ(group.date, slot.end, videoTz || "Africa/Douala", getUserTimezone())}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {videoError && (
+              <div className={`flex items-center gap-2 p-3 rounded-xl text-sm mb-3 flex-shrink-0 ${darkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
+                <AlertTriangle size={16} />
+                {videoError}
+              </div>
+            )}
+
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => { setShowVideoModal(false); setSelectedSlot(null); }}
+                className={`flex-1 py-2.5 rounded-xl font-semibold transition ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={reserverTeleconsultation}
+                disabled={!selectedSlot || videoSaving}
+                className={`flex-1 py-2.5 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${
+                  selectedSlot && !videoSaving ? "bg-green-500 text-white hover:bg-green-600" : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                {videoSaving && <Loader size={16} className="animate-spin" />}
+                Réserver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showSignalerModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className={`w-full max-w-md rounded-2xl shadow-2xl p-6 ${darkMode ? "bg-gray-800 text-white" : "bg-white text-gray-800"}`}>
@@ -312,8 +525,9 @@ export default function Messages({ darkMode }) {
             <div className="flex gap-2">
               <button onClick={() => setShowSignalerModal(false)}
                 className={`flex-1 py-2.5 rounded-xl font-semibold transition ${darkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>Annuler</button>
-              <button onClick={() => { afficherToast("Conversation signalée"); setShowSignalerModal(false); setMotifSignalement(''); setMenuOuvert(false); }}
-                className="flex-1 py-2.5 rounded-xl font-semibold bg-orange-500 text-white hover:bg-orange-600 transition">Signaler</button>
+              <button onClick={signalerConversation}
+                disabled={!motifSignalement}
+                className={`flex-1 py-2.5 rounded-xl font-semibold transition ${motifSignalement ? "bg-orange-500 text-white hover:bg-orange-600" : "bg-gray-300 text-gray-500 cursor-not-allowed"}`}>Signaler</button>
             </div>
           </div>
         </div>

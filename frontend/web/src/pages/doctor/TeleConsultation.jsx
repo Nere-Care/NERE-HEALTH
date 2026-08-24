@@ -27,8 +27,9 @@ export default function TeleConsultation({ darkMode }) {
         );
 
         const remoteTypes = ["video", "audio", "chat"];
+        const allowedStatuses = new Set(["confirme", "en_cours", "termine"]);
         const remoteRdvs = rdvs.filter(
-          (r) => remoteTypes.includes(r.type) && r.statut !== "en_attente_paiement"
+          (r) => remoteTypes.includes(r.type) && allowedStatuses.has(r.statut)
         );
 
         const now = Date.now();
@@ -69,12 +70,15 @@ export default function TeleConsultation({ darkMode }) {
             statut,
             avatar: (p.prenom || "?")[0].toUpperCase(),
             rdvId: r.id,
+            webrtcRoomId: r.webrtc_room_id,
             type: r.type,
             dateDebut: r.date_heure_debut,
             dateFin: r.date_heure_fin,
             _isToday: isToday,
             _isPast: isPast,
             _canStart: statut === "en_attente" && new Date(r.date_heure_debut).getTime() - 2 * 60 * 1000 <= now,
+            notes_patient: r.notes_patient || "",
+            motif_consultation: r.motif_consultation || "",
           };
         });
 
@@ -91,7 +95,11 @@ export default function TeleConsultation({ darkMode }) {
     }
     try {
       const updated = await put(`/api/rendez_vous/${rdv.rdvId}/start`, {});
-      setConsultationActive({ ...rdv, statut: "en_cours", webrtc_room_id: updated.webrtc_room_id });
+      setConsultationActive({
+        ...rdv,
+        statut: "en_cours",
+        webrtcRoomId: updated.webrtc_room_id || rdv.webrtcRoomId,
+      });
       setRdvList((prev) => prev.map((r) => (r.id === rdv.id ? { ...r, statut: "en_cours" } : r)));
     } catch (err) {
       console.error("Erreur démarrage consultation:", err);

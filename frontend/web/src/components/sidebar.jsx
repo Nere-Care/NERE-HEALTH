@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { get } from "../services/apiClient";
+import { logout } from "../services/auth";
 import {
   LayoutDashboard, Users, Building2, MessageSquare, Bell,
   FolderOpen, Video, Settings, HelpCircle, Sparkles, Menu, X,
@@ -235,7 +236,7 @@ export default function Sidebar({ darkMode, collapsed, setCollapsed, nomStructur
               </div>
             )}
           </div>
-          <button onClick={() => { localStorage.removeItem('user'); localStorage.removeItem('token'); window.location.href = '/'; }}
+          <button onClick={async () => { await logout(); localStorage.removeItem('user'); window.location.href = '/'; }}
             className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl mt-1 transition-all
               ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-500 hover:bg-red-50"}
               ${collapsed ? "justify-center" : ""}`}>

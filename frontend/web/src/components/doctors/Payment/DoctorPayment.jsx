@@ -5,6 +5,7 @@ import WithdrawModal from "./WithdrawModal";
 import PatientsPaymentsTable from "./PatientsPaymentsTable";
 import DoctorPaymentsHistory from "./DoctorPaymentsHistory";
 import { get } from "../../../services/apiClient";
+import { getUserTimezone } from "../../../utils/timezone";
 
 const METHOD_LABELS = {
   mtn_momo: "MTN MoMo",
@@ -26,17 +27,27 @@ const STATUS_LABELS = {
   rembourse: "Refunded",
 };
 
-function transformPaiement(p) {
+const RDV_TYPE_LABELS = {
+  presentiel: "Présentiel",
+  video: "Visio",
+  audio: "Audio",
+  chat: "Chat",
+};
+
+function transformPaiement(p, patientInfoMap, rdvMap) {
+  const info = patientInfoMap?.[p.patient_id] || {};
+  const rdv = rdvMap?.[p.rdv_id] || {};
   return {
     id: p.id,
     matricule: p.reference,
-    patient: p.patient_id ? `Patient ${String(p.patient_id).slice(0, 8)}` : "-",
+    patient: info.name || "Patient",
+    patientCode: info.code || "",
     patient_id: p.patient_id,
     medecin_id: p.medecin_id,
-    service: METHOD_LABELS[p.methode] || p.fournisseur || "Consultation",
+    service: RDV_TYPE_LABELS[rdv.type] || "Consultation",
     amount: `${Number(p.montant_total).toLocaleString()} ${p.devise || "XAF"}`,
     method: METHOD_LABELS[p.methode] || p.methode || "-",
-    date: p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR") : "-",
+    date: p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() }) : "-",
     status: STATUS_LABELS[p.statut] || p.statut || "Pending",
     raw_status: p.statut,
     receipt: null,
@@ -55,8 +66,27 @@ export default function DoctorPayments({ darkMode }) {
 
   const fetchPayments = useCallback(async () => {
     try {
-      const data = await get("/api/paiements", { limit: 200 });
-      const list = (data || []).map(transformPaiement);
+      const [data, patientsData, rdvData] = await Promise.all([
+        get("/api/paiements", { limit: 200 }),
+        get("/api/patients", { limit: 200 }),
+        get("/api/rendez_vous", { limit: 200 }),
+      ]);
+
+      const patientInfoMap = {};
+      for (const p of (patientsData || [])) {
+        const name = [p.prenom, p.nom].filter(Boolean).join(" ").trim();
+        patientInfoMap[p.id] = {
+          name: name || null,
+          code: p.code_patient || "",
+        };
+      }
+
+      const rdvMap = {};
+      for (const r of (rdvData || [])) {
+        rdvMap[r.id] = { type: r.type };
+      }
+
+      const list = (data || []).map((p) => transformPaiement(p, patientInfoMap, rdvMap));
       setPatientPayments(list);
       setDoctorPayments(list);
 

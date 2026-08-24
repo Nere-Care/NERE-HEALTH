@@ -42,6 +42,8 @@ async def list_paiements(
         stmt = stmt.where(
             (Paiement.medecin_id == current_user.id) | (Paiement.patient_id == current_user.id)
         )
+        if current_user.role == "patient":
+            stmt = stmt.where(Paiement.type_paiement.notin_(["sequestre_avis", "remboursement_sequestre", "honoraires_avis"]))
     stmt = stmt.order_by(Paiement.created_at.desc()).limit(limit)
     paiements = db.execute(stmt).scalars().all()
     return paiements

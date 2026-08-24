@@ -138,6 +138,25 @@ export default function PatientsTable({
                 </p>
                 <p>{patient.assurance}</p>
               </div>
+
+              <div>
+                <p className="text-gray-400">
+                  Email
+                </p>
+                <p>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                      patient.email_verifie
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : "bg-red-500/10 text-red-500"
+                    }`}
+                  >
+                    {patient.email_verifie
+                      ? "Email confirmé"
+                      : "Email non confirmé"}
+                  </span>
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-2 mt-5">
@@ -212,6 +231,7 @@ export default function PatientsTable({
                 "Médecin",
                 "Groupe",
                 "Assurance",
+                "Email",
                 "Statut",
                 "Actions",
               ].map((header) => (
@@ -279,6 +299,20 @@ export default function PatientsTable({
 
                 <td className="p-4 text-sm whitespace-nowrap">
                   {patient.assurance}
+                </td>
+
+                <td className="p-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                      patient.email_verifie
+                        ? "bg-emerald-500/10 text-emerald-600"
+                        : "bg-red-500/10 text-red-500"
+                    }`}
+                  >
+                    {patient.email_verifie
+                      ? "Email confirmé"
+                      : "Email non confirmé"}
+                  </span>
                 </td>
 
                 <td className="p-4">

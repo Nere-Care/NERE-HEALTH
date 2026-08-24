@@ -1,0 +1,38 @@
+{
+	default_sni 172.20.10.10
+	servers {
+		protocols h1 h2
+	}
+}
+
+http://172.20.10.10, http://192.168.1.229 {
+	redir https://{host}{uri}
+}
+
+https://172.20.10.10, https://192.168.1.229 {
+	tls /certs/server.crt /certs/server.key
+
+	handle /api/* {
+		reverse_proxy 10.200.0.1:8100 {
+			flush_interval -1
+		}
+	}
+
+	handle /uploads/* {
+		reverse_proxy 10.200.0.1:8100
+	}
+
+	handle /livekit/* {
+		uri strip_prefix /livekit
+		reverse_proxy 10.200.0.1:7880
+	}
+
+	handle /ca.crt {
+		root * /certs
+		file_server
+	}
+
+	handle {
+		reverse_proxy 10.200.0.1:4173
+	}
+}

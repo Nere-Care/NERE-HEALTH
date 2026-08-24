@@ -1,0 +1,36 @@
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.5
+    restart: unless-stopped
+    env_file: .env
+    command:
+      - "--config"
+      - "/etc/livekit.yaml"
+      - "--keys"
+      - "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7881:7881"                # RTC (TCP, candidats ICE TCP)
+      - "7882:7882/udp"            # RTC (UDP)
+      - "50000-50100:50000-50100/udp"  # flux média (vidéo/audio)
+      # 7880 (signalisation) n'est PAS exposé publiquement :
+      # il est atteint via Caddy en wss:// sur le port 443.
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - livekit
+
+volumes:
+  caddy_data:
+  caddy_config:

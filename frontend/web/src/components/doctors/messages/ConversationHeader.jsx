@@ -1,12 +1,12 @@
-import { ArrowLeft, Ban, MoreVertical, User, Lock, Unlock } from "lucide-react";
+import { ArrowLeft, MoreVertical, User, Lock, Unlock, Video } from "lucide-react";
 
 export default function ConversationHeader({
   current,
   darkMode,
-  isBlocked,
   onBack,
-  onToggleBlock,
   onToggleStatus,
+  onVideo,
+  onOpenMenu,
 }) {
   const isClosed = current?.statut === "fermee";
 
@@ -47,20 +47,20 @@ export default function ConversationHeader({
             </span>
           </button>
         )}
+        {onVideo && (
+          <button
+            onClick={onVideo}
+            title="Planifier un RDV de téléconsultation"
+            className={`p-2 rounded-xl transition ${
+              darkMode ? "hover:bg-gray-700 text-green-400" : "hover:bg-gray-100 text-green-600"
+            }`}
+          >
+            <Video className="w-5 h-5" />
+          </button>
+        )}
         <button
-          onClick={onToggleBlock}
-          className={`p-2 rounded-xl transition text-white ${
-            isBlocked
-              ? "bg-red-700 hover:bg-red-800"
-              : darkMode
-              ? "bg-gray-700 hover:bg-gray-600"
-              : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-          }`}
-        >
-          <Ban className="w-4 h-4" />
-        </button>
-        <button
-          onClick={(e) => e.stopPropagation()}
+          onClick={onOpenMenu}
+          title="Plus d'options"
           className={`p-2 rounded-xl transition ${
             darkMode ? "hover:bg-gray-700" : "hover:bg-gray-200"
           }`}

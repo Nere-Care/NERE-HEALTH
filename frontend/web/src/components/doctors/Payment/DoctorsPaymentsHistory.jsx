@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { CheckCircle, Clock, XCircle, Search, Download, ArrowUpRight, Wallet } from "lucide-react";
+import { getUserTimezone } from "../../../utils/timezone";
+import { CheckCircle, Clock, XCircle, Search, Download, ArrowUpRight, Wallet, RotateCcw } from "lucide-react";
+import { generateDoctorWithdrawalReceiptPDF, isPaidStatus } from "../../../utils/receiptGenerator";
 
 const RETRAIT_STATUS = {
   en_attente: { icon: Clock, style: "text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-800", label: "En attente" },
@@ -8,7 +10,13 @@ const RETRAIT_STATUS = {
   effectue: { icon: CheckCircle, style: "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/30 dark:border-blue-800", label: "Effectué" },
 };
 
-export default function DoctorPaymentsHistory({ payments, retraits = [], darkMode }) {
+function getRetraitRef(r) {
+  if (r.reference) return r.reference;
+  const idPart = (r.id || "").replace(/-/g, "").slice(0, 12).toUpperCase();
+  return `TRF-RET-${idPart}`;
+}
+
+export default function DoctorPaymentsHistory({ payments, retraits = [], darkMode, doctorName, configuredMethods = [] }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [tab, setTab] = useState("payments");
@@ -23,7 +31,8 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
   const filtered = tab === "payments"
     ? payments.filter((p) => {
         const v = search.toLowerCase();
-        const matchSearch = p.service.toLowerCase().includes(v) ||
+        const matchSearch = (p.matricule || "").toLowerCase().includes(v) ||
+          p.service.toLowerCase().includes(v) ||
           p.method.toLowerCase().includes(v) ||
           p.date.toLowerCase().includes(v);
         const matchStatus = filterStatus === "all" || p.status === filterStatus;
@@ -31,8 +40,9 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
       })
     : retraits.filter((r) => {
         const v = search.toLowerCase();
+        const ref = getRetraitRef(r).toLowerCase();
         const matchSearch = r.methode.toLowerCase().includes(v) ||
-          (r.reference || "").toLowerCase().includes(v) ||
+          ref.includes(v) ||
           (r.created_at || "").toLowerCase().includes(v);
         const matchStatus = filterStatus === "all" || r.statut === filterStatus;
         return matchSearch && matchStatus;
@@ -88,11 +98,11 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
 
         <div className="flex gap-2 overflow-x-auto pb-1">
           {(tab === "payments"
-            ? ["all", "Paid", "Pending", "Failed"]
+            ? ["all", "Paid", "Pending", "Failed", "Retenu", "Refunded"]
             : ["all", "en_attente", "valide", "rejete"]
           ).map((status) => {
             const counts = tab === "payments"
-              ? { all: payments.length, Paid: payments.filter(p => p.status === "Paid").length, Pending: payments.filter(p => p.status === "Pending").length, Failed: payments.filter(p => p.status === "Failed").length }
+              ? { all: payments.length, Paid: payments.filter(p => p.status === "Paid").length, Pending: payments.filter(p => p.status === "Pending").length, Failed: payments.filter(p => p.status === "Failed").length, Retenu: payments.filter(p => p.status === "Retenu").length, Refunded: payments.filter(p => p.status === "Refunded").length }
               : retraitsCounts;
             const label = status === "all" ? "Tous" : status === "en_attente" ? "En attente" : status === "valide" ? "Validés" : status === "rejete" ? "Rejetés" : status;
             return (
@@ -122,6 +132,8 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
                 Paid: { icon: CheckCircle, style: "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-800", label: "Paid" },
                 Pending: { icon: Clock, style: "text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-800", label: "Pending" },
                 Failed: { icon: XCircle, style: "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800", label: "Failed" },
+                Refunded: { icon: RotateCcw, style: "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/30 dark:border-blue-800", label: "Refunded" },
+                Retenu: { icon: Clock, style: "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800", label: "Retenu" },
               };
               const config = statusConfig[p.status] || statusConfig.Pending;
               const Icon = config.icon;
@@ -134,9 +146,22 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
                   <div className="flex justify-between gap-3 items-start">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{p.service}</p>
+                      {p.matricule && (
+                        <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-400"}`}>
+                          Matricule: {p.matricule}
+                        </p>
+                      )}
                       <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>
                         {p.method} • {p.date}
                       </p>
+                      {p.frais_plateforme > 0 && (
+                        <div className={`flex items-center gap-1 mt-1 text-[11px] ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                          Commission plateforme: {Number(p.frais_plateforme).toLocaleString()} {p.devise}
+                          <span className={`mx-1 ${darkMode ? "text-gray-600" : "text-gray-300"}`}>|</span>
+                          Versé: {Number(p.montant_medecin || p.montant_total).toLocaleString()} {p.devise}
+                        </div>
+                      )}
                     </div>
                     <p className="font-semibold text-sm whitespace-nowrap">{p.amount}</p>
                   </div>
@@ -166,13 +191,11 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
                         <p className="font-medium text-sm">Retrait</p>
                       </div>
                       <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>
-                        {r.methode} • {r.created_at ? new Date(r.created_at).toLocaleDateString("fr-FR") : "-"}
+                        {r.methode} • {r.created_at ? new Date(r.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() }) : "-"}
                       </p>
-                      {r.reference && (
-                        <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-400"}`}>
-                          Réf: {r.reference}
-                        </p>
-                      )}
+                      <p className={`text-xs mt-0.5 font-mono ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        {getRetraitRef(r)}
+                      </p>
                       {r.motif_rejet && (
                         <p className="text-xs mt-0.5 text-red-500">
                           Motif: {r.motif_rejet}
@@ -183,11 +206,23 @@ export default function DoctorPaymentsHistory({ payments, retraits = [], darkMod
                       -{Number(r.montant).toLocaleString()} {r.devise}
                     </p>
                   </div>
-                  <div className="mt-3">
+                  <div className="mt-3 flex items-center justify-between">
                     <div className={`inline-flex px-2 py-1 rounded-lg border items-center gap-1 text-xs ${config.style}`}>
                       <Icon className="w-3.5 h-3.5" />
                       {config.label}
                     </div>
+
+                    {isPaidStatus(r.statut) && (
+                      <button
+                        onClick={() => generateDoctorWithdrawalReceiptPDF(r, doctorName, configuredMethods)}
+                        title="Télécharger le reçu de versement"
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition
+                          ${darkMode ? "bg-blue-900/40 text-blue-400 hover:bg-blue-900/70" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
+                      >
+                        <Download size={13} />
+                        Reçu
+                      </button>
+                    )}
                   </div>
                 </div>
               );

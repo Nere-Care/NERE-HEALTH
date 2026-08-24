@@ -3,12 +3,36 @@ import { Bell, Sun, Moon, Settings, HelpCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { get } from "../services/apiClient";
+import { connectNotifStream, disconnectNotifStream, onNotification, notifyWindow } from "../services/notifStream";
 
 export default function Header({ darkMode, setDarkMode, collapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [notifCount, setNotifCount] = useState(0);
   const seenIds = useRef(new Set());
+
+  const user = (() => {
+    try { return JSON.parse(localStorage.getItem("user")); }
+    catch { return null; }
+  })();
+
+  const showDeviceNotification = (n) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const url = n.type === "nouveau_message"
+      ? (user?.role === "medecin" ? "/doctor-messages" : "/messages")
+      : "/notifications";
+    const notif = new Notification(`Néré Health · ${n.titre || "Notification"}`, {
+      body: n.contenu || "",
+      icon: logo,
+      tag: n.id,
+      requireInteraction: true,
+    });
+    notif.onclick = () => {
+      window.focus();
+      navigate(url);
+      notif.close();
+    };
+  };
 
   const fetchNotifs = useCallback(() => {
     get('/api/notifications', { limit: 50 })
@@ -20,14 +44,30 @@ export default function Header({ darkMode, setDarkMode, collapsed }) {
         unread.forEach(n => {
           if (!seenIds.current.has(n.id)) {
             seenIds.current.add(n.id);
-            if ("Notification" in window && Notification.permission === "granted") {
-              new Notification(n.titre || "Néré Health", { body: n.contenu || "", icon: "/logo.png" });
-            }
+            showDeviceNotification(n);
           }
         });
       })
       .catch(() => {});
-  }, []);
+  }, [user?.role]);
+
+  useEffect(() => {
+    connectNotifStream();
+    const unsubscribe = onNotification((event) => {
+      if (event && event.statut !== 'lu') {
+        if (!seenIds.current.has(event.id)) {
+          seenIds.current.add(event.id);
+          showDeviceNotification(event);
+        }
+        notifyWindow(event);
+      }
+      fetchNotifs();
+    });
+    return () => {
+      unsubscribe();
+      disconnectNotifStream();
+    };
+  }, [fetchNotifs]);
 
   useEffect(() => {
     fetchNotifs();
@@ -38,11 +78,6 @@ export default function Header({ darkMode, setDarkMode, collapsed }) {
   useEffect(() => {
     fetchNotifs();
   }, [location.pathname, fetchNotifs]);
-
-  const user = (() => {
-    try { return JSON.parse(localStorage.getItem("user")); }
-    catch { return null; }
-  })();
 
   const nomComplet = [user?.prenom, user?.nom].filter(Boolean).join(' ') || 'Utilisateur';
   const initiale = user?.prenom?.[0]?.toUpperCase() || user?.nom?.[0]?.toUpperCase() || 'U';

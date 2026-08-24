@@ -3,6 +3,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import verify_registered_user
 from main import app
 
 client = TestClient(app)
@@ -33,6 +34,19 @@ def test_register_and_login_flow():
     assert payload["email"] == email
     assert payload["role"] == "patient"
     assert payload["is_active"] is True
+    assert payload["email_verifie"] is False
+    assert payload["dev_verification_token"]
+
+    # Tant que l'email n'est pas confirmé, la connexion est refusée.
+    blocked_response = client.post(
+        f"{PREFIX}/auth/token",
+        data={"username": email, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    assert blocked_response.status_code == 403
+    assert blocked_response.json()["detail"]["code"] == "EMAIL_NOT_VERIFIED"
+
+    verify_registered_user(client, register_response, email)
 
     token_response = client.post(
         f"{PREFIX}/auth/token",

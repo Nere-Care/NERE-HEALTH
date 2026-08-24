@@ -36,22 +36,32 @@ export default function SignupStep2({
   };
 
   const handleContinue = () => {
-    setErrors({});
+    const newErrors = {};
     if (selectedRole === "doctor" || selectedRole === "nurse") {
-      if (!dateNaissance) {
-        setErrors({ dateNaissance: "La date de naissance est requise" });
-        return;
+      if (!ville) {
+        newErrors.ville = "La ville est requise";
       }
-      const birth = new Date(dateNaissance);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const m = today.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      if (age < 21) {
-        setErrors({ dateNaissance: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
-        return;
+      if (!district) {
+        newErrors.district = "Le quartier est requis";
+      }
+      if (!dateNaissance) {
+        newErrors.dateNaissance = "La date de naissance est requise";
+      } else {
+        const birth = new Date(dateNaissance);
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+        if (age < 21) {
+          newErrors.dateNaissance = "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé";
+        }
+      }
+      if (!specialite) {
+        newErrors.specialite = "La spécialité est requise";
       }
     }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
     setStepThree(true);
   };
 

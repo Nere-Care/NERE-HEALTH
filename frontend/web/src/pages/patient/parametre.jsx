@@ -5,11 +5,12 @@ import {
   LogOut, FileText, ChevronRight, ChevronDown, ChevronUp,
   Activity, Heart, AlertCircle, History, CheckCircle2,
   Camera, Save, X, CheckCircle, Loader, Pencil, Phone, UserPlus,
-  Briefcase, GraduationCap, Star, Stethoscope, DollarSign, Trash2, Plus, Calendar, Paperclip, Upload, Clock,
+  Briefcase, GraduationCap, Star, Stethoscope, DollarSign, Trash2, Plus, Calendar, Paperclip, Upload, Clock, Globe,
+  KeyRound, QrCode,
 } from 'lucide-react';
 import { get, put, post, del } from '../../services/apiClient';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8100';
-import { getStoredUser, logout } from '../../services/auth';
+import { getStoredUser, logout, twofaSetup, twofaEnable, twofaDisable } from '../../services/auth';
 import { validatePhone, phoneError } from '../../utils/validatePhone';
 
 const GROUPES_SANGUINS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Inconnu'];
@@ -47,7 +48,7 @@ export default function Parametres({ darkMode }) {
   const isMedecin = user?.role === 'doctor';
   const sections = ["Profil", "Sécurité", "Confidentialités"];
 
-  const initialSection = window.location.hash === "#confidentialites" ? "Confidentialités" : "Profil";
+  const initialSection = window.location.hash === "#confidentialites" ? "Confidentialités" : window.location.hash === "#securite" ? "Sécurité" : "Profil";
   const [section, setSection] = useState(initialSection);
   const [editing, setEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -66,6 +67,11 @@ export default function Parametres({ darkMode }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
+  const [twofaActive, setTwofaActive] = useState(Boolean(user?.totp_actif));
+  const [twofaSetupData, setTwofaSetupData] = useState(null);
+  const [twofaCode, setTwofaCode] = useState('');
+  const [twofaBusy, setTwofaBusy] = useState(false);
+  const [twofaMsg, setTwofaMsg] = useState({ type: '', text: '' });
   const [previewDoc, setPreviewDoc] = useState(null); // { url, nom, mime }
 
   const [form, setForm] = useState({
@@ -86,6 +92,7 @@ export default function Parametres({ darkMode }) {
     annees_experience: '0',
     expertises: [], actes: [],
     formations: [], certifications: [], experience: [],
+    langues_parlees: [],
     structure_id: '',
   });
   const originalRef = useRef({ formations: [], certifications: [], experience: [] });
@@ -153,7 +160,7 @@ export default function Parametres({ darkMode }) {
 
   const [expandedSections, setExpandedSections] = useState({
     presentation: true, expertises: true, actes: true,
-    tarif: true, formations: true, experience: true, certifications: true,
+    tarif: true, formations: true, experience: true, certifications: true, langues: true,
   });
 
   const toggleSection = (key) =>
@@ -198,6 +205,7 @@ export default function Parametres({ darkMode }) {
             formations: f,
             certifications: c,
             experience: e,
+            langues_parlees: m.langues_parlees || [],
             structure_id: m.structure_id || '',
           });
           setTarifModification(m.tarif_modification && m.tarif_modification.statut === 'en_attente' ? m.tarif_modification : null);
@@ -341,6 +349,7 @@ export default function Parametres({ darkMode }) {
           diplomes: formations,
           certifications: certifications,
           experience_history: experience,
+          langues_parlees: medecinForm.langues_parlees,
           structure_id: medecinForm.structure_id || null,
         });
 
@@ -369,8 +378,8 @@ export default function Parametres({ darkMode }) {
         if (form.statut_matrimonial) patientPayload.statut_matrimonial = form.statut_matrimonial;
         if (form.couverture_assurance) patientPayload.couverture_assurance = form.couverture_assurance;
         if (form.numero_assurance) patientPayload.numero_assurance = form.numero_assurance;
-        if (form.proche_age) patientPayload.proche_age = Number(form.proche_age);
-        await put(`/api/patients/${user.id}`, patientPayload);
+        const updatedPatient = await put(`/api/patients/${user.id}`, patientPayload);
+        if (updatedPatient) setPatientData(updatedPatient);
       }
 
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
@@ -406,6 +415,59 @@ export default function Parametres({ darkMode }) {
       setPasswordError(err.message || 'Erreur lors du changement de mot de passe');
     } finally {
       setPasswordSaving(false);
+    }
+  };
+
+  const handleTwofaSetup = async () => {
+    setTwofaBusy(true);
+    setTwofaMsg({ type: '', text: '' });
+    try {
+      const data = await twofaSetup();
+      setTwofaSetupData(data);
+    } catch (err) {
+      setTwofaMsg({ type: 'error', text: err.message || 'Impossible de générer le QR code' });
+    } finally {
+      setTwofaBusy(false);
+    }
+  };
+
+  const handleTwofaEnable = async () => {
+    if (!twofaCode.trim()) {
+      setTwofaMsg({ type: 'error', text: 'Veuillez saisir le code de votre application d’authentification' });
+      return;
+    }
+    setTwofaBusy(true);
+    setTwofaMsg({ type: '', text: '' });
+    try {
+      await twofaEnable(twofaCode.trim());
+      setTwofaActive(true);
+      setTwofaSetupData(null);
+      setTwofaCode('');
+      setTwofaMsg({ type: 'success', text: 'Double authentification activée' });
+    } catch (err) {
+      setTwofaMsg({ type: 'error', text: err.message || 'Code incorrect' });
+    } finally {
+      setTwofaBusy(false);
+    }
+  };
+
+  const handleTwofaDisable = async () => {
+    if (!twofaCode.trim()) {
+      setTwofaMsg({ type: 'error', text: 'Veuillez saisir le code actuel pour désactiver' });
+      return;
+    }
+    setTwofaBusy(true);
+    setTwofaMsg({ type: '', text: '' });
+    try {
+      await twofaDisable(twofaCode.trim());
+      setTwofaActive(false);
+      setTwofaSetupData(null);
+      setTwofaCode('');
+      setTwofaMsg({ type: 'success', text: 'Double authentification désactivée' });
+    } catch (err) {
+      setTwofaMsg({ type: 'error', text: err.message || 'Code incorrect' });
+    } finally {
+      setTwofaBusy(false);
     }
   };
 
@@ -698,6 +760,46 @@ export default function Parametres({ darkMode }) {
                       <p className={`text-sm whitespace-pre-wrap ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
                         {medecinForm.presentation || 'Aucune présentation'}
                       </p>
+                    )}
+                  </MedecinSection>
+
+                  {/* LANGUES PARLÉES */}
+                  <MedecinSection icon={Globe} title="Langues parlées" sectionKey="langues"
+                    expanded={expandedSections.langues} toggle={toggleSection} darkMode={darkMode}
+                    count={medecinForm.langues_parlees.length}>
+                    {editing ? (
+                      <>
+                        <p className={`text-xs mb-3 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                          Sélectionnez les langues que vous parlez
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {["Français","Anglais","Allemand","Arabe","Espagnol","Portugais","Chinois","Italien","Bassa","Duala","Bamiléké","Fang","Ewondo","Haoussa","Peul"].map((lang) => {
+                            const selected = medecinForm.langues_parlees.includes(lang);
+                            return (
+                              <button key={lang} onClick={() => {
+                                handleMedecinChange('langues_parlees', selected
+                                  ? medecinForm.langues_parlees.filter((l) => l !== lang)
+                                  : [...medecinForm.langues_parlees, lang]);
+                              }}
+                                className={`px-3 py-2 rounded-xl text-xs font-medium border transition ${
+                                  selected
+                                    ? "bg-blue-600 text-white border-blue-600"
+                                    : darkMode ? "bg-gray-700 text-gray-300 border-gray-600 hover:border-blue-500" : "bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-500"
+                                }`}>
+                                {lang}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {medecinForm.langues_parlees.length > 0 ? medecinForm.langues_parlees.map((l, i) => (
+                          <span key={i} className="px-3 py-1.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">{l}</span>
+                        )) : (
+                          <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Aucune langue renseignée</p>
+                        )}
+                      </div>
                     )}
                   </MedecinSection>
 
@@ -1206,12 +1308,30 @@ export default function Parametres({ darkMode }) {
                     })}
                   </div>
 
-                  {/* PROCHE */}
+                  {/* PROCHE(S) */}
                   <div className={`rounded-2xl shadow p-6 flex flex-col gap-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
                     <h2 className={`text-sm font-bold flex items-center gap-2 ${darkMode ? "text-gray-200" : "text-gray-700"}`}>
-                      <UserPlus size={14} className="text-blue-500" /> Proche
+                      <UserPlus size={14} className="text-blue-500" /> Proches
                     </h2>
-                    {!editing ? (
+                    {Array.isArray(patientData?.proches) && patientData.proches.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {patientData.proches.map((pr, idx) => (
+                          <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/50" : "border-gray-100 bg-gray-50"}`}>
+                            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">
+                              {pr.prenom?.[0]?.toUpperCase() || pr.nom?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-700"}`}>
+                                {pr.prenom} {pr.nom}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {pr.age ? `${pr.age} ans` : ''} {pr.lien ? `• ${pr.lien}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : !editing ? (
                       <div className={`flex items-center gap-3 p-3 rounded-xl border ${darkMode ? "border-gray-700 bg-gray-900/50" : "border-gray-100 bg-gray-50"}`}>
                         <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center font-bold text-xs">
                           {form.proche_prenom?.[0]?.toUpperCase() || form.proche_nom?.[0]?.toUpperCase() || '?'}
@@ -1223,7 +1343,9 @@ export default function Parametres({ darkMode }) {
                           {form.proche_age && <p className="text-xs text-gray-400">{form.proche_age} ans</p>}
                         </div>
                       </div>
-                    ) : (
+                    ) : null}
+
+                    {editing && (
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="text-[10px] text-gray-400 mb-1 block">Prénom</label>
@@ -1269,6 +1391,7 @@ export default function Parametres({ darkMode }) {
           )}
 
           {section === "Sécurité" && (
+            <>
             <div className={`rounded-2xl shadow p-6 flex flex-col gap-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
               <h2 className={`text-sm font-bold border-b pb-3 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>Mot de passe</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1316,6 +1439,89 @@ export default function Parametres({ darkMode }) {
                 </button>
               </div>
             </div>
+
+            <div className={`rounded-2xl shadow p-6 flex flex-col gap-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+              <h2 className={`text-sm font-bold border-b pb-3 flex items-center gap-2 ${darkMode ? "text-gray-200 border-gray-700" : "text-gray-700"}`}>
+                <KeyRound size={16} className="text-blue-500" /> Double authentification (2FA)
+              </h2>
+
+              {twofaMsg.text && (
+                <p className={`text-sm ${twofaMsg.type === "success" ? "text-green-500" : "text-red-500"}`}>
+                  {twofaMsg.text}
+                </p>
+              )}
+
+              {twofaActive ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-green-500 text-sm font-medium">
+                    <CheckCircle size={16} /> Activée
+                  </div>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    À chaque connexion, un code à 6 chiffres généré par votre application d'authentification sera requis en plus de votre mot de passe.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                    <input value={twofaCode}
+                      onChange={(e) => setTwofaCode(e.target.value.replace(/\D/g, ""))}
+                      maxLength={6}
+                      placeholder="Code à 6 chiffres"
+                      className={inputClass} />
+                    <button onClick={handleTwofaDisable} disabled={twofaBusy}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${twofaBusy ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-red-500 hover:bg-red-600 text-white"}`}>
+                      {twofaBusy ? <Loader size={16} className="animate-spin" /> : <Shield size={16} />}
+                      Désactiver
+                    </button>
+                  </div>
+                </div>
+              ) : twofaSetupData ? (
+                <div className="flex flex-col gap-4">
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy...), puis saisissez le code à 6 chiffres pour confirmer.
+                  </p>
+                  <div className="flex items-center gap-4 flex-col sm:flex-row">
+                    {twofaSetupData.qr_code && (
+                      <img src={twofaSetupData.qr_code} alt="QR code 2FA"
+                        className={`rounded-xl border p-2 ${darkMode ? "bg-white border-gray-700" : "border-gray-200"}`} />
+                    )}
+                    <div className="flex flex-col gap-2">
+                      <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        <QrCode size={14} className="inline mr-1" />
+                        Clé secrète : <span className="font-mono">{twofaSetupData.secret}</span>
+                      </p>
+                      <input value={twofaCode}
+                        onChange={(e) => setTwofaCode(e.target.value.replace(/\D/g, ""))}
+                        maxLength={6}
+                        placeholder="Code à 6 chiffres"
+                        className={inputClass} />
+                      <div className="flex gap-2">
+                        <button onClick={handleTwofaEnable} disabled={twofaBusy}
+                          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${twofaBusy ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+                          {twofaBusy ? <Loader size={16} className="animate-spin" /> : <Shield size={16} />}
+                          Activer
+                        </button>
+                        <button onClick={() => { setTwofaSetupData(null); setTwofaMsg({ type: '', text: '' }); }}
+                          className="text-xs text-gray-400 hover:text-blue-500 underline">
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Ajoutez une couche de sécurité supplémentaire à votre compte. Vous devrez fournir un code à 6 chiffres généré par une application d'authentification lors de chaque connexion.
+                  </p>
+                  <div>
+                    <button onClick={handleTwofaSetup} disabled={twofaBusy}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all ${twofaBusy ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"}`}>
+                      {twofaBusy ? <Loader size={16} className="animate-spin" /> : <Shield size={16} />}
+                      Activer la double authentification
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            </>
           )}
 
           {section === "Confidentialités" && (

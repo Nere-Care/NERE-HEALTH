@@ -334,7 +334,7 @@ function DocumentsSection({ darkMode, patientId }) {
                 {documents.map(doc => {
                   const typeInfo = TYPES_DOCUMENTS.find(t => t.value === doc.type_document);
                   const colorClass = TYPE_COLORS[doc.type_document] || "bg-gray-100 text-gray-600";
-                  const isFromDoctor = Boolean(doc.medecin_uploadeur_id || doc.prescripteur_nom || (doc.uploaded_par && doc.uploaded_par !== patientId));
+                  const isFromDoctor = Boolean(doc.medecin_uploadeur_id || doc.prescripteur_nom);
                   const structName = doc.laboratoire_nom || (isFromDoctor ? (doc.prescripteur_nom ? `Cabinet ${doc.prescripteur_nom}` : 'Cabinet Médical') : '-');
                   const structAddr = doc.adresse_structure || (isFromDoctor ? 'Consultation Médicale' : '-');
 

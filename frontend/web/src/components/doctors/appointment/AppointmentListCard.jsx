@@ -5,9 +5,10 @@ import {
   MapPin,
   PhoneCall,
   MessageSquare,
+  User,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import TeleConsultation from "../../../pages/doctor/TeleConsultation";
+import { getRelativeBeneficiary } from "../../../utils/proche";
 
 export default function AppointmentListCard({
   item,
@@ -19,6 +20,7 @@ export default function AppointmentListCard({
   onNavigatePatient,
 }) {
   const navigate = useNavigate();
+  const procheBeneficiaire = getRelativeBeneficiary(item);
   return (
     <div
       className={`border rounded-2xl p-4 transition-colors duration-300 ${
@@ -51,6 +53,11 @@ export default function AppointmentListCard({
             >
               {item.patientName}
             </p>
+            {procheBeneficiaire && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2 py-0.5 rounded-md mt-0.5">
+                <User size={10} /> Pour : {procheBeneficiaire}
+              </span>
+            )}
 
             <span
               className={`inline-block mt-1 px-3 py-1 rounded-full text-xs ${getStatusStyle(
@@ -173,14 +180,21 @@ export default function AppointmentListCard({
   "
 />
 
-          <span
-            onClick={onNavigatePatient}
-            className={`font-semibold truncate cursor-pointer hover:underline ${
-              darkMode ? "text-white" : "text-gray-900"
-            }`}
-          >
-            {item.patientName}
-          </span>
+          <div className="min-w-0 flex-1">
+            <span
+              onClick={onNavigatePatient}
+              className={`font-semibold truncate block cursor-pointer hover:underline ${
+                darkMode ? "text-white" : "text-gray-900"
+              }`}
+            >
+              {item.patientName}
+            </span>
+            {procheBeneficiaire && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-1.5 py-0.5 rounded mt-0.5 truncate max-w-full">
+                <User size={10} /> Pour: {procheBeneficiaire}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="col-span-1">

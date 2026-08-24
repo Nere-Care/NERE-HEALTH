@@ -21,21 +21,21 @@ import ExperienceInput from "../../components/form/ExperienceInput";
 import RoleCard from "../../components/form/RoleCard";
 
 import LoginStep from "./steps/LoginStep";
+import ForgotPasswordStep from "./steps/ForgotPasswordStep";
+import CheckEmailStep from "./steps/CheckEmailStep";
 import SignupStep1 from "./steps/SignupStep1";
 import SignupStep2 from "./steps/SignupStep2";
 import SignupStep3 from "./steps/SignupStep3";
 
-import {
-  doctorSpecialities,
-  nurseSpecialities,
-  cities,
-} from "../../constants/medicalOptions";
-
 import { register } from "../../services/auth";
+import { post as postApi } from "../../services/apiClient";
 import { validatePhone, phoneError } from "../../utils/validatePhone";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [showForgot, setShowForgot] = useState(false);
+  const [showCheckEmail, setShowCheckEmail] = useState(false);
+  const [checkEmailData, setCheckEmailData] = useState(null);
   const [selectedRole, setSelectedRole] = useState("");
   const [stepTwo, setStepTwo] = useState(false);
   const [stepThree, setStepThree] = useState(false);
@@ -91,7 +91,15 @@ export default function Auth() {
       newErrors.password = "Doit contenir un caractère spécial";
     }
     if (password !== confirmPassword) newErrors.confirmPassword = "Les mots de passe ne correspondent pas";
-    if (telephone && !validatePhone(telephone)) newErrors.telephone = phoneError();
+    if (selectedRole === "doctor" || selectedRole === "nurse") {
+      if (!telephone || !telephone.trim()) {
+        newErrors.telephone = "Téléphone requis";
+      } else if (!validatePhone(telephone)) {
+        newErrors.telephone = phoneError();
+      }
+    } else if (telephone && !validatePhone(telephone)) {
+      newErrors.telephone = phoneError();
+    }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
     setStepTwo(true);
@@ -118,9 +126,10 @@ export default function Auth() {
         date_naissance: dateNaissance || undefined,
         adresse: [ville, district].filter(Boolean).join(', ') || undefined,
       };
-      const user = await register(userData, "patient");
-      saveUser(user);
-      navigate(redirectByRole("patient"));
+      const data = await register(userData, "patient");
+      setCheckEmailData({ email, ...data });
+      setShowCheckEmail(true);
+      setStepTwo(false);
     } catch (err) {
       setErrors({ api: err.message });
     } finally {
@@ -131,28 +140,47 @@ export default function Auth() {
   const handleDoctorNurseSignUp = async () => {
     setLoading(true);
     setErrors({});
-    try {
-      if (!dateNaissance) {
-        setErrors({ dateNaissance: "La date de naissance est requise" });
-        setLoading(false);
-        return;
-      }
+    const newErrors = {};
+
+    if (!hopital || !hopital.trim()) {
+      newErrors.hopital = "Veuillez sélectionner ou ajouter votre structure de santé";
+    }
+    if (!numeroOrdre || !numeroOrdre.trim()) {
+      newErrors.numeroOrdre = "Le numéro d'ordre est requis";
+    }
+    if (experience === undefined || experience === null || experience === "") {
+      newErrors.experience = "Les années d'expérience sont requises";
+    }
+    if (!presentation || presentation.trim().length < 10) {
+      newErrors.presentation = "La présentation de votre parcours est requise (min 10 caractères)";
+    }
+    if (!documentsFiles || documentsFiles.length === 0) {
+      newErrors.documentsFiles = "Veuillez joindre votre pièce d'identité (CNI ou Passeport)";
+    }
+    if (!dateNaissance) {
+      newErrors.dateNaissance = "La date de naissance est requise";
+    } else {
       const birthDate = new Date(dateNaissance);
       if (isNaN(birthDate.getTime())) {
-        setErrors({ dateNaissance: "Date de naissance invalide" });
-        setLoading(false);
-        return;
+        newErrors.dateNaissance = "Date de naissance invalide";
+      } else {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
+        if (age < 21) {
+          newErrors.dateNaissance = "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé";
+        }
       }
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age--;
-      if (age < 21) {
-        setErrors({ dateNaissance: "Vous devez avoir au moins 21 ans pour vous inscrire en tant que professionnel de santé" });
-        setLoading(false);
-        return;
-      }
+    }
 
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setLoading(false);
+      return;
+    }
+
+    try {
       const userData = {
         email,
         password,
@@ -169,36 +197,28 @@ export default function Auth() {
         biographie: presentation || undefined,
         adresse: [ville, district].filter(Boolean).join(', ') || undefined,
       };
-      const user = await register(userData, "medecin");
-      // Upload documents after successful registration
-      if (documentsFiles.length > 0 && user.id) {
-        const token = user.token;
+      const data = await register(userData, "medecin");
+
+      if (data?.id && documentsFiles.length > 0) {
         for (const file of documentsFiles) {
           try {
-            const form = new FormData();
-            form.append("file", file);
-            await fetch(`${import.meta.env.VITE_API_URL}/api/medecins/${user.id}/documents/upload`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-              body: form,
-            });
-          } catch (e) {
-            console.error("Failed to upload document:", file.name, e);
+            const formData = new FormData();
+            formData.append("file", file);
+            await postApi(`/api/medecins/${data.id}/documents/public-upload`, formData);
+          } catch (err) {
+            console.error("Erreur d'upload document lors de l'inscription :", err);
           }
         }
       }
-      saveUser(user);
-      navigate(redirectByRole(selectedRole));
+
+      setCheckEmailData({ email, ...data });
+      setShowCheckEmail(true);
+      setStepThree(false);
+      setStepTwo(false);
     } catch (err) {
       setErrors({ api: err.message });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSignUp = () => {
-    if (selectedRole === "doctor" || selectedRole === "nurse") {
-      setStepThree(true);
     }
   };
 
@@ -212,6 +232,9 @@ export default function Auth() {
 
   const resetToLogin = () => {
     setIsLogin(true);
+    setShowForgot(false);
+    setShowCheckEmail(false);
+    setCheckEmailData(null);
     setStepTwo(false);
     setStepThree(false);
     setSelectedRole("");
@@ -315,11 +338,21 @@ export default function Auth() {
           {/* ================= TITLE ================= */}
           <div className="mb-6 sm:mb-8">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#2F80ED] mb-2">
-              {isLogin ? "Login" : "Create Account"}
+              {showForgot
+                ? "Mot de passe oublié"
+                : showCheckEmail
+                ? "Vérification de l'email"
+                : isLogin
+                ? "Login"
+                : "Create Account"}
             </h2>
 
             <p className="text-gray-500 text-base sm:text-lg">
-              {isLogin
+              {showForgot
+                ? "Réinitialisez votre mot de passe"
+                : showCheckEmail
+                ? "Confirmez votre adresse email"
+                : isLogin
                 ? "Sign in to your account"
                 : stepThree
                 ? "Add more information"
@@ -330,8 +363,16 @@ export default function Auth() {
           {/* DELIMITER */}
           <div className="border-t border-gray-200 mb-6 sm:mb-8"></div>
 
-          {/* ================= LOGIN ================= */}
-          {isLogin ? (
+          {/* ================= FORGOT PASSWORD ================= */}
+          {showForgot ? (
+            <ForgotPasswordStep setShowForgot={setShowForgot} />
+          ) : showCheckEmail ? (
+            <CheckEmailStep
+              email={checkEmailData?.email}
+              devData={checkEmailData}
+              onBackToLogin={resetToLogin}
+            />
+          ) : isLogin ? (
             <>
               <LoginStep
                 email={email}
@@ -344,6 +385,7 @@ export default function Auth() {
                 setIsLogin={setIsLogin}
                 errors={errors}
                 validateForm={validateForm}
+                onForgotPassword={() => setShowForgot(true)}
               />
             </>
           ) : (

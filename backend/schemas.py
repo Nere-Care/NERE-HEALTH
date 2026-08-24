@@ -10,6 +10,8 @@ class Token(BaseModel):
     access_token: str
     refresh_token: Optional[str] = None
     token_type: str
+    requires_2fa: Optional[bool] = False
+    totp_token: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):
@@ -45,6 +47,38 @@ class UserUpdate(BaseModel):
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class VerifyEmailCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr | None = None
+    token: str | None = None
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    code: str
+    totp_token: str
+
+
+class TwoFactorCodeRequest(BaseModel):
+    code: str
 
 
 class PatientRegister(UserCreate):
@@ -90,6 +124,8 @@ class UserRead(UserBase):
     statut: Optional[str] = None
     full_name: Optional[str] = None
     is_active: bool
+    email_verifie: Optional[bool] = None
+    totp_actif: Optional[bool] = None
     timezone: Optional[str] = None
     adresse: Optional[str] = None
     date_naissance: Optional[date] = None
@@ -122,6 +158,7 @@ class PatientBase(BaseModel):
     proche_nom: Optional[str] = None
     proche_prenom: Optional[str] = None
     proche_age: Optional[int] = None
+    proches: Optional[List[dict]] = None
     consentement_donnees: Optional[bool] = False
     date_consentement: Optional[datetime] = None
     consentement_marketing: Optional[bool] = False
@@ -161,6 +198,7 @@ class PatientUpdate(BaseModel):
     proche_nom: Optional[str] = None
     proche_prenom: Optional[str] = None
     proche_age: Optional[int] = None
+    proches: Optional[List[dict]] = None
     consentement_donnees: Optional[bool] = None
     date_consentement: Optional[datetime] = None
     consentement_marketing: Optional[bool] = None
@@ -207,7 +245,7 @@ class ConsultationBase(BaseModel):
     numero_consultation: Optional[str] = None
     rdv_id: UUID
     dossier_id: Optional[UUID] = None
-    medecin_id: UUID
+    medecin_id: Optional[UUID] = None
     patient_id: UUID
     date_heure_debut: Optional[datetime] = None
     date_heure_fin: Optional[datetime] = None
@@ -361,9 +399,11 @@ class PriseMedicamentRead(PriseMedicamentBase):
 
 class PaiementBase(BaseModel):
     reference: str
-    rdv_id: UUID
+    rdv_id: Optional[UUID] = None
+    demande_avis_id: Optional[UUID] = None
     patient_id: UUID
     medecin_id: UUID
+    type_paiement: Optional[str] = "consultation"
     montant_total: Decimal
     devise: Optional[str] = "XAF"
     frais_plateforme: Optional[Decimal] = Decimal("0")
@@ -421,6 +461,7 @@ class RetraitBase(BaseModel):
     devise: Optional[str] = "XAF"
     methode: str  # mtn_momo | orange_money | virement_bancaire
     reference: Optional[str] = None
+    compte: Optional[str] = None
 
 
 class RetraitCreate(BaseModel):
@@ -428,6 +469,7 @@ class RetraitCreate(BaseModel):
     devise: Optional[str] = "XAF"
     methode: str
     reference: Optional[str] = None
+    compte: Optional[str] = None
 
 
 class RetraitRead(RetraitBase):
@@ -525,6 +567,7 @@ class DossierMedicalRead(DossierMedicalBase):
     created_at: datetime
     updated_at: datetime
     acces_restricted: Optional[bool] = None
+    groupe_sanguin: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -651,12 +694,36 @@ class ConversationRead(ConversationBase):
     demande_medecin_cible_nom: Optional[str] = None
     demande_medecin_demandeur_id: Optional[UUID] = None
     demande_medecin_cible_id: Optional[UUID] = None
+    demande_medecin_accepteur_id: Optional[UUID] = None
     demande_dossier_medical_id: Optional[UUID] = None
     demande_consultation_id: Optional[UUID] = None
     demande_motif: Optional[str] = None
     demande_specialite: Optional[str] = None
     demande_patient_nom: Optional[str] = None
+    demande_patient_id: Optional[UUID] = None
     demande_statut: Optional[str] = None
+    demande_montant_facture: Optional[float] = None
+    demande_caution_montant: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class SignalementCreate(BaseModel):
+    conversation_id: UUID
+    motif: str
+    details: Optional[str] = None
+
+
+class SignalementRead(BaseModel):
+    id: UUID
+    conversation_id: UUID
+    signalant_id: UUID
+    signalant_role: str
+    motif: str
+    details: Optional[str] = None
+    statut: str
+    created_at: datetime
+    conversation_signalee_par: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -770,6 +837,7 @@ class MedecinBase(BaseModel):
     nombre_consultations: Optional[int] = 0
     structure_id: Optional[UUID] = None
     disponible_maintenant: Optional[bool] = False
+    solde_portefeuille: Optional[Decimal] = Decimal("0.00")
 
 
 class MedecinCreate(MedecinBase):
@@ -800,12 +868,16 @@ class MedecinUpdate(BaseModel):
     nombre_avis: Optional[int] = None
     nombre_consultations: Optional[int] = None
     structure_id: Optional[UUID] = None
+    solde_portefeuille: Optional[Decimal] = None
     disponible_maintenant: Optional[bool] = None
     specialite: Optional[str] = None
     hopital: Optional[str] = None
     address: Optional[str] = None
     telephone: Optional[str] = None
     email: Optional[str] = None
+    date_naissance: Optional[str] = None
+    prenom: Optional[str] = None
+    nom: Optional[str] = None
 
 
 class MedecinRead(MedecinBase):
@@ -814,6 +886,8 @@ class MedecinRead(MedecinBase):
     email: Optional[str] = None
     telephone: Optional[str] = None
     photo_url: Optional[str] = None
+    date_naissance: Optional[str] = None
+    age: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -830,6 +904,7 @@ class AdminMedecinCreate(BaseModel):
     numero_ordre: Optional[str] = None
     role: Optional[str] = "medecin"
     annees_experience: Optional[int] = 0
+    date_naissance: Optional[str] = None
 
 
 class AdminMedecinRead(BaseModel):
@@ -1040,6 +1115,7 @@ class DemandeAvisMedicalCreate(BaseModel):
     message: Optional[str] = None
     confidentiel: bool = True
     medecin_cible_id: Optional[UUID] = None
+    payeur_type: Optional[str] = "medecin"
 
 
 class DemandeAvisMedicalRead(BaseModel):
@@ -1058,6 +1134,14 @@ class DemandeAvisMedicalRead(BaseModel):
     reponse: Optional[str] = None
     date_reponse: Optional[datetime] = None
     confidentiel: bool
+    medecins_refuses: Optional[str] = "[]"
+    montant_facture: Optional[float] = 0.0
+    caution_montant: Optional[float] = 5000.0
+    montant_commission: Optional[float] = 0.0
+    statut_sequestre: Optional[str] = "sequestre"
+    payeur_type: Optional[str] = None
+    facture_statut: Optional[str] = "gratuit"
+    compte_rendu: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     demandeur_prenom: Optional[str] = None
@@ -1072,6 +1156,12 @@ class DemandeAvisMedicalRead(BaseModel):
     consultation_motif: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class DemandeAvisCloturerRequest(BaseModel):
+    montant: float = 0.0
+    compte_rendu: str
+
 
 
 class DocumentStructureCreate(BaseModel):

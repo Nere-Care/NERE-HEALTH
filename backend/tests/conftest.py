@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 
+# Les tests doivent rester hermétiques : on force le stockage mémoire du rate
+# limiter même si REDIS_URL est défini dans l'environnement de test.
+os.environ['REDIS_URL'] = ''
+
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -15,6 +19,9 @@ from models import User
 ALEMBIC_INI_PATH = Path(__file__).resolve().parents[1] / "alembic.ini"
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "Admin1234!"
+
+
+PREFIX = "/api"
 
 
 @pytest.fixture(scope="session", autouse=True)

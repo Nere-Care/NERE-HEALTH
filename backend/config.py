@@ -84,5 +84,23 @@ class Settings:
 
     GOOGLE_CLIENT_ID: str = os.getenv('GOOGLE_CLIENT_ID', '')
 
+    LIVEKIT_URL: str = os.getenv('LIVEKIT_URL', '').strip().rstrip('/')
+    LIVEKIT_API_KEY: str = os.getenv('LIVEKIT_API_KEY', 'devkey')
+    LIVEKIT_API_SECRET: str = os.getenv('LIVEKIT_API_SECRET', 'nere-dev-secret-0123456789abcdef')
+
+    # ── Email (SMTP) ──────────────────────────────────────────────────────
+    # Non configuré → les emails sont journalisés dans les logs backend et le
+    # lien / code de vérification est renvoyé dans la réponse API (mode dev).
+    SMTP_HOST: str = os.getenv('SMTP_HOST', '').strip()
+    SMTP_PORT: int = int(os.getenv('SMTP_PORT', '587'))
+    SMTP_USER: str = os.getenv('SMTP_USER', '').strip()
+    SMTP_PASSWORD: str = os.getenv('SMTP_PASSWORD', '').strip()
+    SMTP_FROM: str = os.getenv('SMTP_FROM', 'no-reply@nere-health.com').strip()
+    SMTP_FROM_NAME: str = os.getenv('SMTP_FROM_NAME', 'Néré Health').strip()
+    # 'tls' (STARTTLS, port 587) ou 'ssl' (port 465)
+    SMTP_SECURITY: str = os.getenv('SMTP_SECURITY', 'tls').strip().lower()
+    EMAIL_VERIFICATION_EXPIRE_HOURS: float = float(os.getenv('EMAIL_VERIFICATION_EXPIRE_HOURS', '24'))
+    FRONTEND_URL: str = os.getenv('FRONTEND_URL', 'http://localhost:4173').strip().rstrip('/')
+
 
 settings = Settings()

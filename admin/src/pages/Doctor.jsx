@@ -54,6 +54,7 @@ export default function DoctorsPage({ darkMode }) {
     address: "",
     numero_ordre: "",
     annees_experience: "",
+    date_naissance: "",
   });
 
   const [editingId, setEditingId] = useState(null);
@@ -70,6 +71,7 @@ export default function DoctorsPage({ darkMode }) {
       address: doctor.address || "",
       numero_ordre: doctor.numero_ordre || "",
       annees_experience: doctor.annees_experience ?? "",
+      date_naissance: doctor.date_naissance ? doctor.date_naissance.split("T")[0] : "",
     });
     setEditingId(doctor.id);
     setShowAddModal(true);
@@ -165,14 +167,25 @@ export default function DoctorsPage({ darkMode }) {
           numero_ordre: m.numero_ordre || "",
           status: userStatutMap[user?.statut] || statusMap[m.statut_verification] || "En attente",
           userStatut: user?.statut || "actif",
+          email_verifie: user?.email_verifie ?? false,
           documents: m.documents || [],
-          createdAt: m.created_at?.split("T")[0] || "",
+          createdAt: m.created_at || "",
+          createdAtDisplay: m.created_at?.split("T")[0] || "",
           structure_id: m.structure_id,
           annees_experience: m.annees_experience || 0,
+          date_naissance: user?.date_naissance || m.date_naissance || null,
+          age: m.age ?? (user?.date_naissance ? Math.floor((new Date() - new Date(user.date_naissance)) / (365.25 * 24 * 60 * 60 * 1000)) : null),
         };
       });
 
-      setDoctors(enriched);
+      const sorted = [...enriched].sort((a, b) => {
+        const aPending = a.status === "En attente" ? 0 : 1;
+        const bPending = b.status === "En attente" ? 0 : 1;
+        if (aPending !== bPending) return aPending - bPending;
+        return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+      });
+
+      setDoctors(sorted);
     } catch (err) {
       if (isInitial) toast.error("❌ Erreur lors du chargement des médecins");
     } finally {
@@ -282,6 +295,19 @@ export default function DoctorsPage({ darkMode }) {
       return;
     }
 
+    if (formData.date_naissance) {
+      const dob = new Date(formData.date_naissance);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      if (age < 21) {
+        toast("⚠️ Ce professionnel a moins de 21 ans — enregistrement autorisé par l'administrateur", { icon: "⚠️" });
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -292,6 +318,7 @@ export default function DoctorsPage({ darkMode }) {
           hopital: formData.hospital || undefined,
           telephone: formData.phone || undefined,
           email: formData.email || undefined,
+          date_naissance: formData.date_naissance || undefined,
         });
         toast.success("✅ Médecin modifié avec succès");
       } else {
@@ -304,6 +331,7 @@ export default function DoctorsPage({ darkMode }) {
           address: formData.address,
           role: formData.role || "medecin",
           numero_ordre: formData.numero_ordre || undefined,
+          date_naissance: formData.date_naissance || undefined,
         });
 
         const { mot_de_passe_genere, email } = res.data;
@@ -586,6 +614,18 @@ export default function DoctorsPage({ darkMode }) {
     );
   };
 
+  const getEmailBadge = (emailVerifie) => (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${
+        emailVerifie
+          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+          : "bg-red-500/10 text-red-500 border-red-500/20"
+      }`}
+    >
+      {emailVerifie ? "Email confirmé" : "Email non confirmé"}
+    </span>
+  );
+
   return (
     <div
       className={`min-h-screen p-3 sm:p-4 lg:p-6 space-y-5 lg:space-y-6 transition-all ${
@@ -813,13 +853,17 @@ export default function DoctorsPage({ darkMode }) {
                     {d.specialty}
                   </p>
 
-                  <div className="mt-2">
-                    {getStatusBadge(d.status)}
-                  </div>
+                <div className="mt-2">
+                  {getStatusBadge(d.status)}
+                </div>
+
+                <div className="mt-2">
+                  {getEmailBadge(d.email_verifie)}
                 </div>
               </div>
+            </div>
 
-              {/* Infos */}
+            {/* Infos */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-gray-400">
                   <Building2 size={15} />
@@ -916,6 +960,7 @@ export default function DoctorsPage({ darkMode }) {
                   "Spécialité",
                   "Hôpital",
                   "Contact",
+                  "Email",
                   "Documents",
                   "Statut",
                   "Actions",
@@ -989,6 +1034,10 @@ export default function DoctorsPage({ darkMode }) {
 
                         <span>{d.phone}</span>
                       </div>
+                    </td>
+
+                    <td className="p-4">
+                      {getEmailBadge(d.email_verifie)}
                     </td>
 
                     <td className="p-4">

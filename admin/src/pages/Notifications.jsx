@@ -47,7 +47,7 @@ export default function Notifications({ darkMode }) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get("/notifications", { limit: 100 });
+      const res = await API.get("/notifications", { params: { limit: 100 } });
       setNotifications(Array.isArray(res.data) ? res.data : []);
     } catch {
       toast.error("Erreur de chargement des notifications");

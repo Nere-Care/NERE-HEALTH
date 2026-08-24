@@ -16,6 +16,34 @@ services:
       timeout: 5s
       retries: 5
 
+  livekit:
+    image: livekit/livekit-server:v1.13.5
+    restart: unless-stopped
+    command:
+      - "--config"
+      - "/etc/livekit.yaml"
+      - "--node-ip"
+      - "${LIVEKIT_RTC_NODE_IP:-172.20.10.10}"
+      - "--keys"
+      - "${LIVEKIT_API_KEY:-devkey}: ${LIVEKIT_API_SECRET:-nere-dev-secret-0123456789abcdef}"
+    volumes:
+      - ./livekit/livekit.local.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"              # signalisation (ws)
+      - "7881:7881"              # RTC TCP
+      - "7882:7882/udp"          # RTC UDP
+      - "50000-50100:50000-50100/udp"  # flux média
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -23,6 +51,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request, sys; urllib.request.urlopen(\"http://localhost:8000/health\", timeout=5); sys.exit(0)'" ]
@@ -32,15 +62,28 @@ services:
       start_period: 10s
     environment:
       DATABASE_URL: postgresql://nere_user:nere_pass@db:5432/nere_db
+      REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:4173,http://localhost:4174}
       ENVIRONMENT: development
       API_PREFIX: /api
       SECRET_KEY: ${SECRET_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:4173}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@nere-health.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Néré Health}
+      SMTP_SECURITY: ${SMTP_SECURITY:-tls}
+      EMAIL_VERIFICATION_EXPIRE_HOURS: ${EMAIL_VERIFICATION_EXPIRE_HOURS:-0.25}
+      LIVEKIT_URL: ${LIVEKIT_URL:-ws://172.20.10.10:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-devkey}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-nere-dev-secret-0123456789abcdef}
     ports:
       - "8100:8000"
     volumes:
+      - ./backend:/app
       - backend_uploads:/app/uploads
 
   frontend:
@@ -48,7 +91,7 @@ services:
       context: ./frontend/web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8100}
+        VITE_API_URL: ""
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
@@ -66,7 +109,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8100}
+        VITE_API_URL: ""
     restart: unless-stopped
     depends_on:
       - backend

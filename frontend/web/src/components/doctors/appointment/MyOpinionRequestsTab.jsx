@@ -103,7 +103,7 @@ export default function MyOpinionRequestsTab({ darkMode, requests }) {
                     </p>
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                       <h3 className={"font-bold text-sm sm:text-base break-words " + (darkMode ? "text-white" : "text-gray-800")}>
-                        Dr. {req.doctorName}
+                        {req.doctorName ? `Dr. ${req.doctorName}` : "Demande diffusee"}
                       </h3>
                       {req.doctorSpeciality && (
                         <span className={"text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap " + (darkMode ? "bg-gray-700 text-gray-300" : "bg-gray-100 text-gray-600")}>

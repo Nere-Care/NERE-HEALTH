@@ -8,6 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import API from "../services/api";
+import { connectNotifStream, disconnectNotifStream, onNotification } from "../services/notifStream";
 
 export default function Header({
   titre = "Administration Panel",
@@ -20,7 +21,7 @@ export default function Header({
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const res = await API.get("/notifications", { statut: "envoye", limit: 100 });
+      const res = await API.get("/notifications", { params: { limit: 100 } });
       const list = Array.isArray(res.data) ? res.data : [];
       setUnreadCount(list.filter((n) => n.statut !== "lu").length);
     } catch {
@@ -32,6 +33,17 @@ export default function Header({
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
+  }, [fetchUnreadCount]);
+
+  useEffect(() => {
+    connectNotifStream();
+    const unsubscribe = onNotification(() => {
+      fetchUnreadCount();
+    });
+    return () => {
+      unsubscribe();
+      disconnectNotifStream();
+    };
   }, [fetchUnreadCount]);
 
   return (

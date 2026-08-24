@@ -1,21 +1,117 @@
 import random
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import func, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from auth import get_current_active_user, get_password_hash, require_role
 from access_control import check_dossier_access, get_dossier_access_level
 from db import get_db
-from models import DossierMedical, Patient, User
+from models import Consultation, DossierMedical, Patient, RendezVous, User, Paiement
 from schemas import PatientCreate, PatientRead, PatientUpdate
 from validators import validate_phone
 
 router = APIRouter(tags=["patients"])
+
+_DEFAULT_TZ = "Africa/Douala"
+
+_ANTECEDENT_COLS = [
+    DossierMedical.antecedents_familiaux,
+    DossierMedical.antecedents_personnels,
+    DossierMedical.antecedents_chirurgicaux,
+    DossierMedical.antecedents_allergiques,
+    DossierMedical.antecedents_gyneco,
+]
+
+
+def _patient_ids_with_antecedents(db: Session) -> List[str]:
+    from sqlalchemy import or_
+    stmt = (
+        db.query(DossierMedical.patient_id)
+        .filter(or_(*[col.isnot(None) & (col != "") for col in _ANTECEDENT_COLS]))
+        .distinct()
+    )
+    return [str(row[0]) for row in stmt.all()]
+
+
+def _jour_utc_bornes(tz_name: str = _DEFAULT_TZ):
+    local_tz = ZoneInfo(tz_name)
+    now_local = datetime.now(local_tz)
+    debut_local = datetime(now_local.year, now_local.month, now_local.day, tzinfo=local_tz)
+    fin_local = debut_local + timedelta(days=1)
+    return debut_local.astimezone(timezone.utc), fin_local.astimezone(timezone.utc)
+
+
+@router.get("/patients/stats")
+async def patients_stats(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_role("admin")),
+):
+    rows = (
+        db.query(Patient.id, User.statut, User.last_login, Patient.groupe_sanguin)
+        .join(User, Patient.id == User.id)
+        .all()
+    )
+    patient_ids = [str(r.id) for r in rows]
+    total = len(patient_ids)
+
+    actifs = [str(r.id) for r in rows if r.statut == "actif"]
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    recents = [str(r.id) for r in rows if r.last_login and r.last_login >= cutoff]
+
+    a_surveiller_ids = set(_patient_ids_with_antecedents(db))
+    a_surveiller = [pid for pid in patient_ids if pid in a_surveiller_ids]
+
+    dossiers = {str(d.patient_id): d for d in db.query(DossierMedical).all()}
+    dossiers_incomplets = []
+    for r in rows:
+        pid = str(r.id)
+        dossier = dossiers.get(pid)
+        if dossier is None:
+            dossiers_incomplets.append(pid)
+            continue
+        has_vitals = dossier.taille_cm is not None and dossier.poids_kg is not None
+        has_antecedents = any(
+            getattr(dossier, col.name) for col in _ANTECEDENT_COLS
+        )
+        groupe_connu = r.groupe_sanguin not in (None, "Inconnu", "")
+        if not has_vitals or not has_antecedents or not groupe_connu:
+            dossiers_incomplets.append(pid)
+
+    debut_utc, fin_utc = _jour_utc_bornes()
+    cons_ids = set(
+        str(row[0])
+        for row in db.query(Consultation.patient_id)
+        .filter(
+            Consultation.date_heure_debut >= debut_utc,
+            Consultation.date_heure_debut < fin_utc,
+        )
+        .all()
+    )
+    consultations_aujourdhui = [pid for pid in patient_ids if pid in cons_ids]
+
+    return {
+        "total": total,
+        "actifs": len(actifs),
+        "recents": len(recents),
+        "a_surveiller": len(a_surveiller),
+        "dossiers_incomplets": len(dossiers_incomplets),
+        "consultations_aujourdhui": len(consultations_aujourdhui),
+        "actifs_patient_ids": actifs,
+        "recents_patient_ids": recents,
+        "a_surveiller_patient_ids": a_surveiller,
+        "dossiers_incomplets_patient_ids": dossiers_incomplets,
+        "consultations_aujourdhui_patient_ids": consultations_aujourdhui,
+    }
 
 
 @router.get("/patients/critiques")
@@ -23,20 +119,7 @@ async def list_patients_critiques(
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),
 ):
-    from sqlalchemy import or_
-    antecedent_cols = [
-        DossierMedical.antecedents_familiaux,
-        DossierMedical.antecedents_personnels,
-        DossierMedical.antecedents_chirurgicaux,
-        DossierMedical.antecedents_allergiques,
-        DossierMedical.antecedents_gyneco,
-    ]
-    stmt = (
-        db.query(DossierMedical.patient_id)
-        .filter(or_(*[col.isnot(None) & (col != "") for col in antecedent_cols]))
-        .distinct()
-    )
-    patient_ids = [str(row[0]) for row in stmt.all()]
+    patient_ids = _patient_ids_with_antecedents(db)
     return {"count": len(patient_ids), "patient_ids": patient_ids}
 
 
@@ -65,6 +148,7 @@ class DoctorCreatePatientResponse(BaseModel):
 async def read_patients(
     limit: int = Query(20, gt=0, le=200),
     search: Optional[str] = None,
+    mine: bool = False,
     db: Session = Depends(get_db),
     current_user=Depends(require_role("admin", "medecin")),
 ):
@@ -72,6 +156,16 @@ async def read_patients(
         db.query(Patient, User)
         .join(User, Patient.id == User.id)
     )
+
+    if mine and current_user.role == "medecin":
+        patient_ids_subq = union_all(
+            select(RendezVous.patient_id).where(RendezVous.medecin_id == current_user.id),
+            select(Consultation.patient_id).where(Consultation.medecin_id == current_user.id),
+            select(DossierMedical.patient_id).where(DossierMedical.medecin_traitant_id == current_user.id),
+            select(Paiement.patient_id).where(Paiement.medecin_id == str(current_user.id)),
+        ).subquery()
+        stmt = stmt.filter(Patient.id.in_(select(patient_ids_subq.c.patient_id)))
+
     if search:
         q = f"%{search}%"
         stmt = stmt.filter(
@@ -225,6 +319,8 @@ async def read_patient(
         if dossier:
             read.taille_cm = float(dossier.taille_cm) if dossier.taille_cm else None
             read.poids_kg = float(dossier.poids_kg) if dossier.poids_kg else None
+    if not read.proches and (read.proche_nom or read.proche_prenom):
+        read.proches = [{"nom": read.proche_nom or "", "prenom": read.proche_prenom or "", "age": read.proche_age}]
     return read
 
 
@@ -251,6 +347,21 @@ async def update_patient(
             dossier_fields[field] = value
             continue
         setattr(patient, field, value)
+
+    if patient_update.proches is not None:
+        patient.proches = list(patient_update.proches)
+        flag_modified(patient, "proches")
+    elif patient_update.proche_nom or patient_update.proche_prenom:
+        new_pr = {
+            "nom": patient_update.proche_nom or patient.proche_nom or "",
+            "prenom": patient_update.proche_prenom or patient.proche_prenom or "",
+            "age": patient_update.proche_age if patient_update.proche_age is not None else patient.proche_age,
+        }
+        existing = list(patient.proches or [])
+        if not any(p.get("nom") == new_pr["nom"] and p.get("prenom") == new_pr["prenom"] for p in existing):
+            existing.append(new_pr)
+        patient.proches = list(existing)
+        flag_modified(patient, "proches")
 
     user = db.get(User, patient_id)
     if user:

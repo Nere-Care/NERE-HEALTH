@@ -115,17 +115,25 @@ async def list_structures(
         .group_by(AvisStructure.structure_id)
         .subquery()
     )
+    prof_sub = (
+        select(Medecin.structure_id, func.count(Medecin.id).label("nb"))
+        .where(Medecin.structure_id.isnot(None))
+        .group_by(Medecin.structure_id)
+        .subquery()
+    )
     stmt = (
-        select(Structure, rating_sub.c.moyenne, rating_sub.c.total)
+        select(Structure, rating_sub.c.moyenne, rating_sub.c.total, func.coalesce(prof_sub.c.nb, 0))
         .outerjoin(rating_sub, Structure.id == rating_sub.c.structure_id)
+        .outerjoin(prof_sub, Structure.id == prof_sub.c.structure_id)
         .limit(limit)
     )
     rows = db.execute(stmt).all()
     results = []
-    for struct, moyenne, total in rows:
+    for struct, moyenne, total, nb in rows:
         data = StructureRead.model_validate(struct)
         data.note_moyenne = round(float(moyenne), 1) if moyenne else None
         data.total_avis = total or 0
+        data.nombre_professionnels = nb or 0
         results.append(data)
     return results
 
@@ -190,6 +198,14 @@ async def read_structure(
     structure = db.get(Structure, structure_id)
     if not structure:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Structure non trouvée")
+    nb = (
+        db.query(func.count())
+        .select_from(Medecin)
+        .filter(Medecin.structure_id == structure_id)
+        .scalar()
+        or 0
+    )
+    structure.nombre_professionnels = nb
     return structure
 
 

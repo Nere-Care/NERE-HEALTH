@@ -11,6 +11,8 @@ import Header from "./components/header";
 /* LAZY LOADED PAGES */
 /* AUTH */
 const Auth = lazy(() => import("./pages/Auth/Auth"));
+const VerifyEmail = lazy(() => import("./pages/Auth/VerifyEmail"));
+const ResetPassword = lazy(() => import("./pages/Auth/ResetPassword"));
 
 /* PATIENT */
 const DashboardPatient = lazy(() => import("./pages/patient/dashboard"));
@@ -111,7 +113,7 @@ function AppLayout({ darkMode, setDarkMode, collapsed, setCollapsed, role }) {
           className={
             isChatPage
               ? "flex flex-col flex-1 min-h-0 overflow-hidden"
-              : "flex flex-col flex-1 min-h-0 overflow-auto px-4 md:px-6 pb-4 md:pb-6 pt-24 md:pt-28"
+              : "flex flex-col flex-1 min-h-0 overflow-auto overflow-x-hidden px-4 md:px-6 pb-4 md:pb-6 pt-24 md:pt-28"
           }
         >
           <Suspense fallback={<GlobalLoader />}>
@@ -205,6 +207,8 @@ function App() {
           <Routes>
             {/* LOGIN */}
             <Route path="/" element={<Auth />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* ALL OTHER PAGES */}
             <Route

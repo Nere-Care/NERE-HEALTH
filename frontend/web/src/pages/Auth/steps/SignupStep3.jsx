@@ -164,20 +164,24 @@ export default function SignupStep3({
             error={errors.numeroOrdre}
           />
 
-          <ExperienceInput
-            value={experience}
-            setValue={setExperience}
-          />
+          <div>
+            <ExperienceInput
+              value={experience}
+              setValue={setExperience}
+            />
+            {errors.experience && <p className="text-red-500 text-xs mt-1 ml-2">{errors.experience}</p>}
+          </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Présentation</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Présentation *</label>
             <textarea
               placeholder="Parlez de votre parcours, vos spécialités, votre approche..."
               value={presentation}
               onChange={(e) => setPresentation(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:border-[#2F80ED] focus:ring-2 focus:ring-blue-100 outline-none text-gray-700 placeholder:text-gray-400 resize-none transition-all"
+              className={`w-full px-4 py-3 rounded-2xl border ${errors.presentation ? 'border-red-400' : 'border-gray-200'} bg-white shadow-sm focus:border-[#2F80ED] focus:ring-2 focus:ring-blue-100 outline-none text-gray-700 placeholder:text-gray-400 resize-none transition-all`}
             />
+            {errors.presentation && <p className="text-red-500 text-xs mt-1 ml-2">{errors.presentation}</p>}
           </div>
 
           {(errors.api || errors.dateNaissance) && (
@@ -187,20 +191,20 @@ export default function SignupStep3({
           {/* ================= UPLOAD ================= */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-3">
-              Degree and certification (Pdf, Jpg, PNG)
+              Pièce d'identité (CNI / Passeport) *
             </p>
 
-            <div className="border-2 border-dashed border-blue-300 bg-blue-50 rounded-2xl p-8 text-center">
+            <div className={`border-2 border-dashed ${errors.documentsFiles ? 'border-red-400 bg-red-50' : 'border-blue-300 bg-blue-50'} rounded-2xl p-8 text-center`}>
 
-              <FileText className="w-20 h-20 mx-auto text-blue-300 mb-4" />
+              <FileText className={`w-20 h-20 mx-auto mb-4 ${errors.documentsFiles ? 'text-red-300' : 'text-blue-300'}`} />
 
               <label className="inline-block bg-[#2F80ED] hover:bg-[#044EC8] transition text-white px-10 py-3 rounded-xl cursor-pointer font-medium shadow-md">
-                Choose File
+                Parcourir les fichiers
                 <input type="file" hidden multiple onChange={handleFileChange} />
               </label>
 
-              <p className="text-sm text-gray-500 mt-4">
-                Upload your certifications and professional documents
+              <p className="text-sm text-gray-600 mt-4 font-medium">
+                Veuillez joindre votre pièce d'identité (CNI ou Passeport)
               </p>
               {documentsFiles.length > 0 && (
                 <div className="mt-3 text-left">
@@ -214,9 +218,13 @@ export default function SignupStep3({
               )}
             </div>
 
-            <p className="text-sm text-[#B97A2B] mt-3">
-              The file must be readable and authentic
-            </p>
+            {errors.documentsFiles ? (
+              <p className="text-red-500 text-xs mt-2 ml-2 font-medium">{errors.documentsFiles}</p>
+            ) : (
+              <p className="text-sm text-[#B97A2B] mt-3">
+                Les documents fournis doivent être lisibles et authentiques pour la validation de votre profil.
+              </p>
+            )}
           </div>
         </div>
 

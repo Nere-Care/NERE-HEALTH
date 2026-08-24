@@ -20,11 +20,11 @@ import Tickets from "./pages/Tickets";
 import Notifications from "./pages/Notifications";
 import MiseAJour from "./pages/MiseAJour";
 import Actualite from "./pages/Actualite";
-import { getAdminToken } from "./services/auth";
+import Signalements from "./pages/Signalements";
+import { isAdminAuthenticated } from "./services/auth";
 
 function ProtectedRoute({ children }) {
-  const token = getAdminToken();
-  if (!token) {
+  if (!isAdminAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
   return children;
@@ -79,6 +79,7 @@ export default function App() {
                       <Route path="/notifications" element={<Notifications darkMode={darkMode} />} />
                       <Route path="/mises-a-jour" element={<MiseAJour darkMode={darkMode} />} />
                       <Route path="/actualites" element={<Actualite darkMode={darkMode} />} />
+                      <Route path="/signalements" element={<Signalements darkMode={darkMode} />} />
                     </Routes>
                   </main>
                 </div>

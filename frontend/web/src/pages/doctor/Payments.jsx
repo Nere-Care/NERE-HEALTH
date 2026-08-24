@@ -21,6 +21,7 @@ import { get, post, put } from "../../services/apiClient";
 import { getUserTimezone } from "../../utils/timezone";
 import { formatCurrency, toXAF } from "../../utils/currency";
 import { getStoredUser } from "../../services/auth";
+import { generateDoctorConsultationReceiptPDF, generateSequestreReceiptPDF } from "../../utils/receiptGenerator";
 
 const METHOD_LABELS = {
   mtn_momo: "MTN MoMo",
@@ -52,20 +53,53 @@ const STATUS_LABELS = {
   expire: "Expired",
 };
 
-function transformPaiement(p, patientCodeMap) {
+const RDV_TYPE_LABELS = {
+  presentiel: "Présentiel",
+  video: "Visio",
+  audio: "Audio",
+  chat: "Chat",
+};
+const TYPE_PAIEMENT_LABELS = {
+  consultation: "Consultation",
+  sequestre_avis: "🔒 Séquestre avis médical",
+  honoraires_avis: "💼 Honoraires avis médical",
+  remboursement_sequestre: "↩️ Remboursement séquestre",
+};
+
+function transformPaiement(p, patientInfoMap, rdvMap) {
+  const info = patientInfoMap?.[p.patient_id] || {};
+  const rdv = rdvMap?.[p.rdv_id] || {};
+  const typLabel = TYPE_PAIEMENT_LABELS[p.type_paiement] || null;
+  const isSequestre = p.type_paiement === "sequestre_avis";
+  const isHonoraires = p.type_paiement === "honoraires_avis";
+  const isRemb = p.type_paiement === "remboursement_sequestre";
+  const fraisPlateforme = Number(p.frais_plateforme || 0);
+  const montantTotal = Number(p.montant_total || 0);
+  const montantMedecin = Number(p.montant_medecin || 0);
   return {
     id: p.id,
     matricule: p.reference,
-    patient: (patientCodeMap[p.patient_id] || `Patient ${String(p.patient_id).slice(0, 8)}`),
+    patient: info.name || "Patient",
+    patientCode: info.code || "",
     patient_id: p.patient_id,
     medecin_id: p.medecin_id,
-    service: METHOD_LABELS[p.methode] || p.fournisseur || "Consultation",
-    amount: `${Number(p.montant_medecin || p.montant_total).toLocaleString()} ${p.devise || "XAF"}`,
-    amountRaw: Number(p.montant_medecin || p.montant_total),
+    service: typLabel || RDV_TYPE_LABELS[rdv.type] || "Consultation",
+    type_paiement: p.type_paiement || "consultation",
+    isSequestre,
+    isHonoraires,
+    isRemb,
+    demande_avis_id: p.demande_avis_id || null,
+    amount: isSequestre
+      ? `${Number(p.montant_total).toLocaleString()} ${p.devise || "XAF"}`
+      : `${Number(p.montant_medecin || p.montant_total).toLocaleString()} ${p.devise || "XAF"}`,
+    amountRaw: isSequestre ? Number(p.montant_total) : Number(p.montant_medecin || p.montant_total),
     devise: p.devise || "XAF",
+    montant_total: montantTotal,
+    montant_medecin: montantMedecin,
+    frais_plateforme: fraisPlateforme,
     method: METHOD_LABELS[p.methode] || p.methode || "-",
     date: p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() }) : "-",
-    status: STATUS_LABELS[p.statut] || p.statut || "Pending",
+    status: isSequestre ? "Retenu" : (isRemb ? "Refunded" : (STATUS_LABELS[p.statut] || p.statut || "Pending")),
     raw_status: p.statut,
     receipt: null,
   };
@@ -86,28 +120,45 @@ export default function Payments({ darkMode }) {
   const [loadingPayments, setLoadingPayments] = useState(true);
   const [devise, setDevise] = useState("XAF");
   const [soldeNumerique, setSoldeNumerique] = useState(0);
+  const [doctorName, setDoctorName] = useState("");
 
   const fetchPayments = useCallback(async () => {
     setLoadingPayments(true);
     try {
       const stored = getStoredUser();
-      const [data, patientsData, medecinData, soldeData, retraitsData, methodesData] = await Promise.all([
+      const [data, patientsData, medecinData, soldeData, retraitsData, methodesData, rdvData] = await Promise.all([
         get("/api/paiements", { limit: 200 }),
         get("/api/patients", { limit: 200 }),
         stored?.id ? get(`/api/medecins/${stored.id}`) : Promise.resolve(null),
         stored?.id ? get("/api/retraits/solde") : Promise.resolve(null),
         stored?.id ? get("/api/retraits", { limit: 200 }) : Promise.resolve([]),
         stored?.id ? get(`/api/medecins/${stored.id}/methodes-retrait`).catch(() => null) : Promise.resolve(null),
+        get("/api/rendez_vous", { limit: 200 }),
       ]);
+
+      const name = [medecinData?.prenom, medecinData?.nom].filter(Boolean).join(" ").trim() ||
+                   [stored?.prenom, stored?.nom].filter(Boolean).join(" ").trim() || "Dr. Médecin";
+      setDoctorName(name);
+
       const devise = medecinData?.devise || "XAF";
       setDevise(devise);
 
       const fetchedMethods = methodesData?.methodes || [];
       setConfiguredMethods(fetchedMethods);
 
-      const patientCodeMap = {};
-      for (const p of (patientsData || [])) patientCodeMap[p.id] = p.code_patient || "";
-      const list = (data || []).map((p) => transformPaiement(p, patientCodeMap));
+      const patientInfoMap = {};
+      for (const p of (patientsData || [])) {
+        const name = [p.prenom, p.nom].filter(Boolean).join(" ").trim();
+        patientInfoMap[p.id] = {
+          name: name || null,
+          code: p.code_patient || "",
+        };
+      }
+      const rdvMap = {};
+      for (const r of (rdvData || [])) {
+        rdvMap[r.id] = { type: r.type };
+      }
+      const list = (data || []).map((p) => transformPaiement(p, patientInfoMap, rdvMap));
       setPatientPayments(list);
       setDoctorPayments(list);
       setRetraits(retraitsData || []);
@@ -118,10 +169,12 @@ export default function Payments({ darkMode }) {
       const aRetirerDevise = soldeData?.a_retirer_devise ?? (devise === "EUR" ? Math.round((aRetirer / 656) * 100) / 100 : aRetirer);
 
       setSoldeNumerique(aRetirerDevise);
+      const sequestreEnCours = Number(soldeData?.sequestre_en_cours || 0);
       setPaymentStats([
         { id: 1, title: "Total gagné", amount: formatCurrency(totalGagne, devise) },
-        { id: 2, title: "Déjà retiré", amount: formatCurrency(dejaRetire, devise) },
-        { id: 3, title: "À retirer", amount: formatCurrency(aRetirer, devise) },
+        { id: 2, title: "Séquestre en cours", amount: formatCurrency(sequestreEnCours, devise) },
+        { id: 3, title: "Déjà retiré", amount: formatCurrency(dejaRetire, devise) },
+        { id: 4, title: "À retirer", amount: formatCurrency(aRetirer, devise) },
       ]);
     } catch (err) {
       console.error("Erreur chargement paiements:", err);
@@ -174,6 +227,7 @@ export default function Payments({ darkMode }) {
         montant: amount,
         devise: devise || "XAF",
         methode: method.type === "momo" ? "mtn_momo" : method.type === "orange" ? "orange_money" : "virement_bancaire",
+        compte: method.accountNumber || method.accountName || null,
       });
       showToast(`Demande de retrait de ${amount.toLocaleString()} ${devise || "XAF"} envoyée`);
       setShowWithdraw(false);
@@ -183,11 +237,12 @@ export default function Payments({ darkMode }) {
     }
   };
 
-  const handleDownload = (url) => {
-    if (url) {
-      window.open(url, "_blank");
+  const handleDownload = (payment) => {
+    if (!payment) return;
+    if (payment.type_paiement === "sequestre_avis") {
+      generateSequestreReceiptPDF(payment, doctorName);
     } else {
-      showToast("Aucun reçu disponible", "error");
+      generateDoctorConsultationReceiptPDF(payment, doctorName);
     }
   };
 
@@ -308,7 +363,7 @@ export default function Payments({ darkMode }) {
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => handleDownload(selected.receipt)}
+                onClick={() => handleDownload(selected)}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition min-h-[48px] flex items-center justify-center gap-2"
               >
                 <Download size={16} />
@@ -436,13 +491,13 @@ export default function Payments({ darkMode }) {
         {/* CONTENT */}
         <div className="w-full overflow-hidden">
           {showHistory ? (
-            <DoctorPaymentsHistory payments={doctorPayments} retraits={retraits} darkMode={darkMode} />
+            <DoctorPaymentsHistory payments={doctorPayments} retraits={retraits} darkMode={darkMode} doctorName={doctorName} configuredMethods={configuredMethods} />
           ) : (
             <PatientsPaymentsTable
               payments={patientPayments}
               darkMode={darkMode}
               onViewDetails={setSelected}
-              onDownloadReceipt={handleDownload}
+              doctorName={doctorName}
             />
           )}
         </div>

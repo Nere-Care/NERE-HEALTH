@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Megaphone, ChevronRight, X, Link } from "lucide-react";
 import { get } from "../../../services/apiClient";
+import { getUserTimezone } from "../../../utils/timezone";
 
 export default function NewsPanel({ darkMode }) {
   const [items, setItems] = useState([]);
@@ -50,7 +51,7 @@ export default function NewsPanel({ darkMode }) {
                 <p className={`text-sm font-semibold truncate ${darkMode ? "text-white" : "text-gray-800"}`}>{item.titre}</p>
                 <p className={`text-xs mt-0.5 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{item.contenu}</p>
                 <p className={`text-[10px] mt-1 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                  {new Date(item.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                  {new Date(item.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: getUserTimezone() })}
                 </p>
               </div>
               <ChevronRight size={16} className={`mt-1 flex-shrink-0 ${darkMode ? "text-gray-500" : "text-gray-400"}`} />
@@ -76,7 +77,7 @@ export default function NewsPanel({ darkMode }) {
             </div>
             <div className="p-5">
               <p className={`text-xs mb-4 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                {new Date(selected.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                {new Date(selected.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: getUserTimezone() })}
               </p>
               <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{selected.contenu}</p>
               {selected.lien && (

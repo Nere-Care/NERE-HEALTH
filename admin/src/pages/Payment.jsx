@@ -87,41 +87,56 @@ export default function PaymentsPage({ darkMode }) {
     const fetchPayments = async () => {
       try {
         setLoading(true);
-        const [paiRes, usersRes, patientsRes, medecinsRes, retraitsRes] = await Promise.all([
+        const [paiRes, usersRes, patientsRes, medecinsRes, retraitsRes, demandesRes] = await Promise.all([
           API.get("/paiements"),
           API.get("/users"),
           API.get("/patients"),
           API.get("/medecins"),
           API.get("/admin/retraits"),
+          API.get("/demandes-avis").catch(() => ({ data: [] })),
         ]);
         const items = Array.isArray(paiRes.data) ? paiRes.data : paiRes.data?.data ?? [];
         const users = Array.isArray(usersRes.data) ? usersRes.data : usersRes.data?.data ?? [];
         const patients = Array.isArray(patientsRes.data) ? patientsRes.data : patientsRes.data?.data ?? [];
         const medecins = Array.isArray(medecinsRes.data) ? medecinsRes.data : medecinsRes.data?.data ?? [];
+        const demandes = Array.isArray(demandesRes.data) ? demandesRes.data : demandesRes.data?.data ?? [];
         const userMap = {};
         for (const u of users) userMap[u.id] = u;
         const patientCodeMap = {};
         for (const p of patients) patientCodeMap[p.id] = p.code_patient || "";
         const medecinCodeMap = {};
         for (const m of medecins) medecinCodeMap[m.id] = m.code_medecin || "";
+        const demandeMap = {};
+        for (const d of demandes) demandeMap[d.id] = d;
         const mapped = items.map((item) => {
           const pat = userMap[item.patient_id];
           const med = userMap[item.medecin_id];
+          const isSequestre = item.type_paiement === "sequestre_avis";
+          const isRemboursement = item.type_paiement === "remboursement_sequestre";
+          const isHonoraires = item.type_paiement === "honoraires_avis";
+          const displayStatus = isSequestre ? "Retenu" : isRemboursement ? "Remboursé" : (STATUS_MAP[item.statut] ?? item.statut ?? "En attente");
+          const displayAmount = isSequestre ? Number(item.montant_total) || 0 : Number(item.montant_medecin) || Number(item.montant_total) || 0;
+          const demande = item.demande_avis_id ? demandeMap[item.demande_avis_id] : null;
+          const demandeur = demande && userMap[demande.medecin_demandeur_id]
+            ? `Dr. ${userMap[demande.medecin_demandeur_id].prenom || ""} ${userMap[demande.medecin_demandeur_id].nom || ""}`.trim()
+            : "";
           return {
             id: item.id,
             patientId: (patientCodeMap[item.patient_id] || item.patient_id) ?? "",
             medecinId: (medecinCodeMap[item.medecin_id] || item.medecin_id) ?? "",
             patient: pat ? `${pat.prenom || ""} ${pat.nom || ""}`.trim() : "",
             professional: med ? `Dr. ${med.prenom || ""} ${med.nom || ""}`.trim() : "",
+            demandeur,
             rdvId: item.rdv_id ?? "",
-            amount: Number(item.montant_medecin) || Number(item.montant_total) || 0,
+            amount: displayAmount,
             method: (METHOD_LABELS[item.methode] || item.methode) ?? "",
             methodKey: item.methode ?? "",
             provider: item.fournisseur ?? "",
             reference: item.reference ?? "",
             referenceFournisseur: item.reference_fournisseur ?? "",
             statut: item.statut ?? "",
-            status: STATUS_MAP[item.statut] ?? item.statut ?? "En attente",
+            status: displayStatus,
+            type_paiement: item.type_paiement || "",
             date: item.created_at ?? "",
             fraisPlateforme: Number(item.frais_plateforme) || 0,
             montantMedecin: Number(item.montant_medecin) || 0,
@@ -189,16 +204,23 @@ export default function PaymentsPage({ darkMode }) {
   }, [retraits]);
 
   /* ================= RETRAITS FILTER ================= */
+  function getRetraitRef(r) {
+    if (r.reference) return r.reference;
+    const idPart = (r.id || "").replace(/-/g, "").slice(0, 12).toUpperCase();
+    return `TRF-RET-${idPart}`;
+  }
+
   const filteredRetraits = useMemo(() => {
     return retraits.filter((r) => {
       const q = retraitSearch.toLowerCase();
+      const ref = getRetraitRef(r).toLowerCase();
       const matchSearch =
         !q ||
         (r.medecinNom || "").toLowerCase().includes(q) ||
         (r.medecinEmail || "").toLowerCase().includes(q) ||
         (r.medecinTelephone || "").toLowerCase().includes(q) ||
         (r.methode || "").toLowerCase().includes(q) ||
-        (r.reference || "").toLowerCase().includes(q) ||
+        ref.includes(q) ||
         (r.medecinCode || "").toLowerCase().includes(q) ||
         (r.id || "").toLowerCase().includes(q);
       const matchStatus = retraitStatusFilter === "Tous" ||
@@ -346,6 +368,8 @@ export default function PaymentsPage({ darkMode }) {
   const getStatusBadge = (status) => {
     const styles = {
       "Payé": "bg-green-500/10 text-green-500 border-green-500/20",
+      "Retenu": "bg-amber-500/10 text-amber-500 border-amber-500/20",
+      "Remboursé": "bg-blue-500/10 text-blue-500 border-blue-500/20",
       "En attente": "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
       "Échoué": "bg-red-500/10 text-red-500 border-red-500/20",
     };
@@ -617,18 +641,16 @@ export default function PaymentsPage({ darkMode }) {
                         <Clock size={12} className="flex-shrink-0 text-purple-400" />
                         <span>{r.created_at ? new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}</span>
                       </div>
-                      {r.reference && (
-                        <div className="flex items-center gap-2">
-                          <Hash size={12} className="flex-shrink-0 text-purple-400" />
-                          <span className="font-mono">{r.reference}</span>
-                        </div>
-                      )}
                       {r.medecinCode && (
                         <div className="flex items-center gap-2">
                           <Hash size={12} className="flex-shrink-0 text-purple-400" />
                           <span className="font-mono">{r.medecinCode}</span>
                         </div>
                       )}
+                      <div className="flex items-center gap-2">
+                        <Hash size={12} className="flex-shrink-0 text-purple-400" />
+                        <span className="font-mono">{getRetraitRef(r)}</span>
+                      </div>
                     </div>
                     {/* Actions */}
                     <div className="flex gap-2 pt-1">
@@ -688,7 +710,7 @@ export default function PaymentsPage({ darkMode }) {
                         <span className="flex items-center gap-1"><User size={10} /> {r.medecinNom || "—"}</span>
                         {r.medecinCode && <span className="flex items-center gap-1 font-mono"><Hash size={10} /> {r.medecinCode}</span>}
                         <span className="flex items-center gap-1"><Phone size={10} /> {r.medecinTelephone || "—"}</span>
-                        {r.reference && <span className="flex items-center gap-1 font-mono"><Hash size={10} /> {r.reference}</span>}
+                        <span className="flex items-center gap-1 font-mono"><Hash size={10} /> {getRetraitRef(r)}</span>
                         {r.motif_rejet && <span className="text-red-400 italic">Motif: {r.motif_rejet}</span>}
                         <span className="flex items-center gap-1"><Clock size={10} /> {r.created_at ? new Date(r.created_at).toLocaleDateString("fr-FR") : ""}</span>
                       </div>
@@ -726,7 +748,7 @@ export default function PaymentsPage({ darkMode }) {
 
             {/* Filter buttons */}
             <div className="flex flex-wrap gap-2">
-              {["Tous", "Payé", "En attente", "Échoué", "Annulé"].map((status) => (
+              {["Tous", "Payé", "Retenu", "Remboursé", "En attente", "Échoué", "Annulé"].map((status) => (
                 <button
                   key={status}
                   onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
@@ -1103,19 +1125,31 @@ function PaymentDetailsModal({
           </div>
 
           {/* RDV Info */}
-          <Section title="Rendez-vous" icon={FileText} darkMode={darkMode}>
+          <Section title={payment.type_paiement === "sequestre_avis" ? "Séquestre avis médical" : payment.type_paiement === "honoraires_avis" ? "Honoraires avis médical" : payment.type_paiement === "remboursement_sequestre" ? "Remboursement séquestre" : "Rendez-vous"} icon={FileText} darkMode={darkMode}>
+            {payment.type_paiement && payment.type_paiement !== "consultation" && (
+              <DetailRow label="Type" value={payment.status === "Retenu" ? "Séquestre avis médical" : payment.status === "Remboursé" ? "Remboursement séquestre" : "Honoraires avis médical"} darkMode={darkMode} />
+            )}
+            {payment.demandeur && (
+              <div className={`flex items-start gap-2 py-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+                <User size={14} className="mt-0.5 shrink-0 opacity-50" />
+                <div className="min-w-0">
+                  <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Médecin demandeur</span>
+                  <p className="text-sm font-semibold truncate">{payment.demandeur}</p>
+                </div>
+              </div>
+            )}
             <div className={`flex items-start gap-2 py-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
               <User size={14} className="mt-0.5 shrink-0 opacity-50" />
               <div className="min-w-0">
-                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Patient</span>
+                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{payment.type_paiement === "sequestre_avis" || payment.type_paiement === "remboursement_sequestre" ? "Patient" : "Patient"}</span>
                 <p className="text-sm font-semibold truncate">{payment.patient || "—"}</p>
               </div>
             </div>
             <div className={`flex items-start gap-2 py-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
               <div className={`w-[14px] h-[14px] mt-0.5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold ${darkMode ? "bg-gray-600 text-gray-300" : "bg-gray-200 text-gray-500"}`}>M</div>
               <div className="min-w-0">
-                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>Médecin</span>
-                <p className="text-sm font-semibold truncate">{payment.professional || "—"}</p>
+                <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>{payment.type_paiement === "sequestre_avis" ? "Plateforme (séquestre)" : payment.type_paiement === "honoraires_avis" ? "Médecin expert" : "Médecin"}</span>
+                <p className="text-sm font-semibold truncate">{payment.type_paiement === "sequestre_avis" ? "Néré Health" : payment.professional || "—"}</p>
               </div>
             </div>
           </Section>

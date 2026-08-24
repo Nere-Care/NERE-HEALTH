@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Send, Loader, Clock, Paperclip, AlertCircle } from "lucide-react";
 import { get, post } from "../../services/apiClient";
+import { getUserTimezone } from "../../utils/timezone";
 
 export default function DemandeAvisModal({ darkMode, onClose }) {
   const [specialites, setSpecialites] = useState([]);
@@ -36,7 +37,7 @@ export default function DemandeAvisModal({ darkMode, onClose }) {
   useEffect(() => {
     Promise.all([
       get("/api/specialites").catch(() => []),
-      get("/api/patients").catch(() => []),
+      get("/api/patients", { mine: true, limit: 200 }).catch(() => []),
     ]).then(([specs, pats]) => {
       setSpecialites(specs);
       setPatients(pats);
@@ -209,7 +210,7 @@ export default function DemandeAvisModal({ darkMode, onClose }) {
                   <option value="">— Aucune consultation —</option>
                   {consultations.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.numero_consultation || c.id?.slice(0, 8)} — {new Date(c.created_at).toLocaleDateString("fr-FR")}
+                      {c.numero_consultation || c.id?.slice(0, 8)} — {new Date(c.created_at).toLocaleDateString("fr-FR", { timeZone: getUserTimezone() })}
                     </option>
                   ))}
                 </select>

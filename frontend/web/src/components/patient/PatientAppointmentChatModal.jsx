@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Send, Lock, MessageSquare, AlertCircle } from "lucide-react";
 import { get, post } from "../../services/apiClient";
 import { getStoredUser } from "../../services/auth";
+import { getUserTimezone } from "../../utils/timezone";
 
 function decodeMsg(data) {
   try {
@@ -161,6 +162,7 @@ export default function PatientAppointmentChatModal({
                       {new Date(msg.created_at).toLocaleTimeString("fr-FR", {
                         hour: "2-digit",
                         minute: "2-digit",
+                        timeZone: getUserTimezone(),
                       })}
                     </span>
                   </div>

@@ -26,13 +26,25 @@ function mapPatient(p, userMap) {
     groupe: p.groupe_sanguin || "Inconnu",
     assurance: p.couverture_assurance || "Aucune",
     medecin: "—",
-    statut: user.statut === "actif" ? "Actif" : user.statut === "suspendu" ? "Suspendu" : user.statut === "banni" ? "Banni" : user.statut === "inactif" ? "Inactif" : "Actif",
+    statut: user.statut === "actif" ? "Actif" : user.statut === "suspendu" ? "Suspendu" : user.statut === "banni" ? "Banni" : user.statut === "inactif" ? "Inactif" : user.statut === "en_attente" ? "En attente" : "Actif",
     userStatut: user.statut || "actif",
     email: user.email || "",
+    email_verifie: user.email_verifie ?? false,
     adresse: user.adresse || p.ville || "—",
     antecedents: p.antecedents_medicaux || "Aucun",
-    derniereConnexion: "—",
+    derniereConnexion: user.last_login ? formatLastLogin(user.last_login) : "Jamais",
   };
+}
+
+function formatLastLogin(lastLogin) {
+  if (!lastLogin) return "Jamais";
+  const date = new Date(lastLogin);
+  const now = new Date();
+  const diffDays = Math.floor((now - date) / 86400000);
+  if (diffDays < 1) return "Aujourd'hui";
+  if (diffDays < 2) return "Hier";
+  if (diffDays < 7) return `Il y a ${diffDays} jours`;
+  return date.toLocaleDateString("fr-FR");
 }
 
 export default function PatientsPage({ darkMode }) {
@@ -41,6 +53,19 @@ export default function PatientsPage({ darkMode }) {
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState([]);
   const [critiqueIds, setCritiqueIds] = useState(new Set());
+  const [stats, setStats] = useState({
+    total: 0,
+    actifs: 0,
+    recents: 0,
+    a_surveiller: 0,
+    dossiers_incomplets: 0,
+    consultations_aujourdhui: 0,
+    actifs_patient_ids: [],
+    recents_patient_ids: [],
+    a_surveiller_patient_ids: [],
+    dossiers_incomplets_patient_ids: [],
+    consultations_aujourdhui_patient_ids: [],
+  });
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -50,7 +75,7 @@ export default function PatientsPage({ darkMode }) {
   const [patientToDelete, setPatientToDelete] = useState(null);
 
   const [filters, setFilters] = useState({
-    nom: "", telephone: "", sexe: "", groupe: "", statut: "",
+    nom: "", telephone: "", sexe: "", groupe: "", statut: "", categorie: "",
   });
 
   useEffect(() => {
@@ -60,15 +85,24 @@ export default function PatientsPage({ darkMode }) {
   async function fetchData() {
     setLoading(true);
     try {
-      const [patientsRes, usersRes, consultationsRes, critiquesRes] = await Promise.allSettled([
+      const [patientsRes, usersRes, consultationsRes, critiquesRes, statsRes] = await Promise.allSettled([
         API.get("/patients?limit=200"),
         API.get("/users"),
         API.get("/consultations?limit=20"),
         API.get("/patients/critiques"),
+        API.get("/patients/stats"),
       ]);
 
       const pList = patientsRes.status === "fulfilled" ? patientsRes.value.data : [];
       const uList = usersRes.status === "fulfilled" ? usersRes.value.data : [];
+
+      if (statsRes.status === "fulfilled" && statsRes.value.data) {
+        setStats(statsRes.value.data);
+      }
+
+      pList.sort((a, b) =>
+        String(b.created_at || "").localeCompare(String(a.created_at || ""))
+      );
 
       setPatients(pList);
       setUsers(uList);
@@ -120,6 +154,45 @@ export default function PatientsPage({ darkMode }) {
     [patients, userMap, critiqueIds]
   );
 
+  const patientStatusCounts = useMemo(() => {
+    const counts = { actif: 0, en_attente: 0, inactif: 0, suspendu: 0, banni: 0 };
+    enrichedPatients.forEach((p) => {
+      const s = p.userStatut;
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return counts;
+  }, [enrichedPatients]);
+
+  const categorieFlagsById = useMemo(() => {
+    const map = {};
+    const setFlag = (ids, flag) => {
+      (ids || []).forEach((id) => {
+        map[id] = map[id] || {};
+        map[id][flag] = true;
+      });
+    };
+    setFlag(stats.consultations_aujourdhui_patient_ids, "consulte");
+    setFlag(stats.recents_patient_ids, "recent");
+    setFlag(stats.a_surveiller_patient_ids, "surveiller");
+    setFlag(stats.dossiers_incomplets_patient_ids, "incomplet");
+    return map;
+  }, [stats]);
+
+  const CATEGORIE_FILTERS = {
+    "Dossiers incomplets": "incomplet",
+    "À surveiller": "surveiller",
+    "Récents (7 jours)": "recent",
+    "Consultés aujourd'hui": "consulte",
+  };
+
+  const STATUT_LABEL_TO_RAW = {
+    "Actif": "actif",
+    "Inactif": "inactif",
+    "En attente": "en_attente",
+    "Suspendu": "suspendu",
+    "Banni": "banni",
+  };
+
   const filteredPatients = useMemo(() => {
     return enrichedPatients.filter((patient) => {
       const q = filters.nom.toLowerCase();
@@ -127,10 +200,12 @@ export default function PatientsPage({ darkMode }) {
       const matchTelephone = patient.telephone.includes(filters.telephone);
       const matchSexe = !filters.sexe || patient.sexe === filters.sexe;
       const matchGroupe = !filters.groupe || patient.groupe === filters.groupe;
-      const matchStatut = !filters.statut || patient.statut === filters.statut;
-      return matchNom && matchTelephone && matchSexe && matchGroupe && matchStatut;
+      const matchStatut = !filters.statut || patient.userStatut === STATUT_LABEL_TO_RAW[filters.statut];
+      const flag = CATEGORIE_FILTERS[filters.categorie];
+      const matchCategorie = !filters.categorie || (categorieFlagsById[patient.id] || {})[flag] === true;
+      return matchNom && matchTelephone && matchSexe && matchGroupe && matchStatut && matchCategorie;
     });
-  }, [enrichedPatients, filters]);
+  }, [enrichedPatients, filters, categorieFlagsById]);
 
   const handleAddPatient = useCallback(async (newPatient) => {
     try {
@@ -273,7 +348,7 @@ export default function PatientsPage({ darkMode }) {
         </button>
       </div>
 
-      <PatientsStats darkMode={darkMode} patients={filteredPatients} />
+      <PatientsStats darkMode={darkMode} patients={filteredPatients} stats={stats} />
       <PatientsFilters darkMode={darkMode} filters={filters} setFilters={setFilters} />
       <PatientsTable
         patients={filteredPatients}
@@ -288,7 +363,7 @@ export default function PatientsPage({ darkMode }) {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2">
-          <PatientsAnalytics darkMode={darkMode} patients={filteredPatients} />
+          <PatientsAnalytics darkMode={darkMode} patients={filteredPatients} stats={stats} statusCounts={patientStatusCounts} />
         </div>
         <PatientsActivity darkMode={darkMode} activities={activities} />
       </div>

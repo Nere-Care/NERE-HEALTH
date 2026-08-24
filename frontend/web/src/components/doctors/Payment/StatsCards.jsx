@@ -1,14 +1,15 @@
-import { Wallet, CreditCard, Landmark, TrendingUp, TrendingDown } from "lucide-react";
+import { Wallet, CreditCard, Landmark, TrendingUp, TrendingDown, Lock } from "lucide-react";
 
 export default function StatsCards({ stats, darkMode }) {
   const icons = {
-    "Total gagné": { Icon: Wallet, color: "text-green-500", bg: "bg-green-100", darkBg: "bg-green-900/30" },
+    "Total gagné": { Icon: TrendingUp, color: "text-green-500", bg: "bg-green-100", darkBg: "bg-green-900/30" },
+    "Séquestre en cours": { Icon: Lock, color: "text-amber-500", bg: "bg-amber-100", darkBg: "bg-amber-900/30" },
     "Déjà retiré": { Icon: CreditCard, color: "text-blue-500", bg: "bg-blue-100", darkBg: "bg-blue-900/30" },
     "À retirer": { Icon: Landmark, color: "text-purple-500", bg: "bg-purple-100", darkBg: "bg-purple-900/30" },
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {stats.map((stat) => {
         const config = icons[stat.title] || icons["À retirer"];
         const Icon = config.Icon;

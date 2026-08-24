@@ -1,20 +1,21 @@
-import { getToken } from './auth'
+const defaultBaseUrl = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:8100`
+  : 'http://localhost:8100';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8100'
+const API_BASE_URL = import.meta.env.VITE_API_URL || defaultBaseUrl;
 
 export { API_BASE_URL }
 
 async function request(url, options = {}) {
-  const token = getToken()
   const isFormData = options.body instanceof FormData;
   const headers = {
     ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   }
 
   const response = await fetch(`${API_BASE_URL}${url}`, {
     ...options,
+    credentials: 'include',
     headers,
   })
 

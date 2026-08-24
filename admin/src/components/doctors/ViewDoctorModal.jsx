@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   X, Building2, Phone, Mail, MapPin, FileText, CheckCircle, XCircle,
   Edit2, Trash2, Eye, Ban, PauseCircle, PlayCircle, Briefcase,
-  Award, GraduationCap, Clock, CheckSquare, AlertCircle, ChevronDown, ChevronUp, DollarSign,
+  Award, GraduationCap, Clock, CheckSquare, AlertCircle, ChevronDown, ChevronUp, DollarSign, Calendar,
 } from "lucide-react";
 import { API_BASE_URL } from "../../services/api";
 
@@ -273,6 +273,12 @@ export default function ViewDoctorModal({
               icon={Briefcase}
               label="Années d'expérience"
               value={doctor.annees_experience ? doctor.annees_experience + " an(s)" : null}
+              darkMode={darkMode}
+            />
+            <InfoItem
+              icon={Calendar}
+              label="Âge / Date de naissance"
+              value={doctor.age ? `${doctor.age} ans (${doctor.date_naissance ? doctor.date_naissance.split('T')[0] : ''})` : doctor.date_naissance ? doctor.date_naissance.split('T')[0] : null}
               darkMode={darkMode}
             />
           </div>

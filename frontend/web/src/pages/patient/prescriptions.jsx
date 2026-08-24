@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, Loader, Plus, Trash2, X, RefreshCw } from "lucide-react";
+import { Search, FileText, Loader, Plus, Trash2, X, RefreshCw, User } from "lucide-react";
 import { get, post } from "../../services/apiClient";
 import { getUserTimezone } from "../../utils/timezone";
 import { getStoredUser } from "../../services/auth";
+import { getRelativeBeneficiary } from "../../utils/proche";
 import { FORMES } from "../../constants/medicalOptions";
 import PosologieBuilder from "../../components/PosologieBuilder";
 import MedicamentSearch from "../../components/MedicamentSearch";
@@ -13,6 +14,7 @@ export default function Prescriptions({ darkMode }) {
   const user = getStoredUser();
   const [ordonnances, setOrdonnances] = useState([]);
   const [progressions, setProgressions] = useState({});
+  const [rdvMap, setRdvMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
 
@@ -63,6 +65,9 @@ export default function Prescriptions({ darkMode }) {
 
       const cons = Array.isArray(cs) ? cs : [];
       const rdvList = Array.isArray(rdvs) ? rdvs : [];
+      const mapOfRdvs = {};
+      rdvList.forEach(r => { mapOfRdvs[r.id] = r; });
+      setRdvMap(mapOfRdvs);
       setConsultations(cons);
 
       const doctorIds = new Set();
@@ -476,6 +481,15 @@ export default function Prescriptions({ darkMode }) {
                 <p className={`text-xs mt-0.5 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
                   {o.medecin_nom_libre || ''}
                 </p>
+                {(() => {
+                  const pb = (o.rdv_id && rdvMap[o.rdv_id] && getRelativeBeneficiary(rdvMap[o.rdv_id])) ||
+                    (o.instructions_speciales && o.instructions_speciales.startsWith("[Pour ") ? o.instructions_speciales.match(/^\[Pour\s+([^\]]+)\]/i)?.[1]?.trim() : null);
+                  return pb ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-300 px-2 py-0.5 rounded-md mt-1">
+                      <User size={10} /> Pour le proche : {pb}
+                    </span>
+                  ) : null;
+                })()}
                 <p className="text-xs mt-0.5">
                   {o.date_emission ? new Date(o.date_emission).toLocaleDateString('fr-FR', { timeZone: getUserTimezone() }) : ''}
                   {o.statut_traitement === "EN_COURS" && <span className="ml-2 text-red-500 font-semibold">En cours</span>}

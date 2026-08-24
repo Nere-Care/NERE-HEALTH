@@ -107,7 +107,7 @@ export default function DetailNotification({ darkMode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <Loader className="animate-spin text-blue-500" size={32} />
       </div>
     );
@@ -121,13 +121,13 @@ export default function DetailNotification({ darkMode }) {
   const typeLabel = isDemandeAcces ? "Demande d'accès" : (TYPE_LABELS[notif.type] || notif.type || 'Notification');
 
   return (
-    <div className={`min-h-screen p-6 ${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
+    <div className={`${darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-800"}`}>
       <button onClick={() => navigate(-1)}
         className={`flex items-center gap-2 mb-6 text-sm font-medium transition-all ${darkMode ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-blue-500"}`}>
         <ArrowLeft size={18} /> Retour
       </button>
 
-      <div className={`rounded-3xl shadow-lg p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+      <div className={`rounded-3xl shadow-lg p-6 min-w-0 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <div className="flex items-start gap-4 mb-6">
           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${couleur}`}>
             {isDemandeAcces ? <Shield size={26} /> : <Bell size={26} />}
@@ -266,7 +266,7 @@ export default function DetailNotification({ darkMode }) {
           </div>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
           {notif.type === 'nouveaux_avis' && notif.reference_externe && (
             <button
               onClick={() => navigate(`/medecin/${notif.reference_externe}`)}

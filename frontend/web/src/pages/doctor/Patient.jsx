@@ -137,7 +137,9 @@ export default function Patients({ darkMode }) {
       setLoading(true);
       try {
         const rdvs = await get("/api/rendez_vous?limit=200");
-        const patientIds = [...new Set(rdvs.map((r) => r.patient_id).filter(Boolean))];
+        const allowedRdvStatuses = new Set(["confirme", "en_cours", "termine"]);
+        const rdvsValidated = rdvs.filter(r => allowedRdvStatuses.has(r.statut));
+        const patientIds = [...new Set(rdvsValidated.map((r) => r.patient_id).filter(Boolean))];
 
         const patientResults = await Promise.all(
           patientIds.map((pid) =>
@@ -333,7 +335,7 @@ export default function Patients({ darkMode }) {
       setConsultationsMap(cMap);
 
         const rMap = {};
-        rdvs.forEach((r) => {
+        rdvsValidated.forEach((r) => {
           if (!r.patient_id) return;
           if (!rMap[r.patient_id]) rMap[r.patient_id] = [];
           rMap[r.patient_id].push(r);
@@ -352,7 +354,9 @@ export default function Patients({ darkMode }) {
   const refreshPatients = useCallback(async () => {
     try {
       const rdvs = await get("/api/rendez_vous?limit=200");
-      const patientIds = [...new Set(rdvs.map((r) => r.patient_id).filter(Boolean))];
+      const allowedRdvStatuses = new Set(["confirme", "en_cours", "termine"]);
+      const rdvsValidated = rdvs.filter(r => allowedRdvStatuses.has(r.statut));
+      const patientIds = [...new Set(rdvsValidated.map((r) => r.patient_id).filter(Boolean))];
       const patientResults = await Promise.all(
         patientIds.map((pid) => get(`/api/patients/${pid}`).catch(() => null))
       );
@@ -475,7 +479,7 @@ export default function Patients({ darkMode }) {
       setPatients(mapped);
       setConsultationsMap(cMap);
       const rMap = {};
-      rdvs.forEach((r) => {
+      rdvsValidated.forEach((r) => {
         if (!r.patient_id) return;
         if (!rMap[r.patient_id]) rMap[r.patient_id] = [];
         rMap[r.patient_id].push(r);

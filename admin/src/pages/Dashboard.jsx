@@ -111,10 +111,16 @@ export default function Dashboard({ darkMode }) {
 
       // Paiements
       const paiements = getData(results[6]);
-      const pendingPaiements = paiements.filter((p) => p.statut === "en_attente_validation" || p.statut === "initie");
+      const pendingPaiements = paiements.filter((p) =>
+        (p.statut === "en_attente_validation" || p.statut === "initie") &&
+        p.type_paiement !== "sequestre_avis" && p.type_paiement !== "remboursement_sequestre"
+      );
       setPaiementsPending(pendingPaiements);
 
-      const confirmedPayments = paiements.filter((p) => p.statut === "confirme" || p.statut === "valide_manuellement");
+      const confirmedPayments = paiements.filter((p) =>
+        (p.statut === "confirme" || p.statut === "valide_manuellement") &&
+        p.type_paiement !== "sequestre_avis" && p.type_paiement !== "remboursement_sequestre"
+      );
       const totalRev = confirmedPayments.reduce((acc, p) => {
         const val = toXAF(Number(p.montant_medecin) || Number(p.montant_total) || 0, p.devise);
         return acc + (isNaN(val) ? 0 : val);

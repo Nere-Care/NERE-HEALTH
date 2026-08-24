@@ -1,10 +1,26 @@
+const DEFAULT_TZ = "Africa/Douala";
+
+function getAccountTimezone() {
+  try {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user && user.timezone) return user.timezone;
+    }
+  } catch {
+    // ignore
+  }
+  return DEFAULT_TZ;
+}
+
 export function getUserTimezone() {
   try {
-    const u = JSON.parse(localStorage.getItem("user"));
-    return u?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (deviceTimezone) return deviceTimezone;
+  } catch (e) {
+    // ignore
   }
+  return getAccountTimezone();
 }
 
 export function slotToUTCISO(dateStr, timeStr, tzName) {
@@ -22,4 +38,14 @@ export function slotToUTCISO(dateStr, timeStr, tzName) {
   const offsetMs = new Date(inTZ) - new Date(inUTC);
 
   return new Date(refUTC.getTime() - offsetMs).toISOString();
+}
+
+export function slotWallTimeInTZ(dateStr, timeStr, fromTz, toTz) {
+  if (!dateStr || !timeStr) return timeStr;
+  const instant = slotToUTCISO(dateStr, timeStr, fromTz);
+  return new Date(instant).toLocaleTimeString("fr-FR", {
+    timeZone: toTz,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

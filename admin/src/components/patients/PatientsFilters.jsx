@@ -10,7 +10,7 @@ export default function PatientsFilters({ darkMode, filters, setFilters }) {
   }`;
 
   return (
-    <div className={`rounded-2xl p-5 border grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 ${
+    <div className={`rounded-2xl p-5 border grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 ${
       darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-gray-200"
     }`}>
       <input type="text" name="nom" value={filters.nom} onChange={handleChange} placeholder=" Nom, code patient..." className={inputClass} />
@@ -34,9 +34,19 @@ export default function PatientsFilters({ darkMode, filters, setFilters }) {
         <option value="Actif">Actif</option>
         <option value="Inactif">Inactif</option>
         <option value="En attente">En attente</option>
+        <option value="Suspendu">Suspendu</option>
+        <option value="Banni">Banni</option>
       </select>
 
-      <button onClick={() => setFilters({ nom: "", telephone: "", sexe: "", groupe: "", statut: "" })}
+      <select name="categorie" value={filters.categorie} onChange={handleChange} className={inputClass}>
+        <option value="">Catégorie de dossier</option>
+        <option value="Dossiers incomplets">Dossiers incomplets</option>
+        <option value="À surveiller">À surveiller</option>
+        <option value="Récents (7 jours)">Récents (7 jours)</option>
+        <option value="Consultés aujourd'hui">Consultés aujourd'hui</option>
+      </select>
+
+      <button onClick={() => setFilters({ nom: "", telephone: "", sexe: "", groupe: "", statut: "", categorie: "" })}
         className="bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-semibold transition shadow">
          Réinitialiser
       </button>

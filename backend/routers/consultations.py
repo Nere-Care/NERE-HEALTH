@@ -75,12 +75,23 @@ async def create_consultation(
     if current_user.role == "medecin":
         payload["medecin_id"] = current_user.id
 
+    if not payload.get("medecin_id"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Médecin introuvable")
+
     if not payload.get("numero_consultation"):
         payload["numero_consultation"] = f"CONS-{secrets.token_hex(4).upper()}"
 
     if not payload.get("dossier_id"):
         dossier = db.query(DossierMedical).filter(DossierMedical.patient_id == consultation_create.patient_id).first()
         if dossier:
+            payload["dossier_id"] = dossier.id
+        else:
+            dossier = DossierMedical(
+                numero_dossier=f"DOS-{secrets.token_hex(4).upper()}",
+                patient_id=consultation_create.patient_id,
+            )
+            db.add(dossier)
+            db.flush()
             payload["dossier_id"] = dossier.id
 
     consultation = Consultation(**payload)

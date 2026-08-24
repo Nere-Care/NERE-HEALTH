@@ -1,19 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Video, PhoneOff, Mic, MicOff, VideoOff,
-  MessageSquare, Monitor, Send, Clock, Wifi, X,
+  Monitor, Clock, Wifi, MessageSquare, Send,
 } from "lucide-react";
 import { getStoredUser } from "../../services/auth";
+import { useLivekit } from "../../hooks/useLivekit";
 
 export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose }) {
   const currentUser = getStoredUser();
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
+  const remoteContainerRef = useRef(null);
+  const localContainerRef = useRef(null);
   const [duree, setDuree] = useState(0);
-  const [messages, setMessages] = useState([
-    { id: 1, senderId: "other", texte: `Bonjour, je suis ${medecinName}. Comment puis-je vous aider ?`, heure: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) },
-  ]);
   const [newMessage, setNewMessage] = useState("");
+
+  const displayName = currentUser ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() : "Patient";
+  const livekit = useLivekit({
+    rdvId: rdv?.id,
+    displayName,
+    remoteContainerRef,
+    localContainerRef,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setDuree((d) => d + 1), 1000);
@@ -29,16 +35,13 @@ export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose 
 
   const envoyerMessage = () => {
     if (!newMessage.trim()) return;
-    setMessages([
-      ...messages,
-      {
-        id: Date.now(),
-        senderId: currentUser?.id,
-        texte: newMessage,
-        heure: new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
-      },
-    ]);
+    livekit.sendMessage(newMessage);
     setNewMessage("");
+  };
+
+  const quitter = () => {
+    livekit.disconnect();
+    onClose();
   };
 
   return (
@@ -77,7 +80,7 @@ export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose 
             <span className={`text-xs ${darkMode ? "text-gray-300" : "text-gray-600"}`}>Excellent</span>
           </div>
           <button
-            onClick={onClose}
+            onClick={quitter}
             className="flex items-center gap-2 bg-red-600 text-white px-3 py-2 rounded-xl text-sm hover:bg-red-700 transition"
           >
             <PhoneOff className="w-4 h-4" />
@@ -91,18 +94,38 @@ export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose 
 
         {/* VIDEO AREA */}
         <div className="flex-1 flex flex-col gap-4">
-          <div className="flex-1 bg-black rounded-2xl relative min-h-[300px] overflow-hidden flex items-center justify-center">
-            {camOn ? (
-              <div className="text-center text-white space-y-2 px-3">
-                <Video className="w-10 h-10 mx-auto opacity-70" />
-                <p className="text-xs sm:text-sm text-gray-300">Flux vidéo actif</p>
-              </div>
-            ) : (
-              <div className="text-center text-white space-y-2 px-3">
-                <VideoOff className="w-10 h-10 mx-auto opacity-70" />
-                <p className="text-xs sm:text-sm text-gray-300">Caméra désactivée</p>
+          <div className="flex-1 bg-black rounded-2xl relative min-h-[300px] overflow-hidden">
+            <div ref={remoteContainerRef} className="absolute inset-0" />
+
+            {livekit.status === "error" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3 px-6">
+                <VideoOff className="w-12 h-12 opacity-60" />
+                <p className="text-sm sm:text-base">
+                  Impossible de se connecter à la visioconférence.
+                </p>
+                <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  Le serveur LiveKit doit être démarré (VITE_LIVEKIT_URL / LIVEKIT_URL).
+                </p>
               </div>
             )}
+
+            {livekit.status === "connecting" && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3">
+                <div className="w-8 h-8 border-4 border-white/40 border-t-white rounded-full animate-spin" />
+                <p className="text-xs sm:text-sm text-gray-300">Connexion à la visioconférence...</p>
+              </div>
+            )}
+
+            {livekit.status === "connected" && !livekit.remoteActive && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white space-y-3 px-6">
+                <Video className="w-12 h-12 opacity-60" />
+                <p className="text-xs sm:text-sm text-gray-300">En attente du médecin...</p>
+              </div>
+            )}
+
+            {/* Aperçu local */}
+            <div ref={localContainerRef}
+              className="absolute top-3 right-3 w-32 sm:w-40 aspect-video rounded-lg overflow-hidden border-2 border-white/40 bg-black/40 shadow-lg z-10" />
 
             {/* STATUS */}
             <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] sm:text-xs px-3 py-1 rounded-lg flex items-center gap-2">
@@ -111,31 +134,32 @@ export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose 
             </div>
 
             {/* CONTROLS */}
-            <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 bg-black/60 p-2 rounded-full backdrop-blur">
+            <div className="absolute bottom-3 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2 sm:gap-3 bg-black/60 p-2 rounded-full backdrop-blur z-10">
               <button
-                onClick={() => setMicOn(!micOn)}
-                className={`p-2 sm:p-3 rounded-full transition ${micOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                title={micOn ? "Couper le micro" : "Activer le micro"}
+                onClick={livekit.toggleMic}
+                className={`p-2 sm:p-3 rounded-full transition ${livekit.micOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
+                title={livekit.micOn ? "Couper le micro" : "Activer le micro"}
               >
-                {micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                {livekit.micOn ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
               <button
-                onClick={() => setCamOn(!camOn)}
-                className={`p-2 sm:p-3 rounded-full transition ${camOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
-                title={camOn ? "Couper la caméra" : "Activer la caméra"}
+                onClick={livekit.toggleCam}
+                className={`p-2 sm:p-3 rounded-full transition ${livekit.camOn ? "bg-white text-black" : "bg-red-500 text-white"}`}
+                title={livekit.camOn ? "Couper la caméra" : "Activer la caméra"}
               >
-                {camOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
+                {livekit.camOn ? <Video className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
               <button
-                className="p-2 sm:p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition"
-                title="Partager l'écran"
+                onClick={livekit.toggleScreenShare}
+                className={`p-2 sm:p-3 rounded-full transition ${livekit.screenSharing ? "bg-blue-500 text-white" : "bg-white/20 text-white hover:bg-white/30"}`}
+                title={livekit.screenSharing ? "Arrêter le partage d'écran" : "Partager l'écran"}
               >
                 <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
 
-          {/* CHAT */}
+          {/* Chat temps réel */}
           <div className={`rounded-2xl overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"} shadow-sm`}>
             <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? "border-gray-700" : "border-gray-100"}`}>
               <h3 className={`font-semibold text-sm flex items-center gap-2 ${darkMode ? "text-white" : "text-gray-800"}`}>
@@ -143,23 +167,23 @@ export default function PatientCallScreen({ darkMode, rdv, medecinName, onClose 
                 Chat avec le médecin
               </h3>
               <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                {messages.length} message{messages.length > 1 ? "s" : ""}
+                {livekit.messages.length} message{livekit.messages.length > 1 ? "s" : ""}
               </span>
             </div>
 
             <div className="h-40 overflow-y-auto p-3 space-y-2">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.senderId === currentUser?.id ? "justify-end" : "justify-start"}`}
-                >
+              {livekit.messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === displayName ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm
-                    ${msg.senderId === currentUser?.id
+                    ${msg.sender === displayName
                       ? "bg-blue-500 text-white"
                       : darkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-800"}`}>
+                    {msg.sender && msg.sender !== displayName && (
+                      <p className={`text-[10px] font-bold mb-0.5 ${darkMode ? "text-gray-300" : "text-gray-500"}`}>{msg.sender}</p>
+                    )}
                     <p>{msg.texte}</p>
-                    <p className={`text-[10px] mt-1 text-right ${msg.senderId === currentUser?.id ? "text-blue-100" : "text-gray-400"}`}>
-                      {msg.heure}
+                    <p className={`text-[10px] mt-1 text-right ${msg.sender === displayName ? "text-blue-100" : "text-gray-400"}`}>
+                      {new Date(msg.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                 </div>

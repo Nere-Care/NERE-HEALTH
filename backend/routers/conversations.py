@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from auth import get_current_active_user, require_role
+from auth import get_current_active_user
 from db import get_db
 from models import (
     Conversation,
@@ -65,6 +65,11 @@ async def list_conversations(
     if statut:
         stmt = stmt.where(Conversation.statut == statut)
 
+    if current_user.role != "admin":
+        stmt = stmt.where(
+            (Conversation.supprime_par.is_(None)) | (Conversation.supprime_par != current_user.id)
+        )
+
     conversations = db.execute(stmt.order_by(Conversation.updated_at.desc()).limit(limit)).scalars().all()
 
     results = []
@@ -80,16 +85,22 @@ async def list_conversations(
         demande_medecin_cible_nom = None
         demande_medecin_demandeur_id = None
         demande_medecin_cible_id = None
+        demande_medecin_accepteur_id = None
         demande_dossier_medical_id = None
         demande_consultation_id = None
         demande_motif = None
         demande_specialite = None
         demande_patient_nom = None
         demande_statut = None
+        demande_montant_facture = None
+        demande_caution_montant = None
         if conv.demande_avis_id:
             demande = db.get(DemandeAvisMedical, conv.demande_avis_id)
             if demande:
-                other_id = demande.medecin_demandeur_id if demande.medecin_cible_id == current_user.id else demande.medecin_cible_id
+                if demande.medecin_demandeur_id == current_user.id:
+                    other_id = demande.medecin_cible_id or demande.medecin_accepteur_id
+                else:
+                    other_id = demande.medecin_demandeur_id
                 other_user = db.get(User, other_id)
                 if other_user:
                     other_medecin_nom = f"{other_user.prenom or ''} {other_user.nom or ''}".strip()
@@ -104,10 +115,13 @@ async def list_conversations(
 
                 demande_medecin_demandeur_id = demande.medecin_demandeur_id
                 demande_medecin_cible_id = demande.medecin_cible_id
+                demande_medecin_accepteur_id = demande.medecin_accepteur_id
                 demande_dossier_medical_id = demande.dossier_medical_id
                 demande_consultation_id = demande.consultation_id
                 demande_motif = demande.motif
                 demande_statut = demande.statut
+                demande_montant_facture = float(demande.montant_facture) if demande.montant_facture else None
+                demande_caution_montant = float(demande.caution_montant) if demande.caution_montant else None
                 spec = db.get(Specialite, demande.specialite_id)
                 if spec:
                     demande_specialite = spec.libelle_fr or spec.libelle_en
@@ -125,6 +139,7 @@ async def list_conversations(
             "rdv_id": conv.rdv_id,
             "demande_avis_id": conv.demande_avis_id,
             "statut": conv.statut,
+            "supprime_par": conv.supprime_par,
             "nb_messages_non_lus_patient": conv.nb_messages_non_lus_patient,
             "nb_messages_non_lus_medecin": conv.nb_messages_non_lus_medecin,
             "dernier_message_at": conv.dernier_message_at,
@@ -138,12 +153,16 @@ async def list_conversations(
             "demande_medecin_cible_nom": demande_medecin_cible_nom,
             "demande_medecin_demandeur_id": demande_medecin_demandeur_id,
             "demande_medecin_cible_id": demande_medecin_cible_id,
+            "demande_medecin_accepteur_id": demande_medecin_accepteur_id,
             "demande_dossier_medical_id": demande_dossier_medical_id,
             "demande_consultation_id": demande_consultation_id,
             "demande_motif": demande_motif,
             "demande_specialite": demande_specialite,
             "demande_patient_nom": demande_patient_nom,
+            "demande_patient_id": demande.patient_id if conv.demande_avis_id and demande else None,
             "demande_statut": demande_statut,
+            "demande_montant_facture": demande_montant_facture,
+            "demande_caution_montant": demande_caution_montant,
         }
         results.append(data)
 
@@ -279,15 +298,50 @@ async def update_conversation(
     return conversation
 
 
-@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_conversation(
+@router.put("/conversations/{conversation_id}/lu")
+async def mark_conversation_read(
     conversation_id: UUID,
     db: Session = Depends(get_db),
-    current_user=Depends(require_role("admin")),
+    current_user=Depends(get_current_active_user),
 ):
     conversation = db.get(Conversation, conversation_id)
     if not conversation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée")
-    db.delete(conversation)
+    if not _can_access_conversation(current_user, conversation, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
+    if current_user.role == "patient" and conversation.patient_id == current_user.id:
+        conversation.nb_messages_non_lus_patient = 0
+    elif current_user.role in ("medecin", "infirmier", "sage_femme") and (
+        conversation.medecin_id == current_user.id or conversation.demande_avis_id is not None
+    ):
+        conversation.nb_messages_non_lus_medecin = 0
+    elif current_user.role == "admin":
+        conversation.nb_messages_non_lus_patient = 0
+        conversation.nb_messages_non_lus_medecin = 0
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+
+    db.commit()
+    db.refresh(conversation)
+    return {
+        "id": str(conversation.id),
+        "nb_messages_non_lus_patient": conversation.nb_messages_non_lus_patient,
+        "nb_messages_non_lus_medecin": conversation.nb_messages_non_lus_medecin,
+    }
+
+
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conversation(
+    conversation_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation non trouvée")
+    if not _can_access_conversation(current_user, conversation, db):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    conversation.supprime_par = current_user.id
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -125,13 +125,19 @@ async def create_document_medical(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Consultation introuvable")
 
     document = DocumentMedical(**document_create.dict(exclude_unset=True))
+    if not document.uploaded_par:
+        document.uploaded_par = current_user.id
+    if current_user.role == "patient" and not document.patient_id:
+        document.patient_id = current_user.id
+    if current_user.role == "medecin" and not document.medecin_uploadeur_id:
+        document.medecin_uploadeur_id = current_user.id
     db.add(document)
     try:
         db.commit()
         db.refresh(document)
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du document médical") from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Erreur de création du document médical: {exc.orig}") from exc
 
     if current_user.role == "medecin" and document_create.patient_id:
         _create_document_notification(db, document, current_user, document_create.patient_id)

@@ -16,10 +16,10 @@ export default function MessageInput({
       ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
     >
       {isClosed && (
-        <div className={`flex items-center gap-2 px-4 py-2 text-xs font-medium
-          ${darkMode ? "bg-red-900/20 text-red-400" : "bg-red-50 text-red-600"}`}>
-          <Lock size={12} />
-          Conversation fermée — les patients ne peuvent plus envoyer de messages
+        <div className={`flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold border-b
+          ${darkMode ? "bg-blue-900/30 text-blue-300 border-blue-800" : "bg-blue-50 text-blue-700 border-blue-100"}`}>
+          <Lock size={13} />
+          Cette conversation est clôturée (Mode lecture seule)
         </div>
       )}
       <div className="flex items-center gap-2 p-3">
@@ -33,7 +33,7 @@ export default function MessageInput({
           }`}
           placeholder={
             isClosed
-              ? "Conversation fermée par le médecin"
+              ? "Conversation clôturée (Lecture seule)"
               : isBlocked
               ? "Conversation bloquée"
               : "Écrivez votre message..."

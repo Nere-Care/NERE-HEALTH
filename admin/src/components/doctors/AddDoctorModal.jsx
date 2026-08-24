@@ -1,4 +1,4 @@
-import { X, User, Briefcase, Building2, Phone, Mail, MapPin, Stethoscope, FileText } from "lucide-react";
+import { X, User, Briefcase, Building2, Phone, Mail, MapPin, Stethoscope, FileText, Calendar } from "lucide-react";
 
 const PROFESSIONS = [
   { value: "medecin", label: "Médecin" },
@@ -27,6 +27,19 @@ export default function AddDoctorModal({ darkMode, formData, setFormData, isSubm
   const inputClass = `w-full mt-1.5 p-3 rounded-xl border bg-transparent outline-none focus:ring-2 focus:ring-blue-500 transition ${
     darkMode ? "border-slate-700" : "border-gray-300"
   }`;
+
+  const ageCalculated = (() => {
+    if (!formData.date_naissance) return null;
+    const dob = new Date(formData.date_naissance);
+    if (isNaN(dob.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  })();
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -98,6 +111,19 @@ export default function AddDoctorModal({ darkMode, formData, setFormData, isSubm
             </label>
             <input name="numero_ordre" value={formData.numero_ordre} onChange={handleChange}
               placeholder="ORD-XXXXXXXX" className={inputClass} />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium flex items-center gap-2">
+              <Calendar size={14} className="text-gray-400" /> Date de naissance
+            </label>
+            <input type="date" name="date_naissance" value={formData.date_naissance || ""} onChange={handleChange}
+              className={inputClass} />
+            {ageCalculated !== null && ageCalculated < 21 && ageCalculated >= 0 && (
+              <p className="text-xs text-amber-500 font-medium mt-1 flex items-center gap-1">
+                ⚠️ Attention : Ce professionnel a moins de 21 ans ({ageCalculated} ans). Seul l'administrateur est autorisé à l'enregistrer.
+              </p>
+            )}
           </div>
 
           <div>

@@ -4,6 +4,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import verify_registered_user
 from main import app
 
 client = TestClient(app)
@@ -19,12 +20,15 @@ def _register_shared_user():
 
 
 def _register_user(email: str, password: str = "SecurePass1!"):
-    return client.post(f"{PREFIX}/auth/register", json={
+    r = client.post(f"{PREFIX}/auth/register", json={
         "email": email,
         "password": password,
         "prenom": "Test",
         "nom": "Security",
     })
+    if r.status_code == 200:
+        verify_registered_user(client, r, email)
+    return r
 
 
 def _login(email: str, password: str = "SecurePass1!"):
@@ -118,10 +122,12 @@ class TestAuthentication:
         assert len(data["refresh_token"]) > 20
 
     def test_access_protected_route_without_token(self):
+        client.cookies.clear()
         r = client.get(f"{PREFIX}/auth/me")
         assert r.status_code == 401
 
     def test_access_with_invalid_token(self):
+        client.cookies.clear()
         r = client.get(f"{PREFIX}/auth/me", headers=_auth_header("invalid.jwt.token"))
         assert r.status_code == 401
 

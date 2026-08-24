@@ -1,4 +1,5 @@
 import { getStoredUser } from "../../../services/auth";
+import { getUserTimezone } from "../../../utils/timezone";
 
 function decodeMsg(data) {
   try {
@@ -46,6 +47,7 @@ export default function ChatMessage({ msg, darkMode }) {
           {new Date(msg.created_at).toLocaleTimeString("fr-FR", {
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: getUserTimezone(),
           })}
         </p>
       </div>

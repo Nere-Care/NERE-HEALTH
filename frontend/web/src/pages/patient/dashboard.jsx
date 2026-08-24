@@ -14,6 +14,7 @@ import PatientCallScreen from '../../components/patient/PatientCallScreen';
 import AccountStatusBanner from '../../components/ui/AccountStatusBanner';
 import NotificationBanner from '../../components/ui/NotificationBanner';
 import ProfileCompletionBanner from '../../components/ui/ProfileCompletionBanner';
+import TwoFactorPromptBanner from '../../components/ui/TwoFactorPromptBanner';
 import { getProfileCompletion } from '../../utils/profileCompletion';
 import { getUserTimezone } from '../../utils/timezone';
 
@@ -275,6 +276,8 @@ export default function Dashboard({ darkMode }) {
       />
 
       {patientData && <ProfileCompletionBanner percent={getProfileCompletion(user, patientData).percent} />}
+
+      {user && !user.totp_actif && <TwoFactorPromptBanner />}
 
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
         <div>
@@ -726,7 +729,7 @@ export default function Dashboard({ darkMode }) {
             </div>
             <div className="p-5">
               <p className={`text-xs mb-4 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                {new Date(selectedMiseAJour.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                {new Date(selectedMiseAJour.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: getUserTimezone() })}
               </p>
               <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{selectedMiseAJour.contenu}</p>
               {selectedMiseAJour.lien && (

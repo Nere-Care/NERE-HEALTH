@@ -1,27 +1,70 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 import secrets
 import requests as http_requests
+from datetime import datetime, timedelta, timezone
 
 from auth import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
     create_session,
+    create_twofa_token,
     decode_access_token,
+    decode_twofa_token,
+    get_block_remaining_seconds,
     get_current_active_user,
     get_password_hash,
+    get_user_by_email,
+    new_totp_secret,
+    new_verification_credentials,
+    register_failed_login,
+    reset_login_attempts,
     validate_password,
+    verify_email_by_code,
+    verify_email_by_token,
+    verify_password,
+    verify_totp,
+    LOGIN_BLOCK_MINUTES,
     REFRESH_TOKEN_EXPIRE_HOURS,
 )
 import hashlib
+import pyotp
 from config import settings
 from db import get_db
-from limiter import limiter
+from email_service import (
+    email_enabled,
+    send_2fa_disabled_email,
+    send_2fa_enabled_email,
+    send_password_changed_email,
+    send_reset_password_email,
+    send_verification_email,
+)
+
+_COOKIE_SECURE = not settings.DEBUG  # False en dev HTTP, True en prod HTTPS
+_COOKIE_SAMESITE = "lax"
+from limiter import limiter, resend_key_func
+from slowapi.util import get_remote_address
 from models import User, Session as UserSession, Medecin, MedecinSpecialite, Patient, Specialite, Structure
-from schemas import Token, RefreshRequest, UserCreate, UserRead, UserUpdate, PasswordChange, PatientRegister, MedecinRegister
+from schemas import (
+    Token,
+    RefreshRequest,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+    PasswordChange,
+    PatientRegister,
+    MedecinRegister,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    ResendVerificationRequest,
+    TwoFactorCodeRequest,
+    TwoFactorVerifyRequest,
+    VerifyEmailCodeRequest,
+    VerifyEmailRequest,
+)
 from validators import validate_phone
 
 router = APIRouter(tags=["auth"])
@@ -34,20 +77,152 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _frontend_base_url(request: Request) -> str:
+    """URL du frontend utilisée pour les liens d'emails.
+
+    Priorité : l'en-tête Origin (l'URL exacte que le navigateur a utilisée),
+    sinon Host + schéma (X-Forwarded-Proto si derrière un proxy TLS),
+    sinon FRONTEND_URL du settings (fallback). Permet de fonctionner
+    quelle que soit l'adresse IP / le domaine utilisé pour accéder au site.
+    """
+    origin = request.headers.get("origin")
+    if origin:
+        return origin.rstrip("/")
+    host = request.headers.get("host")
+    if host:
+        scheme = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+        return f"{scheme}://{host}".rstrip("/")
+    return settings.FRONTEND_URL
+
+
+def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    """Store tokens in httpOnly cookies and a JS-readable marker (no token) for auth state."""
+    response.set_cookie(
+        key="access_token", value=access_token,
+        httponly=True, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key="refresh_token", value=refresh_token,
+        httponly=True, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+    response.set_cookie(
+        key="nere_authed", value="1",
+        httponly=False, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(
+        key="access_token", httponly=True, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        key="refresh_token", httponly=True, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+    response.delete_cookie(
+        key="nere_authed", httponly=False, secure=_COOKIE_SECURE, samesite=_COOKIE_SAMESITE,
+    )
+
+
+def _init_email_verification(db: Session, user: User) -> None:
+    """Génère le jeton + code de confirmation d'email pour un nouveau compte."""
+    new_verification_credentials(user)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+
+def _send_verification_email_or_dev(request: Request, user: User) -> dict:
+    """Envoie l'email de confirmation, ou renvoie jeton + code (mode dev)."""
+    if email_enabled():
+        send_verification_email(
+            user.email,
+            user.prenom or user.nom or "cher utilisateur",
+            user.email_verification_token,
+            user.email_otp,
+            base_url=_frontend_base_url(request),
+        )
+        return {}
+    return {
+        "dev_verification_token": user.email_verification_token,
+        "dev_verification_code": user.email_otp,
+    }
+
+
+def _register_response(request: Request, user: User) -> dict:
+    """Réponse d'inscription : données utilisateur + infos de vérif en mode dev."""
+    base = UserRead.model_validate(user).model_dump()
+    base.update(_send_verification_email_or_dev(request, user))
+    return base
+
+
+def _totp_qr_base64(otpauth_url: str) -> str:
+    import base64
+    import io
+    import qrcode
+    qr = qrcode.make(otpauth_url)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
 @router.post("/auth/token", response_model=Token)
-@limiter.limit("10/minute")
+@limiter.limit("10/minute, 20/hour")
 async def login_for_access_token(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
+    existing_user = get_user_by_email(db, form_data.username)
+
+    if existing_user:
+        remaining = get_block_remaining_seconds(existing_user)
+        if remaining is not None:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Trop de tentatives. Compte bloqué, réessayez dans {int(remaining // 60) + 1} min.",
+            )
+
+    password_ok = bool(existing_user) and verify_password(
+        form_data.password, existing_user.hashed_password
+    )
+
+    if existing_user and password_ok:
+        if not existing_user.email_verifie:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "EMAIL_NOT_VERIFIED",
+                    "message": "Veuillez confirmer votre adresse email avant de vous connecter. "
+                    "Un lien et un code vous ont été envoyés.",
+                },
+            )
+        if existing_user.statut in ("banni", "inactif", "supprime"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Compte désactivé ou suspendu",
+            )
+
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        if existing_user:
+            register_failed_login(db, existing_user)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Identifiants incorrects",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    if user.totp_actif:
+        return {
+            "access_token": "",
+            "refresh_token": None,
+            "token_type": "bearer",
+            "requires_2fa": True,
+            "totp_token": create_twofa_token(user.email),
+        }
+
+    reset_login_attempts(db, user)
     jti = secrets.token_hex(16)
     access_token = create_access_token(subject=user.email, jti=jti)
     refresh_token = create_refresh_token()
@@ -65,13 +240,277 @@ async def login_for_access_token(
     db.add(user)
     db.commit()
 
+    _set_auth_cookies(response, access_token, refresh_token)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/auth/forgot-password")
+@limiter.limit("3/15 minutes, 5/hour")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Generate a reset token. Réponse générique pour éviter l'énumération des comptes."""
+    email = body.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+
+    if user:
+        user.reset_password_token = secrets.token_urlsafe(32)
+        user.reset_password_token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        if email_enabled():
+            send_reset_password_email(
+                user.email,
+                user.prenom or user.nom or "cher utilisateur",
+                user.reset_password_token,
+                base_url=_frontend_base_url(request),
+            )
+            return {"detail": "Si l'email existe, un lien de réinitialisation a été envoyé."}
+        # Mode dev : pas de SMTP → on renvoie le jeton pour pouvoir tester.
+        return {
+            "detail": "Si l'email existe, un lien de réinitialisation a été envoyé.",
+            "reset_token": user.reset_password_token,
+        }
+
+    return {"detail": "Si l'email existe, un lien de réinitialisation a été envoyé."}
+
+
+@router.post("/auth/reset-password")
+@limiter.limit("5/minute")
+async def reset_password(
+    request: Request,
+    body: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(User)
+        .filter(User.reset_password_token == body.token, User.reset_password_token_expires.isnot(None))
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Jeton invalide ou expiré")
+
+    expires = user.reset_password_token_expires
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Jeton invalide ou expiré")
+
+    validate_password(body.new_password)
+
+    user.mot_de_passe_hash = get_password_hash(body.new_password)
+    user.reset_password_token = None
+    user.reset_password_token_expires = None
+    user.nb_tentatives_connexion = 0
+    user.bloque_jusqu_a = None
+    db.add(user)
+    db.commit()
+
+    return {"detail": "Mot de passe réinitialisé avec succès"}
+
+
+# ── Vérification d'email ──────────────────────────────────────────────────
+
+
+@router.post("/auth/verify-email")
+@limiter.limit("10/minute")
+async def verify_email(
+    request: Request,
+    body: VerifyEmailRequest,
+    db: Session = Depends(get_db),
+):
+    user = verify_email_by_token(db, body.token.strip())
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Lien de confirmation invalide ou expiré",
+        )
+    return {
+        "detail": "Adresse email confirmée avec succès",
+        "email": user.email,
+        "role": user.role,
+    }
+
+
+@router.post("/auth/verify-email-code")
+@limiter.limit("10/minute")
+async def verify_email_code(
+    request: Request,
+    body: VerifyEmailCodeRequest,
+    db: Session = Depends(get_db),
+):
+    user = verify_email_by_code(db, body.email.strip().lower(), body.code.strip())
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code de confirmation invalide ou expiré",
+        )
+    return {
+        "detail": "Adresse email confirmée avec succès",
+        "email": user.email,
+        "role": user.role,
+    }
+
+
+@router.post("/auth/resend-verification")
+@limiter.limit("3/15 minutes, 5/hour", key_func=resend_key_func)
+@limiter.limit("30/hour", key_func=get_remote_address)
+async def resend_verification(
+    request: Request,
+    body: ResendVerificationRequest,
+    db: Session = Depends(get_db),
+):
+    """Renvoie l'email de confirmation. Réponse générique (pas d'énumération)."""
+    email = (body.email or "").strip().lower()
+    token = (body.token or "").strip()
+
+    user = None
+    if email:
+        user = db.query(User).filter(User.email == email).first()
+    elif token:
+        user = db.query(User).filter(User.email_verification_token == token).first()
+
+    if user and not user.email_verifie:
+        _init_email_verification(db, user)
+        dev = _send_verification_email_or_dev(request, user)
+        if dev:
+            return {"detail": "Un nouveau lien de confirmation a été envoyé.", **dev}
+
+    return {"detail": "Si l'email existe et n'est pas confirmé, un nouveau lien vous a été envoyé."}
+
+
+# ── Double authentification (TOTP) ────────────────────────────────────────
+
+
+@router.post("/auth/verify-2fa", response_model=Token)
+@limiter.limit("5/minute")
+async def verify_twofa(
+    request: Request,
+    response: Response,
+    body: TwoFactorVerifyRequest,
+    db: Session = Depends(get_db),
+):
+    email = decode_twofa_token(body.totp_token.strip())
+    user = get_user_by_email(db, email)
+    if not user or not user.totp_actif:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session 2FA invalide")
+
+    if not verify_totp(user, body.code.strip()):
+        register_failed_login(db, user)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Code de vérification incorrect",
+        )
+
+    reset_login_attempts(db, user)
+    jti = secrets.token_hex(16)
+    access_token = create_access_token(subject=user.email, jti=jti)
+    refresh_token = create_refresh_token()
+
+    create_session(
+        db=db,
+        user=user,
+        access_token_jti=jti,
+        refresh_token=refresh_token,
+        ip_address=_get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    user.last_login = datetime.now(timezone.utc)
+    db.add(user)
+    db.commit()
+
+    _set_auth_cookies(response, access_token, refresh_token)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/auth/2fa/setup")
+async def twofa_setup(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if current_user.totp_actif:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La double authentification est déjà activée",
+        )
+    secret = new_totp_secret()
+    current_user.totp_secret = secret
+    db.add(current_user)
+    db.commit()
+    otpauth_url = pyotp.TOTP(secret).provisioning_uri(
+        name=current_user.email, issuer_name="Néré Health"
+    )
+    return {
+        "secret": secret,
+        "otpauth_url": otpauth_url,
+        "qr_code": _totp_qr_base64(otpauth_url),
+    }
+
+
+@router.post("/auth/2fa/enable")
+@limiter.limit("10/minute")
+async def twofa_enable(
+    request: Request,
+    body: TwoFactorCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if not current_user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Aucun secret 2FA en attente. Demandez un nouveau code QR d'abord.",
+        )
+    if not verify_totp(current_user, body.code.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code de vérification incorrect",
+        )
+    current_user.totp_actif = True
+    db.add(current_user)
+    db.commit()
+    send_2fa_enabled_email(
+        current_user.email, current_user.prenom or current_user.nom or "cher utilisateur"
+    )
+    return {"detail": "Double authentification activée", "totp_actif": True}
+
+
+@router.post("/auth/2fa/disable")
+@limiter.limit("10/minute")
+async def twofa_disable(
+    request: Request,
+    body: TwoFactorCodeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    if not current_user.totp_actif:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La double authentification n'est pas activée",
+        )
+    if not verify_totp(current_user, body.code.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code de vérification incorrect",
+        )
+    current_user.totp_actif = False
+    current_user.totp_secret = None
+    db.add(current_user)
+    db.commit()
+    send_2fa_disabled_email(
+        current_user.email, current_user.prenom or current_user.nom or "cher utilisateur"
+    )
+    return {"detail": "Double authentification désactivée", "totp_actif": False}
 
 
 @router.post("/auth/refresh", response_model=Token)
 @limiter.limit("20/minute")
 async def refresh_access_token(
     request: Request,
+    response: Response,
     body: RefreshRequest,
     db: Session = Depends(get_db),
 ):
@@ -121,10 +560,11 @@ async def refresh_access_token(
         user_agent=request.headers.get("user-agent"),
     )
 
+    _set_auth_cookies(response, new_access, new_refresh)
     return {"access_token": new_access, "refresh_token": new_refresh, "token_type": "bearer"}
 
 
-@router.post("/auth/register", response_model=UserRead)
+@router.post("/auth/register")
 @limiter.limit("5/minute")
 async def register_user(request: Request, user_create: UserCreate, db: Session = Depends(get_db)):
     validate_password(user_create.password)
@@ -148,7 +588,8 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
         telephone=user_create.telephone,
         mot_de_passe_hash=hashed_password,
         role="patient",
-        statut="actif",
+        statut="en_attente",
+        email_verifie=False,
     )
     db.add(user)
     try:
@@ -163,7 +604,8 @@ async def register_user(request: Request, user_create: UserCreate, db: Session =
             detail = "Ce numéro de téléphone est déjà utilisé"
         raise HTTPException(status_code=400, detail=detail) from exc
 
-    return user
+    _init_email_verification(db, user)
+    return _register_response(request, user)
 
 
 def generer_nss(patient_data, _seed=0):
@@ -179,7 +621,7 @@ def generer_nss(patient_data, _seed=0):
     return f"{s}{yy}{mm}{digits}"
 
 
-@router.post("/auth/register/patient", response_model=UserRead)
+@router.post("/auth/register/patient")
 @limiter.limit("3/minute")
 async def register_patient(
     request: Request,
@@ -215,7 +657,8 @@ async def register_patient(
         telephone=patient_data.telephone,
         mot_de_passe_hash=hashed_password,
         role="patient",
-        statut="actif",
+        statut="en_attente",
+        email_verifie=False,
         date_naissance=patient_data.date_naissance,
         adresse=patient_data.adresse,
     )
@@ -241,7 +684,8 @@ async def register_patient(
         try:
             db.commit()
             db.refresh(user)
-            return user
+            _init_email_verification(db, user)
+            return _register_response(request, user)
         except IntegrityError as exc:
             db.rollback()
             if "uq_patients_nss" in str(exc.orig) and attempt < max_retry - 1:
@@ -250,10 +694,10 @@ async def register_patient(
                 raise HTTPException(status_code=400, detail="Cet email est déjà utilisé") from exc
             raise HTTPException(status_code=400, detail="Erreur d'inscription") from exc
 
-    return user
+    return _register_response(request, user)
 
 
-@router.post("/auth/register/medecin", response_model=UserRead)
+@router.post("/auth/register/medecin")
 @limiter.limit("3/minute")
 async def register_medecin(
     request: Request,
@@ -305,7 +749,8 @@ async def register_medecin(
         telephone=medecin_data.telephone,
         mot_de_passe_hash=hashed_password,
         role="medecin",
-        statut="actif",
+        statut="en_attente",
+        email_verifie=False,
         date_naissance=medecin_data.date_naissance,
         adresse=medecin_data.adresse,
     )
@@ -361,7 +806,8 @@ async def register_medecin(
             detail = "Cet email est déjà utilisé"
         raise HTTPException(status_code=400, detail=detail) from exc
 
-    return user
+    _init_email_verification(db, user)
+    return _register_response(request, user)
 
 
 @router.get("/auth/me", response_model=UserRead)
@@ -408,12 +854,15 @@ async def update_password(
     current_user.mot_de_passe_hash = get_password_hash(pw.new_password)
     db.add(current_user)
     db.commit()
+    send_password_changed_email(
+        current_user.email, current_user.prenom or current_user.nom or "cher utilisateur"
+    )
     return {"detail": "Mot de passe modifié avec succès"}
 
 
 @router.post("/auth/google")
 @limiter.limit("10/minute")
-async def google_login(request: Request, body: dict, db: Session = Depends(get_db)):
+async def google_login(request: Request, response: Response, body: dict, db: Session = Depends(get_db)):
     credential = body.get("credential")
     if not credential:
         raise HTTPException(status_code=400, detail="Token Google manquant")
@@ -450,6 +899,12 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
             raise HTTPException(status_code=403, detail="Compte désactivé")
         if picture and not user.photo_url:
             user.photo_url = picture
+            db.add(user)
+            db.commit()
+        # Google vérifie l'email lui-même : un compte préexistant non confirmé est validé.
+        if not user.email_verifie:
+            user.email_verifie = True
+            user.statut = "actif"
             db.add(user)
             db.commit()
     elif not desired_role:
@@ -506,6 +961,15 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
 
         db.refresh(user)
 
+    if user.totp_actif:
+        return {
+            "access_token": "",
+            "refresh_token": None,
+            "token_type": "bearer",
+            "requires_2fa": True,
+            "totp_token": create_twofa_token(user.email),
+        }
+
     jti = secrets.token_hex(16)
     access_token = create_access_token(subject=user.email, jti=jti)
     refresh_token = create_refresh_token()
@@ -519,4 +983,11 @@ async def google_login(request: Request, body: dict, db: Session = Depends(get_d
         user_agent=request.headers.get("user-agent"),
     )
 
+    _set_auth_cookies(response, access_token, refresh_token)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/auth/logout")
+async def logout(response: Response):
+    _clear_auth_cookies(response)
+    return {"detail": "Déconnecté"}

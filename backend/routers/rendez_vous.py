@@ -4,13 +4,14 @@ from datetime import datetime, time as dt_time, timezone
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from auth import get_current_active_user, require_role
+from config import settings
 from db import get_db
 from models import (
     Consultation,
@@ -29,6 +30,7 @@ from models import (
     User,
 )
 from schemas import RendezVousCreate, RendezVousRead
+from services.livekit import generate_livekit_token
 from timezone import to_local, DEFAULT_TZ
 
 router = APIRouter(tags=["rendez_vous"])
@@ -514,6 +516,13 @@ async def complete_rendez_vous(
         dossier = db.query(DossierMedical).filter(
             DossierMedical.patient_id == rendez_vous.patient_id
         ).first()
+        if not dossier:
+            dossier = DossierMedical(
+                numero_dossier=f"DOS-{secrets.token_hex(4).upper()}",
+                patient_id=rendez_vous.patient_id,
+            )
+            db.add(dossier)
+            db.flush()
         now = datetime.now(timezone.utc)
         duree = int((now - rendez_vous.date_heure_debut).total_seconds() / 60) if rendez_vous.date_heure_debut else None
         consultation = Consultation(
@@ -533,10 +542,64 @@ async def complete_rendez_vous(
             db.commit()
         except IntegrityError:
             db.rollback()
+            import logging
+            logging.exception(
+                "Échec création de la consultation à la finalisation du RDV %s", rendez_vous.id
+            )
 
     _send_avis_notification(db, rendez_vous)
 
     return rendez_vous
+
+
+def _livekit_url_from_request(request: Request) -> str:
+    """Construit wss://{hôte}/livekit depuis le Host de la requête.
+
+    Rendre l'URL LiveKit indépendante de l'IP : le frontend rejoint la salle
+    via le même hôte que celui qu'il utilise pour l'API (port ignoré).
+    """
+    host_header = request.headers.get("host", "").strip()
+    hostname = host_header.split(":")[0].lower() if host_header else ""
+    if hostname:
+        return f"wss://{hostname}/livekit"
+    return settings.LIVEKIT_URL or ""
+
+
+@router.get("/rendez_vous/{rendez_vous_id}/token")
+async def get_teleconsultation_token(
+    rendez_vous_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_active_user),
+):
+    """Renvoie le token LiveKit pour rejoindre la téléconsultation.
+
+    Seuls le médecin et le patient concernés par le RDV peuvent l'obtenir.
+    """
+    rendez_vous = db.get(RendezVous, rendez_vous_id)
+    if not rendez_vous:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rendez-vous non trouvé")
+
+    is_medecin = current_user.role == "medecin" and rendez_vous.medecin_id == current_user.id
+    is_patient = current_user.role == "patient" and rendez_vous.patient_id == current_user.id
+    if not (is_medecin or is_patient):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seul le médecin ou le patient de ce rendez-vous peut rejoindre la consultation",
+        )
+
+    room = f"nere-{rendez_vous.id}"
+    name = f"{current_user.prenom or ''} {current_user.nom or ''}".strip()
+    if current_user.role == "medecin":
+        name = f"Dr {name}".strip()
+
+    token = generate_livekit_token(room=room, identity=str(current_user.id), name=name)
+
+    return {
+        "url": _livekit_url_from_request(request),
+        "room": room,
+        "token": token,
+    }
 
 
 def _send_avis_notification(db: Session, rdv: RendezVous):

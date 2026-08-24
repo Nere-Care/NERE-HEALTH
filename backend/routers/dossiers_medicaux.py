@@ -47,6 +47,9 @@ async def list_dossiers_medicaux(
     for d in dossiers:
         access = get_dossier_access_level(db, current_user, d.patient_id)
         read = DossierMedicalRead.model_validate(d)
+        pat = db.get(Patient, d.patient_id)
+        if pat:
+            read.groupe_sanguin = pat.groupe_sanguin
         if access == "restricted":
             read.acces_restricted = True
             read.antecedents_familiaux = None
@@ -62,6 +65,7 @@ async def list_dossiers_medicaux(
             read.glycemie_a_jeun = None
             read.vaccinations = None
             read.traitements_chroniques = None
+            read.groupe_sanguin = None
         else:
             read.acces_restricted = False
         results.append(read)
@@ -123,6 +127,9 @@ async def read_dossier_medical(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
     access = get_dossier_access_level(db, current_user, dossier.patient_id)
     read = DossierMedicalRead.model_validate(dossier)
+    pat = db.get(Patient, dossier.patient_id)
+    if pat:
+        read.groupe_sanguin = pat.groupe_sanguin
     if access == "restricted":
         read.acces_restricted = True
         read.antecedents_familiaux = None
@@ -138,9 +145,11 @@ async def read_dossier_medical(
         read.glycemie_a_jeun = None
         read.vaccinations = None
         read.traitements_chroniques = None
+        read.groupe_sanguin = None
     else:
         read.acces_restricted = False
     return read
+
 
 
 @router.put("/dossiers_medicaux/{dossier_id}", response_model=DossierMedicalRead)

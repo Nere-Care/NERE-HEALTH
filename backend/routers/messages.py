@@ -1,5 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime, timezone
+import base64
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
@@ -9,7 +11,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_active_user
 from crypto import encrypt, decrypt
 from db import get_db
-from models import Conversation, DemandeAvisMedical, Message
+from models import Conversation, DemandeAvisMedical, Message, Notification, User
 from schemas import MessageCreate, MessageRead
 
 router = APIRouter(tags=["messages"])
@@ -27,6 +29,48 @@ def _can_access_conversation(user, conv: Conversation, db: Session) -> bool:
         if demande and user.id in (demande.medecin_demandeur_id, demande.medecin_cible_id, demande.medecin_accepteur_id):
             return True
     return False
+
+
+def _determiner_recipient(user, conv: Conversation, db: Session):
+    """Renvoie (user_id_du_recipient, role_du_recipient)."""
+    if user.role == "patient":
+        return conv.medecin_id, "medecin"
+    if conv.patient_id and conv.demande_avis_id is None:
+        return conv.patient_id, "patient"
+    if conv.demande_avis_id:
+        demande = db.get(DemandeAvisMedical, conv.demande_avis_id)
+        if demande:
+            if user.id == demande.medecin_demandeur_id:
+                return demande.medecin_cible_id or demande.medecin_accepteur_id, "medecin"
+            return demande.medecin_demandeur_id, "medecin"
+    return conv.medecin_id, "medecin"
+
+
+def _apercu_lisible(raw_bytes: bytes) -> bytes:
+    """Convertit le contenu (base64 envoyé par le client) en texte lisible,
+    tronqué à une limite d'octets compatible avec la colonne preview (200)."""
+    try:
+        decoded = base64.b64decode(raw_bytes.decode("utf-8", errors="ignore").strip())
+    except Exception:
+        decoded = raw_bytes
+    if len(decoded) <= 150:
+        return decoded
+    return decoded[:150].decode("utf-8", errors="ignore").encode("utf-8")
+
+
+def _notifier_nouveau_message(db: Session, recipient_id, sender_name: str, preview: str, conversation_id: UUID):
+    if not recipient_id:
+        return
+    notification = Notification(
+        utilisateur_id=recipient_id,
+        type="nouveau_message",
+        canal="in_app",
+        statut="envoye",
+        titre="Nouveau message",
+        contenu=f"{sender_name} : {preview}",
+        reference_externe=str(conversation_id),
+    )
+    db.add(notification)
 
 
 @router.get("/messages", response_model=List[MessageRead])
@@ -70,8 +114,13 @@ async def create_message(
     if not _can_access_conversation(current_user, conversation, db):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
 
-    if conversation.statut == "fermee" and current_user.role == "patient":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La conversation a été fermée par le médecin")
+    if conversation.statut == "fermee":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La conversation est fermée (Lecture seule)")
+
+    if conversation.demande_avis_id:
+        demande = db.get(DemandeAvisMedical, conversation.demande_avis_id)
+        if demande and demande.statut == "cloturee":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cet avis médical est clôturé (Lecture seule)")
 
     raw_content = message_create.contenu_chiffre
     encrypted = encrypt(raw_content)
@@ -88,6 +137,21 @@ async def create_message(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Erreur de création du message") from exc
+
+    recipient_id, recipient_role = _determiner_recipient(current_user, conversation, db)
+    if recipient_role == "patient":
+        conversation.nb_messages_non_lus_patient += 1
+    else:
+        conversation.nb_messages_non_lus_medecin += 1
+    conversation.dernier_message_at = datetime.now(timezone.utc)
+    preview_bytes = _apercu_lisible(raw_content)
+    preview_text = preview_bytes.decode("utf-8", errors="ignore")
+    conversation.dernier_message_preview = base64.b64encode(preview_bytes).decode("ascii")
+
+    sender_name = f"{current_user.prenom or ''} {current_user.nom or ''}".strip() or (current_user.email or "Un utilisateur")
+    _notifier_nouveau_message(db, recipient_id, sender_name, preview_text, conversation.id)
+
+    db.commit()
 
     message.contenu_chiffre = raw_content
     return message

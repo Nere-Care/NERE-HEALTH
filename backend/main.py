@@ -45,6 +45,7 @@ from routers.confidentialite import router as confidentialite_router
 from routers.demandes_avis import router as demandes_avis_router
 from routers.analyses import router as analyses_router
 from routers.retraits import router as retraits_router
+from routers.signalements import router as signalements_router
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from db import engine, SessionLocal
@@ -103,6 +104,12 @@ try:
 except Exception:
     pass
 
+try:
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS supprime_par UUID"))
+except Exception:
+    pass
+
 import seed_admin as _seed_admin
 import seed_medicaments as _seed_medicaments
 import seed_analyses as _seed_analyses
@@ -124,7 +131,8 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if settings.CORS_ORIGINS != ['*'] else ["*"],
+    allow_origins=settings.CORS_ORIGINS if settings.CORS_ORIGINS != ['*'] else ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -166,6 +174,7 @@ app.include_router(confidentialite_router, prefix=settings.API_PREFIX)
 app.include_router(demandes_avis_router, prefix=settings.API_PREFIX)
 app.include_router(analyses_router, prefix=settings.API_PREFIX)
 app.include_router(retraits_router, prefix=settings.API_PREFIX)
+app.include_router(signalements_router, prefix=settings.API_PREFIX)
 
 
 # --- Scheduler rappels médicaments ---
@@ -218,6 +227,12 @@ def _seed_categories_tickets():
 @app.on_event("startup")
 def start_scheduler():
     scheduler.start()
+
+
+@app.on_event("startup")
+def start_realtime_listener():
+    from services.realtime import start_listener
+    start_listener()
 
 
 @app.on_event("startup")
