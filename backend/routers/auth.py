@@ -9,13 +9,21 @@ import io
 import base64
 from pydantic import BaseModel
 
-from auth import authenticate_user, create_access_token, get_password_hash, validate_password, get_current_active_user
+from auth import (
+    authenticate_user,
+    create_access_token,
+    get_password_hash,
+    validate_password,
+    get_current_active_user,
+    decode_access_token,
+    verify_password,
+)
 from db import get_db
 from limiter import limiter
 from schemas import Token, UserCreate, UserRead, GoogleAuth
 import uuid as uuid_module  # deja importe en haut du fichier normalement
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from models import User, Patient, Medecin, Structure, DossierMedical
 
 
@@ -82,29 +90,19 @@ async def login_for_access_token(
         )
 
     # 4. Traitement 2FA (Si activé)
+        # 4. Traitement 2FA (Si activé)
     if getattr(user, "totp_actif", False):
-        payload_temp = {
-            "sub": user.email,
-            "scope": "2fa_pending",
-            "exp": int((datetime.now(timezone.utc) + timedelta(minutes=5)).timestamp()),
-        }
-        
-        temp_token = jose_jwt.encode(
-            payload_temp, 
-            settings.SECRET_KEY, 
-            algorithm="HS256"
+        temp_token = create_access_token(
+            subject=user.email,
+            expires_delta=timedelta(minutes=5),
+            extra_claims={"scope": "2fa_pending"},
         )
-        
-        if isinstance(temp_token, bytes):
-            temp_token = temp_token.decode("utf-8")
-
-        # Retour d'une réponse JSON d'attente (200 OK) sans lever d'exception HTTP
         return {
             "requires_2fa": True,
             "temp_token": temp_token,
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
-
+    
     # 5. Génération du JWT standard (Si pas de 2FA)
     access_token = create_access_token(subject=user.email)
 
@@ -352,11 +350,14 @@ async def setup_2fa(
     if current_user.totp_actif:
         raise HTTPException(400, "La double authentification est deja activee")
 
-    secret = pyotp.random_base32()
-    current_user.totp_secret = secret
-    db.commit()
+    if not current_user.totp_secret:
+        current_user.totp_secret = pyotp.random_base32()
+        db.commit()
 
-    totp = pyotp.TOTP(secret)
+    # 🔍 DEBUG TEMPORAIRE
+    print(f"[2FA SETUP DEBUG] appel à {datetime.utcnow().isoformat()} — secret utilisé={current_user.totp_secret}")
+
+    totp = pyotp.TOTP(current_user.totp_secret)
     uri = totp.provisioning_uri(name=current_user.email, issuer_name="NERE Health")
 
     qr = qrcode.make(uri)
@@ -366,9 +367,8 @@ async def setup_2fa(
 
     return {
         "qr_code": f"data:image/png;base64,{qr_base64}",
-        "secret_manuel": secret,
+        "secret_manuel": current_user.totp_secret,
     }
-
 
 class Code2FA(BaseModel):
     code: str
@@ -384,14 +384,20 @@ async def activer_2fa(
         raise HTTPException(400, "Veuillez d'abord generer un QR code (/auth/2fa/setup)")
 
     totp = pyotp.TOTP(current_user.totp_secret)
-    if not totp.verify(payload.code, valid_window=1):
+
+    # 🔍 DEBUG TEMPORAIRE — à retirer une fois le bug confirmé
+    print(f"[2FA DEBUG] secret={current_user.totp_secret}")
+    print(f"[2FA DEBUG] code reçu={payload.code}")
+    print(f"[2FA DEBUG] code attendu maintenant={totp.now()}")
+    print(f"[2FA DEBUG] heure serveur UTC={datetime.utcnow().isoformat()}")
+
+    if not totp.verify(payload.code, valid_window=4):
         raise HTTPException(400, "Code invalide. Verifiez votre application d'authentification.")
 
     current_user.totp_actif = True
     db.commit()
 
     return {"message": "Double authentification activee avec succes"}
-
 
 class DesactiverTOTP(BaseModel):
     password: str
@@ -436,7 +442,7 @@ async def verifier_2fa_login(
         raise HTTPException(401, "Utilisateur introuvable")
 
     totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(payload.code, valid_window=1):
+    if not totp.verify(payload.code, valid_window=4):
         raise HTTPException(400, "Code de verification incorrect")
 
     access_token = create_access_token(subject=user.email)

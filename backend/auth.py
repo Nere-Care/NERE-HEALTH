@@ -46,10 +46,16 @@ def validate_password(password: str) -> None:
         )
 
 
-def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    subject: str,
+    expires_delta: timedelta | None = None,
+    extra_claims: dict | None = None,
+) -> str:
     """Create a JWT access token for the given subject (user email)."""
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=60))
     payload = {"sub": subject, "exp": int(expire.timestamp())}
+    if extra_claims:
+        payload.update(extra_claims)
     header = {"alg": "HS256", "typ": "JWT"}
     token = jwt.encode(header, payload, settings.SECRET_KEY)
     return token.decode("utf-8") if isinstance(token, bytes) else token
