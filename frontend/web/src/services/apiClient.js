@@ -1,8 +1,4 @@
-const defaultBaseUrl = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.hostname}:8100`
-  : 'http://localhost:8100';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || defaultBaseUrl;
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export { API_BASE_URL }
 
