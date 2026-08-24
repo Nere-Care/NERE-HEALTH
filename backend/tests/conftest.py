@@ -48,6 +48,7 @@ def admin_auth_header() -> dict[str, str]:
         user = db.query(User).filter(User.email == ADMIN_EMAIL).first()
         if user:
             user.mot_de_passe_hash = get_password_hash(ADMIN_PASSWORD)
+            user.email_verifie = True
             db.add(user)
             db.commit()
         else:
@@ -58,6 +59,7 @@ def admin_auth_header() -> dict[str, str]:
                 mot_de_passe_hash=get_password_hash(ADMIN_PASSWORD),
                 role="admin",
                 statut="actif",
+                email_verifie=True,
             )
             db.add(user)
             db.commit()
